@@ -38,7 +38,7 @@ final class iCloudStorageManager {
             }
         }
         
-        let filename = date.formatted(Date.ISO8601FormatStyle().year().month().day().dateSeparator(.dash)) + ".md"
+        let filename = date.formatted(Date.ISO8601FormatStyle(timeZone: .current).year().month().day().dateSeparator(.dash)) + ".md"
         let fileURL = baseDir.appendingPathComponent(filename)
         
         let timeString = date.formatted(date: .omitted, time: .shortened)
@@ -83,7 +83,7 @@ final class iCloudStorageManager {
             }
         }
         
-        let filename = date.formatted(Date.ISO8601FormatStyle().year().month().day().dateSeparator(.dash)) + ".md"
+        let filename = date.formatted(Date.ISO8601FormatStyle(timeZone: .current).year().month().day().dateSeparator(.dash)) + ".md"
         let fileURL = baseDir.appendingPathComponent(filename)
         
         var fileContent: String?

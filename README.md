@@ -6,7 +6,7 @@ MacroMark is a zero-friction, voice-to-text capture tool designed for personal k
 
 - **Zero-Friction Capture**: Tap the complication, speak, and lower your wrist. Your note is saved instantly. No fumbling with "Done" buttons or battling system timeouts.
 - **The Append Mechanic**: Instead of cluttering your vault with hundreds of tiny files, MacroMark intelligently appends all your captures for a given day to a single `YYYY-MM-DD.md` daily note.
-- **Verbal Macros**: Speak custom trigger words to instantly format your text. Say "Heading One" to output `# `, or use variables like `{date}` and `{time}` to build clever workflows.
+- **Verbal Macros**: Speak custom trigger words to instantly format your text. Say "Heading One" to output `# `, or use variables like `{date}`, `{time}`, and `{location}` to build clever workflows.
 - **PKM Friendly**: Saves directly to a dedicated iCloud Documents folder, making it instantly accessible to Obsidian, Logseq, and other Markdown-based tools.
 
 ## Installation

@@ -31,6 +31,6 @@ The iPhone acts as the processing hub and storage engine.
 - **`Macro` (SwiftData Model)**: Stores the user's custom text replacements (e.g., "Heading One" -> "# ").
 - **`MacroProcessor`**: A stateless engine that takes raw transcribed text and:
   1. Applies user-defined macros using case-insensitive Regex.
-  2. Evaluates dynamic variables (`{date}`, `{time}`, `{newline}`).
+  2. Evaluates dynamic variables (`{date}`, `{time}`, `{newline}`, `{location}` using MapKit reverse geocoding).
   3. Cleans up formatting artifacts (e.g., removing spaces inside Markdown wrapping tags like `* bold *`).
 - **`iCloudStorageManager`**: Resolves the app's ubiquitous iCloud Documents container. It formats the current date to locate `YYYY-MM-DD.md` and uses `NSFileCoordinator` and `FileHandle` to safely append the processed string to the end of the file.

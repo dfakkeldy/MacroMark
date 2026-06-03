@@ -14,7 +14,7 @@ final class AudioRecorder {
     func startRecording() async {
         let session = AVAudioSession.sharedInstance()
         do {
-            let hasPermission = await session.hasPermissionToRecord()
+            let hasPermission = await AVAudioApplication.requestRecordPermission()
             guard hasPermission else {
                 print("No permission to record")
                 return
@@ -61,12 +61,3 @@ final class AudioRecorder {
     }
 }
 
-extension AVAudioSession {
-    func hasPermissionToRecord() async -> Bool {
-        await withCheckedContinuation { continuation in
-            requestRecordPermission { authorized in
-                continuation.resume(returning: authorized)
-            }
-        }
-    }
-}

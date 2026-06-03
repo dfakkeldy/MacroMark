@@ -18,14 +18,14 @@ struct ContentView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.blue)
-                .handGestureShortcut(captureMode == "audio" ? .primaryAction : nil)
+                .handGestureShortcut(.primaryAction, isEnabled: captureMode == "audio")
                 
                 Button("System Capture") {
                     navigationPath.append(.system)
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.orange)
-                .handGestureShortcut(captureMode == "system" ? .primaryAction : nil)
+                .handGestureShortcut(.primaryAction, isEnabled: captureMode == "system")
                 
                 Button("Today's Log") {
                     navigationPath.append(.dailyLog)

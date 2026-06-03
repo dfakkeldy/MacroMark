@@ -1,6 +1,7 @@
 import Foundation
 import UIKit
 import CoreLocation
+import MapKit
 
 struct MacroProcessor {
     @MainActor
@@ -28,7 +29,7 @@ struct MacroProcessor {
         // 2. Evaluate dynamic variables
         let date = Date()
         
-        let dateString = date.formatted(.iso8601.year().month().day().dateSeparator(.dash))
+        let dateString = date.formatted(Date.ISO8601FormatStyle(timeZone: .current).year().month().day().dateSeparator(.dash))
         let timeString = date.formatted(.dateTime.hour(.defaultDigits(amPM: .omitted)).minute(.twoDigits))
         
         processedText = processedText.replacingOccurrences(of: "{date}", with: dateString)
@@ -55,25 +56,26 @@ struct MacroProcessor {
             var locationString = "Unknown Location"
             if let lat = latitude, let lon = longitude {
                 let location = CLLocation(latitude: lat, longitude: lon)
-                let geocoder = CLGeocoder()
-                do {
-                    let placemarks = try await geocoder.reverseGeocodeLocation(location)
-                    if let placemark = placemarks.first {
-                        let street = placemark.thoroughfare ?? ""
-                        let subThoroughfare = placemark.subThoroughfare ?? ""
-                        let city = placemark.locality ?? ""
-                        
-                        if !street.isEmpty && !city.isEmpty {
-                            locationString = "\(subThoroughfare) \(street), \(city)".trimmingCharacters(in: .whitespaces)
-                        } else if !city.isEmpty {
-                            locationString = city
-                        } else {
-                            locationString = placemark.name ?? "Lat: \(lat), Lon: \(lon)"
+                if let request = MKReverseGeocodingRequest(location: location) {
+                    do {
+                        let mapItems = try await request.mapItems
+                        if let placemark = mapItems.first?.placemark {
+                            let street = placemark.thoroughfare ?? ""
+                            let subThoroughfare = placemark.subThoroughfare ?? ""
+                            let city = placemark.locality ?? ""
+                            
+                            if !street.isEmpty && !city.isEmpty {
+                                locationString = "\(subThoroughfare) \(street), \(city)".trimmingCharacters(in: .whitespaces)
+                            } else if !city.isEmpty {
+                                locationString = city
+                            } else {
+                                locationString = placemark.name ?? "Lat: \(lat), Lon: \(lon)"
+                            }
                         }
+                    } catch {
+                        print("Reverse geocoding failed: \(error)")
+                        locationString = "Lat: \(lat), Lon: \(lon)"
                     }
-                } catch {
-                    print("Reverse geocoding failed: \(error)")
-                    locationString = "Lat: \(lat), Lon: \(lon)"
                 }
             }
             processedText = processedText.replacingOccurrences(of: "{location}", with: locationString)
