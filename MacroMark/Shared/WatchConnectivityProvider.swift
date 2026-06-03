@@ -1,6 +1,9 @@
 import Foundation
 import WatchConnectivity
 import Observation
+#if os(iOS)
+import MacroMarkKit
+#endif
 
 @MainActor
 @Observable

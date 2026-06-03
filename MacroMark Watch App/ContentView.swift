@@ -14,19 +14,18 @@ struct ContentView: View {
         NavigationStack(path: $navigationPath) {
             VStack(spacing: 20) {
                 Button("Instant Capture") {
-                    navigationPath.append(.instant)
+                    navigateToDefaultCapture()
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.blue)
-                .handGestureShortcut(.primaryAction, isEnabled: captureMode == "audio")
-                
+                .handGestureShortcut(.primaryAction)
+
                 Button("System Capture") {
                     navigationPath.append(.system)
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.orange)
-                .handGestureShortcut(.primaryAction, isEnabled: captureMode == "system")
-                
+
                 Button("Today's Log") {
                     navigationPath.append(.dailyLog)
                 }
@@ -55,6 +54,17 @@ struct ContentView: View {
                     navigationPath.append(.system)
                 }
             }
+        }
+    }
+
+    private func navigateToDefaultCapture() {
+        switch captureMode {
+        case "audio":
+            navigationPath.append(.instant)
+        case "system":
+            navigationPath.append(.system)
+        default:
+            navigationPath.append(.instant)
         }
     }
 }
