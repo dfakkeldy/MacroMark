@@ -31,6 +31,7 @@ struct InstantCaptureView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.green)
+                .handGestureShortcut(.primaryAction)
             }
         }
         .onAppear {

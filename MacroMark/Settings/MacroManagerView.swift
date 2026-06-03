@@ -16,7 +16,7 @@ struct MacroManagerView: View {
         NavigationStack {
             List {
                 Section("Settings") {
-                    Picker("Watch Capture Mode", selection: $captureMode) {
+                    Picker("Watch Double Tap Action", selection: $captureMode) {
                         Text("Instant (Audio)").tag("audio")
                         Text("Standard (Dictation)").tag("system")
                     }
@@ -48,6 +48,11 @@ struct MacroManagerView: View {
                     }
                     }
                     .onDelete(perform: deleteMacros)
+                    
+                    Button("Restore Default Macros") {
+                        restoreDefaults()
+                    }
+                    .foregroundColor(.red)
                 }
             }
             .navigationTitle("MacroMark")
@@ -93,43 +98,54 @@ struct MacroManagerView: View {
         }
     }
     
+    private var defaultMacros: [Macro] {
+        return [
+            // Markdown Headings
+            Macro(trigger: "Heading One", replacement: "# "),
+            Macro(trigger: "Heading Two", replacement: "## "),
+            Macro(trigger: "Heading Three", replacement: "### "),
+            Macro(trigger: "Heading Four", replacement: "#### "),
+            Macro(trigger: "Heading Five", replacement: "##### "),
+            Macro(trigger: "Heading Six", replacement: "###### "),
+            
+            // Markdown Formatting
+            Macro(trigger: "Bold", replacement: "**"),
+            Macro(trigger: "Italic", replacement: "_"),
+            Macro(trigger: "Strikethrough", replacement: "~~"),
+            Macro(trigger: "Code Block", replacement: "```"),
+            Macro(trigger: "Inline Code", replacement: "`"),
+            Macro(trigger: "Quote", replacement: "{newline}{newline}> "),
+            
+            // Markdown Lists
+            Macro(trigger: "Bullet", replacement: "{newline}{newline}- "),
+            Macro(trigger: "Numbered", replacement: "{newline}{newline}1. "),
+            Macro(trigger: "Task", replacement: "{newline}{newline}- [ ] "),
+            
+            // Clever Macros
+            Macro(trigger: "Timestamp", replacement: "{time} - "),
+            Macro(trigger: "New Journal Entry", replacement: "{newline}{newline}## {date} at {time}{newline}"),
+            Macro(trigger: "Horizontal Rule", replacement: "{newline}{newline}---{newline}"),
+            Macro(trigger: "Paste", replacement: "{clipboard}"),
+            Macro(trigger: "Dropoff", replacement: "{location} - "),
+            Macro(trigger: "Smile", replacement: "😀"),
+            Macro(trigger: "Block ID", replacement: "^id-{uuid}")
+        ]
+    }
+    
     private func prepopulateIfNeeded() {
         if macros.isEmpty {
-            let defaults = [
-                // Markdown Headings
-                Macro(trigger: "Heading One", replacement: "# "),
-                Macro(trigger: "Heading Two", replacement: "## "),
-                Macro(trigger: "Heading Three", replacement: "### "),
-                Macro(trigger: "Heading Four", replacement: "#### "),
-                Macro(trigger: "Heading Five", replacement: "##### "),
-                Macro(trigger: "Heading Six", replacement: "###### "),
-                
-                // Markdown Formatting
-                Macro(trigger: "Bold", replacement: "**"),
-                Macro(trigger: "Italic", replacement: "_"),
-                Macro(trigger: "Strikethrough", replacement: "~~"),
-                Macro(trigger: "Code Block", replacement: "```"),
-                Macro(trigger: "Inline Code", replacement: "`"),
-                Macro(trigger: "Quote", replacement: "> "),
-                
-                // Markdown Lists
-                Macro(trigger: "Bullet", replacement: "- "),
-                Macro(trigger: "Numbered", replacement: "1. "),
-                Macro(trigger: "Task", replacement: "- [ ] "),
-                
-                // Clever Macros
-                Macro(trigger: "Timestamp", replacement: "{time} - "),
-                Macro(trigger: "New Journal Entry", replacement: "{newline}{newline}## {date} at {time}{newline}"),
-                Macro(trigger: "Horizontal Rule", replacement: "---{newline}"),
-                Macro(trigger: "Paste", replacement: "{clipboard}"),
-                Macro(trigger: "Dropoff", replacement: "{location} - "),
-                Macro(trigger: "Smile", replacement: "😀"),
-                Macro(trigger: "Block ID", replacement: "^id-{uuid}")
-            ]
-            
-            for macro in defaults {
+            for macro in defaultMacros {
                 modelContext.insert(macro)
             }
+        }
+    }
+    
+    private func restoreDefaults() {
+        for macro in macros {
+            modelContext.delete(macro)
+        }
+        for macro in defaultMacros {
+            modelContext.insert(macro)
         }
     }
 }

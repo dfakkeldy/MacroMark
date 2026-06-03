@@ -13,6 +13,9 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
     var onNoteReceived: ((String, Double?, Double?) -> Void)?
     var onFileReceived: ((URL, Double?, Double?) -> Void)?
     
+    private var pendingUserInfo: [[String: Any]] = []
+    private var pendingFiles: [(url: URL, metadata: [String: Any])] = []
+    
     private override init() {
         if WCSession.isSupported() {
             session = WCSession.default
@@ -26,6 +29,17 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
     
     func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
         print("WCSession activation completed: \(activationState.rawValue), error: \(String(describing: error))")
+        if activationState == .activated {
+            for userInfo in pendingUserInfo {
+                session.transferUserInfo(userInfo)
+            }
+            pendingUserInfo.removeAll()
+            
+            for file in pendingFiles {
+                session.transferFile(file.url, metadata: file.metadata)
+            }
+            pendingFiles.removeAll()
+        }
     }
     
     #if os(iOS)
@@ -37,11 +51,6 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
     
     // Send a note from Watch to iOS
     func sendNote(_ noteId: UUID, text: String, timestamp: Date, latitude: Double? = nil, longitude: Double? = nil) {
-        guard let session = session, session.activationState == .activated else {
-            print("WCSession not activated")
-            return
-        }
-        
         var userInfo: [String: Any] = [
             "id": noteId.uuidString,
             "text": text,
@@ -52,16 +61,18 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
             userInfo["longitude"] = lon
         }
         
-        session.transferUserInfo(userInfo)
+        guard let session = session else { return }
+        
+        if session.activationState == .activated {
+            session.transferUserInfo(userInfo)
+        } else {
+            pendingUserInfo.append(userInfo)
+            print("WCSession not activated, queued note: \(noteId)")
+        }
     }
     
     // Send a file from Watch to iOS
     func sendFile(_ url: URL, id: UUID, latitude: Double? = nil, longitude: Double? = nil) {
-        guard let session = session, session.activationState == .activated else {
-            print("WCSession not activated")
-            return
-        }
-        
         var metadata: [String: Any] = [
             "id": id.uuidString
         ]
@@ -70,7 +81,14 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
             metadata["longitude"] = lon
         }
         
-        session.transferFile(url, metadata: metadata)
+        guard let session = session else { return }
+        
+        if session.activationState == .activated {
+            session.transferFile(url, metadata: metadata)
+        } else {
+            pendingFiles.append((url: url, metadata: metadata))
+            print("WCSession not activated, queued file: \(id)")
+        }
     }
     
     // Update Application Context (Settings Sync)
@@ -146,6 +164,41 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
                 UserDefaults.standard.set(captureMode, forKey: "captureMode")
             }
         }
+    }
+    
+    func fetchDailyFile() async -> String {
+        guard let session = session, session.activationState == .activated else {
+            return UserDefaults.standard.string(forKey: "cachedDailyLog") ?? ""
+        }
+        
+        do {
+            let content: String = try await withCheckedThrowingContinuation { continuation in
+                session.sendMessage(["request": "dailyFile"], replyHandler: { reply in
+                    if let content = reply["content"] as? String {
+                        continuation.resume(returning: content)
+                    } else {
+                        continuation.resume(throwing: NSError(domain: "WatchConnectivity", code: 2, userInfo: [NSLocalizedDescriptionKey: "Invalid reply content."]))
+                    }
+                }, errorHandler: { error in
+                    continuation.resume(throwing: error)
+                })
+            }
+            UserDefaults.standard.set(content, forKey: "cachedDailyLog")
+            return content
+        } catch {
+            print("Failed to fetch daily file: \(error). Falling back to cache.")
+            return UserDefaults.standard.string(forKey: "cachedDailyLog") ?? ""
+        }
+    }
+    
+    // Handle message requests (e.g., from Watch)
+    func session(_ session: WCSession, didReceiveMessage message: [String : Any], replyHandler: @escaping ([String : Any]) -> Void) {
+        #if os(iOS)
+        if let request = message["request"] as? String, request == "dailyFile" {
+            let content = iCloudStorageManager.shared.readText() ?? ""
+            replyHandler(["content": content])
+        }
+        #endif
     }
 }
 

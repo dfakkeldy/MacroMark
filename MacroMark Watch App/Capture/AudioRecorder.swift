@@ -36,10 +36,11 @@ final class AudioRecorder {
             audioRecorder = try AVAudioRecorder(url: url, settings: settings)
             audioRecorder?.prepareToRecord()
             
-            // Allow the Watch microphone hardware to spin up completely
-            try? await Task.sleep(for: .milliseconds(300))
-            
+            // Start recording immediately
             audioRecorder?.record()
+            
+            // Wait for the microphone hardware to fully spin up and buffer
+            try? await Task.sleep(for: .seconds(1))
             
             // Signal the user exactly when it's safe to start talking
             WKInterfaceDevice.current().play(.start)

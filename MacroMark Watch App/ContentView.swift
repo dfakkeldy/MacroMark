@@ -3,9 +3,11 @@ import SwiftUI
 enum CaptureMode: Hashable {
     case instant
     case system
+    case dailyLog
 }
 
 struct ContentView: View {
+    @AppStorage("captureMode") private var captureMode: String = "audio"
     @State private var navigationPath = [CaptureMode]()
 
     var body: some View {
@@ -16,12 +18,20 @@ struct ContentView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.blue)
+                .handGestureShortcut(captureMode == "audio" ? .primaryAction : nil)
                 
                 Button("System Capture") {
                     navigationPath.append(.system)
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.orange)
+                .handGestureShortcut(captureMode == "system" ? .primaryAction : nil)
+                
+                Button("Today's Log") {
+                    navigationPath.append(.dailyLog)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.purple)
             }
             .navigationTitle("MacroMark")
             .navigationDestination(for: CaptureMode.self) { mode in
@@ -30,6 +40,8 @@ struct ContentView: View {
                     InstantCaptureView()
                 case .system:
                     SystemCaptureView()
+                case .dailyLog:
+                    DailyLogView()
                 }
             }
         }
