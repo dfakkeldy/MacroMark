@@ -8,6 +8,9 @@
 
 /* Begin PBXBuildFile section */
 		CC149B892FCF718B00B7D581 /* MacroMark Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = CC149B882FCF718B00B7D581 /* MacroMark Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		CC149BE32FCF750200B7D581 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CC149BE22FCF750200B7D581 /* WidgetKit.framework */; };
+		CC149BE52FCF750200B7D581 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CC149BE42FCF750200B7D581 /* SwiftUI.framework */; };
+		CC149BF42FCF750500B7D581 /* MacroMarkWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = CC149BE02FCF750200B7D581 /* MacroMarkWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -46,6 +49,13 @@
 			remoteGlobalIDString = CC149B872FCF718B00B7D581;
 			remoteInfo = "MacroMark Watch App";
 		};
+		CC149BF22FCF750500B7D581 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CC149B5D2FCF718800B7D581 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CC149BDF2FCF750200B7D581;
+			remoteInfo = MacroMarkWidgetExtension;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -60,6 +70,17 @@
 			name = "Embed Watch Content";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		CC149BF92FCF750500B7D581 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				CC149BF42FCF750500B7D581 /* MacroMarkWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
@@ -69,7 +90,20 @@
 		CC149B882FCF718B00B7D581 /* MacroMark Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "MacroMark Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		CC149B972FCF718C00B7D581 /* MacroMark Watch AppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "MacroMark Watch AppTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		CC149BA12FCF718C00B7D581 /* MacroMark Watch AppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "MacroMark Watch AppUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		CC149BE02FCF750200B7D581 /* MacroMarkWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = MacroMarkWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		CC149BE22FCF750200B7D581 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		CC149BE42FCF750200B7D581 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		CC149BF52FCF750500B7D581 /* Exceptions for "MacroMarkWidget" folder in "MacroMarkWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = CC149BDF2FCF750200B7D581 /* MacroMarkWidgetExtension */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		CC149B672FCF718800B7D581 /* MacroMark */ = {
@@ -100,6 +134,14 @@
 		CC149BA42FCF718C00B7D581 /* MacroMark Watch AppUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = "MacroMark Watch AppUITests";
+			sourceTree = "<group>";
+		};
+		CC149BE62FCF750200B7D581 /* MacroMarkWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				CC149BF52FCF750500B7D581 /* Exceptions for "MacroMarkWidget" folder in "MacroMarkWidgetExtension" target */,
+			);
+			path = MacroMarkWidget;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -147,6 +189,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		CC149BDD2FCF750200B7D581 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CC149BE52FCF750200B7D581 /* SwiftUI.framework in Frameworks */,
+				CC149BE32FCF750200B7D581 /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -159,6 +210,8 @@
 				CC149B8C2FCF718B00B7D581 /* MacroMark Watch App */,
 				CC149B9A2FCF718C00B7D581 /* MacroMark Watch AppTests */,
 				CC149BA42FCF718C00B7D581 /* MacroMark Watch AppUITests */,
+				CC149BE62FCF750200B7D581 /* MacroMarkWidget */,
+				CC149BE12FCF750200B7D581 /* Frameworks */,
 				CC149B662FCF718800B7D581 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -172,8 +225,18 @@
 				CC149B882FCF718B00B7D581 /* MacroMark Watch App.app */,
 				CC149B972FCF718C00B7D581 /* MacroMark Watch AppTests.xctest */,
 				CC149BA12FCF718C00B7D581 /* MacroMark Watch AppUITests.xctest */,
+				CC149BE02FCF750200B7D581 /* MacroMarkWidgetExtension.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		CC149BE12FCF750200B7D581 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				CC149BE22FCF750200B7D581 /* WidgetKit.framework */,
+				CC149BE42FCF750200B7D581 /* SwiftUI.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -197,8 +260,6 @@
 				CC149B672FCF718800B7D581 /* MacroMark */,
 			);
 			name = MacroMark;
-			packageProductDependencies = (
-			);
 			productName = MacroMark;
 			productReference = CC149B652FCF718800B7D581 /* MacroMark.app */;
 			productType = "com.apple.product-type.application";
@@ -220,8 +281,6 @@
 				CC149B752FCF718B00B7D581 /* MacroMarkTests */,
 			);
 			name = MacroMarkTests;
-			packageProductDependencies = (
-			);
 			productName = MacroMarkTests;
 			productReference = CC149B722FCF718B00B7D581 /* MacroMarkTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -243,8 +302,6 @@
 				CC149B7F2FCF718B00B7D581 /* MacroMarkUITests */,
 			);
 			name = MacroMarkUITests;
-			packageProductDependencies = (
-			);
 			productName = MacroMarkUITests;
 			productReference = CC149B7C2FCF718B00B7D581 /* MacroMarkUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
@@ -256,17 +313,17 @@
 				CC149B842FCF718B00B7D581 /* Sources */,
 				CC149B852FCF718B00B7D581 /* Frameworks */,
 				CC149B862FCF718B00B7D581 /* Resources */,
+				CC149BF92FCF750500B7D581 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				CC149BF32FCF750500B7D581 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				CC149B8C2FCF718B00B7D581 /* MacroMark Watch App */,
 			);
 			name = "MacroMark Watch App";
-			packageProductDependencies = (
-			);
 			productName = "MacroMark Watch App";
 			productReference = CC149B882FCF718B00B7D581 /* MacroMark Watch App.app */;
 			productType = "com.apple.product-type.application";
@@ -288,8 +345,6 @@
 				CC149B9A2FCF718C00B7D581 /* MacroMark Watch AppTests */,
 			);
 			name = "MacroMark Watch AppTests";
-			packageProductDependencies = (
-			);
 			productName = "MacroMark Watch AppTests";
 			productReference = CC149B972FCF718C00B7D581 /* MacroMark Watch AppTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -311,11 +366,29 @@
 				CC149BA42FCF718C00B7D581 /* MacroMark Watch AppUITests */,
 			);
 			name = "MacroMark Watch AppUITests";
-			packageProductDependencies = (
-			);
 			productName = "MacroMark Watch AppUITests";
 			productReference = CC149BA12FCF718C00B7D581 /* MacroMark Watch AppUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		CC149BDF2FCF750200B7D581 /* MacroMarkWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CC149BF62FCF750500B7D581 /* Build configuration list for PBXNativeTarget "MacroMarkWidgetExtension" */;
+			buildPhases = (
+				CC149BDC2FCF750200B7D581 /* Sources */,
+				CC149BDD2FCF750200B7D581 /* Frameworks */,
+				CC149BDE2FCF750200B7D581 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				CC149BE62FCF750200B7D581 /* MacroMarkWidget */,
+			);
+			name = MacroMarkWidgetExtension;
+			productName = MacroMarkWidgetExtension;
+			productReference = CC149BE02FCF750200B7D581 /* MacroMarkWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -349,6 +422,9 @@
 						CreatedOnToolsVersion = 26.5;
 						TestTargetID = CC149B872FCF718B00B7D581;
 					};
+					CC149BDF2FCF750200B7D581 = {
+						CreatedOnToolsVersion = 26.5;
+					};
 				};
 			};
 			buildConfigurationList = CC149B602FCF718800B7D581 /* Build configuration list for PBXProject "MacroMark" */;
@@ -371,6 +447,7 @@
 				CC149B872FCF718B00B7D581 /* MacroMark Watch App */,
 				CC149B962FCF718C00B7D581 /* MacroMark Watch AppTests */,
 				CC149BA02FCF718C00B7D581 /* MacroMark Watch AppUITests */,
+				CC149BDF2FCF750200B7D581 /* MacroMarkWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -412,6 +489,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		CC149B9F2FCF718C00B7D581 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CC149BDE2FCF750200B7D581 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -463,6 +547,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		CC149BDC2FCF750200B7D581 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -490,6 +581,11 @@
 			isa = PBXTargetDependency;
 			target = CC149B872FCF718B00B7D581 /* MacroMark Watch App */;
 			targetProxy = CC149BA22FCF718C00B7D581 /* PBXContainerItemProxy */;
+		};
+		CC149BF32FCF750500B7D581 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CC149BDF2FCF750200B7D581 /* MacroMarkWidgetExtension */;
+			targetProxy = CC149BF22FCF750500B7D581 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -621,6 +717,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = MacroMark;
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "MacroMark needs your microphone to capture voice notes.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "MacroMark needs speech recognition to transcribe your voice notes.";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = Dan.MacroMark;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -654,6 +752,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = MacroMark;
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "MacroMark needs your microphone to capture voice notes.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "MacroMark needs speech recognition to transcribe your voice notes.";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = Dan.MacroMark;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -682,14 +782,20 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = MacroMark/MacroMark.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 8AXNA5B37R;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = MacroMark;
+				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "MacroMark needs your microphone to capture voice notes.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "MacroMark needs speech recognition to transcribe your voice notes.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UIFileSharingEnabled = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -717,14 +823,20 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = MacroMark/MacroMark.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 8AXNA5B37R;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = MacroMark;
+				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "MacroMark needs your microphone to capture voice notes.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "MacroMark needs speech recognition to transcribe your voice notes.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UIFileSharingEnabled = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -932,6 +1044,73 @@
 			};
 			name = Release;
 		};
+		CC149BF72FCF750500B7D581 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8AXNA5B37R;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = MacroMarkWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = MacroMarkWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = Dan.MacroMark.watchkitapp.MacroMarkWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 26.5;
+			};
+			name = Debug;
+		};
+		CC149BF82FCF750500B7D581 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8AXNA5B37R;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = MacroMarkWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = MacroMarkWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = Dan.MacroMark.watchkitapp.MacroMarkWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				VALIDATE_PRODUCT = YES;
+				WATCHOS_DEPLOYMENT_TARGET = 26.5;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -994,6 +1173,15 @@
 			buildConfigurations = (
 				CC149BBC2FCF718C00B7D581 /* Debug */,
 				CC149BBD2FCF718C00B7D581 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		CC149BF62FCF750500B7D581 /* Build configuration list for PBXNativeTarget "MacroMarkWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CC149BF72FCF750500B7D581 /* Debug */,
+				CC149BF82FCF750500B7D581 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
