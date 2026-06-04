@@ -1,6 +1,6 @@
 import Foundation
 
-public final class iCloudStorageManager {
+public final class iCloudStorageManager: @unchecked Sendable {
     public static let shared = iCloudStorageManager()
 
     private init() {}

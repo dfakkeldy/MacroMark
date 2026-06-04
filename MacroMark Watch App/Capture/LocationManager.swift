@@ -1,5 +1,5 @@
 import Foundation
-import CoreLocation
+@preconcurrency import CoreLocation
 import Observation
 
 @MainActor
@@ -10,26 +10,33 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
     private let manager = CLLocationManager()
     private var activeContinuation: CheckedContinuation<CLLocation?, Never>?
     private var authContinuation: CheckedContinuation<Void, Never>?
-    
+    private var isRequestingLocation = false
+
     private override init() {
         super.init()
         manager.delegate = self
         manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
     }
-    
+
     func getCurrentLocation() async -> CLLocation? {
+        // Guard against re-entrant calls that would silently overwrite stored continuations.
+        // A leaked continuation produces a runtime warning then crashes at deallocation.
+        guard !isRequestingLocation else { return nil }
+        isRequestingLocation = true
+        defer { isRequestingLocation = false }
+
         if manager.authorizationStatus == .notDetermined {
             await withCheckedContinuation { continuation in
                 self.authContinuation = continuation
                 manager.requestWhenInUseAuthorization()
             }
         }
-        
+
         // If not authorized after requesting, return nil
         guard manager.authorizationStatus == .authorizedWhenInUse || manager.authorizationStatus == .authorizedAlways else {
             return nil
         }
-        
+
         return await withCheckedContinuation { continuation in
             self.activeContinuation = continuation
             manager.requestLocation()

@@ -30,7 +30,7 @@ struct FolderSettingsView: View {
             } header: {
                 Text("Folder Structure")
             } footer: {
-                structureExample
+                Text(structureExample)
             }
 
             Section {

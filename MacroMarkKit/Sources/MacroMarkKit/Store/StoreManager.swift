@@ -1,22 +1,12 @@
 import Foundation
-import StoreKit
+@preconcurrency import StoreKit
 import Observation
 
-public enum PurchaseState: Equatable {
+public enum PurchaseState {
     case notStarted
     case inProgress
     case purchased
     case failed(Error)
-
-    public static func == (lhs: PurchaseState, rhs: PurchaseState) -> Bool {
-        switch (lhs, rhs) {
-        case (.notStarted, .notStarted): return true
-        case (.inProgress, .inProgress): return true
-        case (.purchased, .purchased): return true
-        case (.failed, .failed): return true
-        default: return false
-        }
-    }
 }
 
 @MainActor
@@ -28,8 +18,10 @@ public final class StoreManager {
     public private(set) var purchaseState: PurchaseState = .notStarted
     public private(set) var isLoadingProducts = false
 
+    private var updatesTask: Task<Void, Never>?
+
     private init() {
-        Task {
+        updatesTask = Task {
             for await result in Transaction.updates {
                 await handleTransaction(result)
             }
@@ -88,7 +80,12 @@ public final class StoreManager {
 
         do {
             try await AppStore.sync()
-            purchaseState = .purchased
+            // After syncing, check whether there are actually restored entitlements
+            // rather than unconditionally showing "purchased".
+            await EntitlementManager.shared.refreshEntitlements()
+            purchaseState = EntitlementManager.shared.isSubscribed || EntitlementManager.shared.hasLifetimeUnlock
+                ? .purchased
+                : .notStarted
         } catch {
             purchaseState = .failed(error)
             print("Restore purchases failed: \(error)")

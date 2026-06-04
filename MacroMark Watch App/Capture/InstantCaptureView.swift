@@ -11,7 +11,7 @@ struct InstantCaptureView: View {
                 .resizable()
                 .scaledToFit()
                 .frame(width: 80, height: 80)
-                .foregroundColor(recorder.isRecording ? .red : .gray)
+                .foregroundStyle(recorder.isRecording ? .red : .gray)
                 .symbolEffect(.pulse, options: .repeating, isActive: recorder.isRecording)
                 
             Text(recorder.isRecording ? "Listening..." : "Ready")

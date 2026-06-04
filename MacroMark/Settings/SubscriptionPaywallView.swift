@@ -35,7 +35,7 @@ struct SubscriptionPaywallView: View {
                     ProductCardView(product: product) {
                         Task {
                             await storeManager.purchase(product)
-                            entitlements.updateEntitlements()
+                            await entitlements.refreshEntitlements()
                             if entitlements.isSubscribed {
                                 dismiss()
                             }
@@ -54,7 +54,7 @@ struct SubscriptionPaywallView: View {
                 Button("Restore Purchases") {
                     Task {
                         await storeManager.restorePurchases()
-                        entitlements.updateEntitlements()
+                        await entitlements.refreshEntitlements()
                         if entitlements.isSubscribed {
                             dismiss()
                         }
@@ -139,7 +139,7 @@ struct ProductCardView: View {
 
 // MARK: - Helper for subscription period display
 
-extension Product.SubscriptionPeriodUnit {
+extension Product.SubscriptionPeriod.Unit {
     var localizedDescription: String {
         switch self {
         case .day: return "day"

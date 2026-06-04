@@ -113,7 +113,7 @@ struct MacroManagerView: View {
                     HStack {
                         Text("Macros")
                         Spacer()
-                        Text("\(customMacroCount)" + (entitlements.isSubscribed ? "" : "/3 free"))
+                        Text("\(customMacroCount)" + (entitlements.isSubscribed ? "" : "/\(EntitlementManager.maxFreeMacros) free"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -129,7 +129,7 @@ struct MacroManagerView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Add", systemImage: "plus") {
-                        if !entitlements.isSubscribed && customMacroCount >= 3 {
+                        if !entitlements.isSubscribed && customMacroCount >= EntitlementManager.maxFreeMacros {
                             paywallReason = .addMacro
                             showingPaywall = true
                         } else {

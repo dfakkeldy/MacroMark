@@ -7,7 +7,9 @@ import UIKit
 #endif
 
 public struct MacroProcessor {
-    @MainActor
+    /// Process text through macro expansion and dynamic variable replacement.
+    /// This is CPU-bound work — it is NOT isolated to any actor so callers
+    /// should invoke it from the global cooperative pool, not the main actor.
     public static func process(text: String, macros: [Macro], latitude: Double? = nil, longitude: Double? = nil) async -> String {
         var processedText = text
 
@@ -32,8 +34,10 @@ public struct MacroProcessor {
         // 2. Evaluate dynamic variables
         let date = Date()
 
+        // ISO 8601 date (always unambiguous for file naming and logging)
         let dateString = date.formatted(Date.ISO8601FormatStyle(timeZone: .current).year().month().day().dateSeparator(.dash))
-        let timeString = date.formatted(.dateTime.hour(.defaultDigits(amPM: .omitted)).minute(.twoDigits))
+        // Locale-respecting time (respects user's 12h/24h preference)
+        let timeString = date.formatted(date: .omitted, time: .shortened)
 
         processedText = processedText.replacing("{date}", with: dateString)
         processedText = processedText.replacing("{time}", with: timeString)

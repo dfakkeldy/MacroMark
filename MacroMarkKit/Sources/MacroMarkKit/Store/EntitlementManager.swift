@@ -1,5 +1,5 @@
 import Foundation
-import StoreKit
+@preconcurrency import StoreKit
 import Observation
 import Security
 
@@ -12,27 +12,35 @@ public final class EntitlementManager {
     public private(set) var isInTrial = false
     public private(set) var hasLifetimeUnlock = false
 
+    public static let maxFreeMacros = 3
+
     private let lifetimeKeychainKey = "com.macromark.lifetime.keychain"
+    private var updatesTask: Task<Void, Never>?
 
     private init() {
-        updateEntitlements()
+#if DEBUG
+        isSubscribed = true
+#endif
         hasLifetimeUnlock = checkKeychainFlag()
+        scheduleRefresh()
 
-        Task {
+        updatesTask = Task {
             for await _ in Transaction.updates {
-                updateEntitlements()
-                hasLifetimeUnlock = checkLifetimePurchase() || checkKeychainFlag()
+                await refreshEntitlements()
+                hasLifetimeUnlock = hasLifetimeUnlock || checkKeychainFlag()
             }
         }
     }
 
-    public func updateEntitlements() {
-        Task {
-            await refreshEntitlements()
-        }
+    /// Schedule an async entitlement refresh without waiting for the result.
+    /// Used at init time and from fire-and-forget contexts.
+    private func scheduleRefresh() {
+        Task { await refreshEntitlements() }
     }
 
-    private func refreshEntitlements() async {
+    /// Refresh entitlements from StoreKit and update published state.
+    /// Await this method when callers need the updated state before proceeding.
+    public func refreshEntitlements() async {
         var subscribed = false
         var inTrial = false
 
@@ -60,36 +68,47 @@ public final class EntitlementManager {
             }
         }
 
+#if !DEBUG
         isSubscribed = subscribed
+#endif
         isInTrial = inTrial
-    }
-
-    private func checkLifetimePurchase() -> Bool {
-        // Quick check of current entitlements for lifetime
-        // The full check happens in refreshEntitlements
-        return hasLifetimeUnlock
     }
 
     // MARK: - Free Tier Helpers
 
     public var canAddCustomMacro: Bool {
+#if DEBUG
+        return true
+#else
         isSubscribed || hasLifetimeUnlock
+#endif
     }
 
     public func customMacroCount(_ count: Int) -> Bool {
-        // Free tier: max 3 custom macros
+#if DEBUG
+        return true
+#else
         if isSubscribed || hasLifetimeUnlock {
-            return true // unlimited
+            return true
         }
-        return count < 3
+        return count < Self.maxFreeMacros
+#endif
     }
 
     public var canEditDefaultMacros: Bool {
+#if DEBUG
+        return true
+#else
         isSubscribed || hasLifetimeUnlock
+#endif
     }
 
     public var canCustomizeFolderStructure: Bool {
+#if DEBUG
+        return true
+#else
         isSubscribed || hasLifetimeUnlock
+#endif
     }
 
     // MARK: - Keychain (Lifetime Unlock Persistence)
@@ -97,14 +116,12 @@ public final class EntitlementManager {
     private func persistKeychainFlag() {
         guard let data = "lifetime_unlocked".data(using: .utf8) else { return }
 
-        // Remove existing item
         let deleteQuery: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrAccount as String: lifetimeKeychainKey,
         ]
         SecItemDelete(deleteQuery as CFDictionary)
 
-        // Add new item
         let addQuery: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrAccount as String: lifetimeKeychainKey,

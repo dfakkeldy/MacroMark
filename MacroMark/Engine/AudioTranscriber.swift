@@ -69,19 +69,13 @@ final class AudioTranscriber {
                 throw NSError(domain: "AudioTranscriber", code: 3, userInfo: [NSLocalizedDescriptionKey: "Failed to create export session"])
             }
             let chunkURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".m4a")
-            exportSession.outputURL = chunkURL
-            exportSession.outputFileType = .m4a
-            
+
             let endTime = min(startTime + maxDuration, duration)
             let timeRange = CMTimeRange(start: CMTime(seconds: startTime, preferredTimescale: 1000), end: CMTime(seconds: endTime, preferredTimescale: 1000))
             exportSession.timeRange = timeRange
-            
-            await exportSession.export()
-            if exportSession.status == .completed {
-                urls.append(chunkURL)
-            } else if let error = exportSession.error {
-                throw error
-            }
+
+            try await exportSession.export(to: chunkURL, as: .m4a)
+            urls.append(chunkURL)
             startTime += maxDuration
         }
         return urls

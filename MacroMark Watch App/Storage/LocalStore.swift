@@ -26,10 +26,9 @@ final class LocalStore {
         load()
         syncPendingNotes()
         NotificationCenter.default.addObserver(forName: .noteTransferDidComplete, object: nil, queue: .main) { [weak self] notification in
-            if let id = notification.userInfo?["id"] as? UUID {
-                Task { @MainActor in
-                    self?.removeNote(withId: id)
-                }
+            guard let self, let id = notification.userInfo?["id"] as? UUID else { return }
+            MainActor.assumeIsolated {
+                self.removeNote(withId: id)
             }
         }
     }

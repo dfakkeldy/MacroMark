@@ -7,7 +7,7 @@
 		<key>MacroMark Watch App.xcscheme_^#shared#^_</key>
 		<dict>
 			<key>orderHint</key>
-			<integer>0</integer>
+			<integer>2</integer>
 		</dict>
 		<key>MacroMark.xcscheme_^#shared#^_</key>
 		<dict>
@@ -18,6 +18,34 @@
 		<dict>
 			<key>orderHint</key>
 			<integer>0</integer>
+		</dict>
+	</dict>
+	<key>SuppressBuildableAutocreation</key>
+	<dict>
+		<key>CC149B642FCF718800B7D581</key>
+		<dict>
+			<key>primary</key>
+			<true/>
+		</dict>
+		<key>CC149B712FCF718B00B7D581</key>
+		<dict>
+			<key>primary</key>
+			<true/>
+		</dict>
+		<key>CC149B7B2FCF718B00B7D581</key>
+		<dict>
+			<key>primary</key>
+			<true/>
+		</dict>
+		<key>CC149B872FCF718B00B7D581</key>
+		<dict>
+			<key>primary</key>
+			<true/>
+		</dict>
+		<key>CC149BDF2FCF750200B7D581</key>
+		<dict>
+			<key>primary</key>
+			<true/>
 		</dict>
 	</dict>
 </dict>
