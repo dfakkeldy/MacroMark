@@ -38,7 +38,7 @@ struct MacroEditView: View {
             } header: {
                 Text("Replacement Text")
             } footer: {
-                Text("What the macro outputs. Use {date}, {time}, {newline}, {tab}, {clipboard}, {location}, and {uuid} for dynamic content.")
+                Text("What the macro outputs. Use {date}, {time}, {newline}, {tab}, {backspace}, {clipboard}, {location}, and {uuid} for dynamic content.")
             }
 
             Section {

@@ -43,6 +43,17 @@ public struct MacroProcessor {
         processedText = processedText.replacing("{newline}", with: "\n")
         processedText = processedText.replacing("{tab}", with: "\t")
 
+        // Evaluate {backspace} — deletes the character immediately before it.
+        // Useful for macros that remove a preceding newline (e.g., ending a hashtag).
+        while processedText.contains("{backspace}") {
+            if let range = processedText.firstRange(of: "{backspace}") {
+                let deleteStart = range.lowerBound == processedText.startIndex
+                    ? range.lowerBound
+                    : processedText.index(before: range.lowerBound)
+                processedText.removeSubrange(deleteStart..<range.upperBound)
+            }
+        }
+
         // Evaluate {uuid}
         while processedText.contains("{uuid}") {
             if let range = processedText.firstRange(of: "{uuid}") {

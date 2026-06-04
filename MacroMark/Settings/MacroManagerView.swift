@@ -229,7 +229,8 @@ struct MacroManagerView: View {
             Macro(trigger: "Paste", replacement: "{clipboard}", notes: "Pastes whatever is currently on your clipboard.", isDefault: true, sortOrder: 18),
             Macro(trigger: "Dropoff", replacement: "{location} - ", notes: "Inserts your current street address.", isDefault: true, sortOrder: 19),
             Macro(trigger: "Smile", replacement: "😀", isDefault: true, sortOrder: 20),
-            Macro(trigger: "Block ID", replacement: "^id-{uuid}", notes: "Generates a unique identifier for block references.", isDefault: true, sortOrder: 21)
+            Macro(trigger: "Block ID", replacement: "^id-{uuid}", notes: "Generates a unique identifier for block references.", isDefault: true, sortOrder: 21),
+            Macro(trigger: "Not", replacement: "{backspace}", notes: "Deletes the character before it. Say 'new line' then 'not' to end a hashtag without leaving a newline. ⚠️ 'Not' is a common word — rename this trigger if it fires accidentally.", isDefault: true, sortOrder: 22)
         ]
     }
 

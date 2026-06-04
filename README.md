@@ -31,6 +31,19 @@ MacroMark is a zero-friction, voice-to-text capture tool designed for personal k
 3. **Sync**: `WatchConnectivity` queues the payload and sends it to your iPhone (even in the background).
 4. **Process & Store**: The iOS app processes your text through the Macro Engine and appends it to `YYYY-MM-DD.md` in iCloud Drive.
 
+## Tips
+
+### Ending Hashtags During Dictation
+
+Apple's dictation doesn't have a built-in way to signal the end of a hashtag — once you say "hashtag," dictation stays in tag mode and keeps listening for more characters. To end a hashtag, **say "new line"** (or "newline"). This inserts a line break, exits hashtag mode, and lets you continue dictating normally.
+
+If you don't want the newline in your final text, say **"not"** immediately after. The built-in **Not** macro (`{backspace}`) deletes the preceding character, removing the unwanted newline:
+
+> "hashtag topic **new line**" — ends the tag, leaves a newline  
+> "hashtag topic **new line not**" — ends the tag, newline is deleted
+
+💡 The "Not" trigger is a common English word, so it may fire accidentally in normal speech. If that happens, rename the macro's trigger to something less common (like "undo newline" or "no break") in **Settings → Macros**.
+
 ## Contributing
 
 Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
