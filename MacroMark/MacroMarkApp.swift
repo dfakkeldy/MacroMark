@@ -8,6 +8,10 @@
 import SwiftUI
 import SwiftData
 import MacroMarkKit
+import CoreLocation
+#if canImport(UIKit)
+import UIKit
+#endif
 
 @main
 struct MacroMarkApp: App {
@@ -41,7 +45,7 @@ struct MacroMarkApp: App {
         }
 
         let provider = WatchConnectivityProvider.shared
-        provider.onNoteReceived = { [container] text, lat, lon in
+        provider.onNoteReceived = { [container] text, timestamp in
             #if DEBUG
             print("MacroMark iOS Received Note: \(text)")
             #endif
@@ -51,13 +55,26 @@ struct MacroMarkApp: App {
             let macros = (try? context.fetch(descriptor)) ?? []
 
             // MacroProcessor.process is CPU-bound — run off the main actor.
+            #if canImport(UIKit)
+            let bgTask = UIApplication.shared.beginBackgroundTask(withName: "ProcessNote", expirationHandler: nil)
+            #endif
+
             Task {
-                let processed = await MacroProcessor.process(text: text, macros: macros, latitude: lat, longitude: lon)
+                let processed = await MacroProcessor.process(text: text, macros: macros, date: timestamp) {
+                    if let location = await LocationManager.shared.getCurrentLocation() {
+                        return (latitude: location.coordinate.latitude, longitude: location.coordinate.longitude)
+                    }
+                    return nil
+                }
                 iCloudStorageManager.shared.appendText(processed)
+
+                #if canImport(UIKit)
+                UIApplication.shared.endBackgroundTask(bgTask)
+                #endif
             }
         }
 
-        provider.onFileReceived = { [container] url, lat, lon in
+        provider.onFileReceived = { [container] url, timestamp in
             #if DEBUG
             print("MacroMark iOS Received Audio File: \(url)")
             #endif
@@ -68,10 +85,19 @@ struct MacroMarkApp: App {
 
             // AudioTranscriber.transcribe and MacroProcessor.process are CPU/IO-bound —
             // run off the main actor.
+            #if canImport(UIKit)
+            let bgTask = UIApplication.shared.beginBackgroundTask(withName: "ProcessAudio", expirationHandler: nil)
+            #endif
+
             Task {
                 do {
                     let transcript = try await AudioTranscriber.transcribe(fileURL: url)
-                    let processed = await MacroProcessor.process(text: transcript, macros: macros, latitude: lat, longitude: lon)
+                    let processed = await MacroProcessor.process(text: transcript, macros: macros, date: timestamp) {
+                        if let location = await LocationManager.shared.getCurrentLocation() {
+                            return (latitude: location.coordinate.latitude, longitude: location.coordinate.longitude)
+                        }
+                        return nil
+                    }
                     iCloudStorageManager.shared.appendText(processed)
 
                     try? FileManager.default.removeItem(at: url)
@@ -80,6 +106,10 @@ struct MacroMarkApp: App {
                     print("Failed to transcribe audio: \(error)")
                     #endif
                 }
+
+                #if canImport(UIKit)
+                UIApplication.shared.endBackgroundTask(bgTask)
+                #endif
             }
         }
     }

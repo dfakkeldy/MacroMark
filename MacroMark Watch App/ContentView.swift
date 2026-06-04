@@ -12,25 +12,78 @@ struct ContentView: View {
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
-            VStack(spacing: 20) {
-                Button("Instant Capture") {
-                    navigateToDefaultCapture()
+            VStack(spacing: 8) {
+                if #available(iOS 26, watchOS 11, *) {
+                    GlassEffectContainer(spacing: 8) {
+                        HStack(spacing: 8) {
+                            Button(action: {
+                                navigateToDefaultCapture()
+                            }) {
+                                Image(systemName: "mic.fill")
+                                    .font(.title)
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            }
+                            .buttonStyle(.plain)
+                            .glassEffect(.regular.tint(.blue).interactive(), in: .rect(cornerRadius: 16))
+                            .handGestureShortcut(.primaryAction)
+                            
+                            Button(action: {
+                                navigationPath.append(.system)
+                            }) {
+                                Image(systemName: "keyboard.fill")
+                                    .font(.title)
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            }
+                            .buttonStyle(.plain)
+                            .glassEffect(.regular.tint(.orange).interactive(), in: .rect(cornerRadius: 16))
+                        }
+                        .frame(height: 70)
+                        
+                        Button(action: {
+                            navigationPath.append(.dailyLog)
+                        }) {
+                            Text("Today's Log")
+                                .font(.headline)
+                                .frame(maxWidth: .infinity, minHeight: 44)
+                        }
+                        .buttonStyle(.plain)
+                        .glassEffect(.regular.tint(.purple).interactive(), in: .rect(cornerRadius: 16))
+                    }
+                } else {
+                    HStack(spacing: 8) {
+                        Button(action: {
+                            navigateToDefaultCapture()
+                        }) {
+                            Image(systemName: "mic.fill")
+                                .font(.title)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.blue)
+                        .handGestureShortcut(.primaryAction)
+                        
+                        Button(action: {
+                            navigationPath.append(.system)
+                        }) {
+                            Image(systemName: "keyboard.fill")
+                                .font(.title)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.orange)
+                    }
+                    .frame(height: 70)
+                    
+                    Button(action: {
+                        navigationPath.append(.dailyLog)
+                    }) {
+                        Text("Today's Log")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity, minHeight: 44)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.purple)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(.blue)
-                .handGestureShortcut(.primaryAction)
-
-                Button("System Capture") {
-                    navigationPath.append(.system)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.orange)
-
-                Button("Today's Log") {
-                    navigationPath.append(.dailyLog)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.purple)
             }
             .navigationTitle("MacroMark")
             .navigationDestination(for: CaptureMode.self) { mode in

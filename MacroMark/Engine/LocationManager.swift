@@ -1,5 +1,5 @@
 import Foundation
-@preconcurrency import CoreLocation
+import CoreLocation
 import Observation
 
 @MainActor
@@ -19,8 +19,6 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
     }
 
     func getCurrentLocation() async -> CLLocation? {
-        // Guard against re-entrant calls that would silently overwrite stored continuations.
-        // A leaked continuation produces a runtime warning then crashes at deallocation.
         guard !isRequestingLocation else { return nil }
         isRequestingLocation = true
         defer { isRequestingLocation = false }
@@ -32,7 +30,6 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
             }
         }
 
-        // If not authorized after requesting, return nil
         guard manager.authorizationStatus == .authorizedWhenInUse || manager.authorizationStatus == .authorizedAlways else {
             return nil
         }

@@ -28,27 +28,29 @@ struct SystemCaptureView: View {
             }
 
             text = textResult
-            Task {
-                await finishAndSave()
+            dismiss()
+
+            Task.detached {
+                ProcessInfo.processInfo.performExpiringActivity(withReason: "Save Dictation") { expired in
+                    if !expired {
+                        let semaphore = DispatchSemaphore(value: 0)
+                        Task {
+                            await SystemCaptureView.finishAndSave(text: textResult)
+                            semaphore.signal()
+                        }
+                        semaphore.wait()
+                    }
+                }
             }
         }
     }
 
-    private func finishAndSave() async {
+    private static func finishAndSave(text: String) async {
         if !text.isEmpty {
-            // Always fetch location so {location} tokens work regardless of
-            // whether the raw dictation text contains the literal string.
-            // This matches InstantCaptureView behavior.
-            var lat: Double?
-            var lon: Double?
-            if let location = await LocationManager.shared.getCurrentLocation() {
-                lat = location.coordinate.latitude
-                lon = location.coordinate.longitude
+            await MainActor.run {
+                LocalStore.shared.addNote(text)
             }
-
-            LocalStore.shared.addNote(text, latitude: lat, longitude: lon)
         }
-        dismiss()
     }
 }
 

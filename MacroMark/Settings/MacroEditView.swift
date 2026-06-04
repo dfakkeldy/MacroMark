@@ -10,11 +10,13 @@ struct MacroEditView: View {
 
     @State private var editedTrigger: String
     @State private var editedReplacement: String
+    @State private var editedNotes: String
 
     init(macro: Macro) {
         self.macro = macro
         _editedTrigger = State(initialValue: macro.trigger)
         _editedReplacement = State(initialValue: macro.replacement)
+        _editedNotes = State(initialValue: macro.notes)
     }
 
     var body: some View {
@@ -39,6 +41,15 @@ struct MacroEditView: View {
                 Text("What the macro outputs. Use {date}, {time}, {newline}, {tab}, {clipboard}, {location}, and {uuid} for dynamic content.")
             }
 
+            Section {
+                TextField("Notes", text: $editedNotes, axis: .vertical)
+                    .lineLimit(2...5)
+            } header: {
+                Text("Notes (Optional)")
+            } footer: {
+                Text("Add personal notes or documentation about what this macro does.")
+            }
+
             if macro.isDefault {
                 Section {
                     Label("This is a default macro. Your changes will be marked as customized.", systemImage: "info.circle")
@@ -58,6 +69,7 @@ struct MacroEditView: View {
                 Button("Save") {
                     macro.trigger = editedTrigger
                     macro.replacement = editedReplacement
+                    macro.notes = editedNotes
                     if macro.isDefault {
                         macro.isDefaultEdited = true
                     }

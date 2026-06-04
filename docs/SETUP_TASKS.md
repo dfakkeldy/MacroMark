@@ -72,7 +72,10 @@ These new views were created and exist on disk but need Xcode target membership:
 - [ ] Try editing a default macro (free) → should show paywall
 - [ ] Tap "Folder Structure" → should show paywall
 - [ ] Run on Apple Watch
-- [ ] Double-tap on main screen → should trigger default capture mode
+- [ ] Verify liquid glass UI elements are rendering correctly
+- [ ] Tap the large Microphone button → should start dictation mode
+- [ ] Tap the large Keyboard button → should start text entry mode
+- [ ] Tap "Today's Daily Log" button → should display daily log
 
 ---
 

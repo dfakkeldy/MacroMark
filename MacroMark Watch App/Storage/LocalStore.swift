@@ -5,8 +5,6 @@ struct CapturedNote: Identifiable, Codable {
     var id: UUID = UUID()
     var text: String
     var timestamp: Date
-    var latitude: Double?
-    var longitude: Double?
 }
 
 @MainActor
@@ -33,18 +31,18 @@ final class LocalStore {
         }
     }
     
-    func addNote(_ text: String, latitude: Double? = nil, longitude: Double? = nil) {
+    func addNote(_ text: String) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         
-        let note = CapturedNote(text: trimmed, timestamp: Date(), latitude: latitude, longitude: longitude)
+        let note = CapturedNote(text: trimmed, timestamp: Date())
         pendingNotes.append(note)
         syncPendingNotes()
     }
     
     private func syncPendingNotes() {
         for note in pendingNotes {
-            WatchConnectivityProvider.shared.sendNote(note.id, text: note.text, timestamp: note.timestamp, latitude: note.latitude, longitude: note.longitude)
+            WatchConnectivityProvider.shared.sendNote(note.id, text: note.text, timestamp: note.timestamp)
         }
     }
     

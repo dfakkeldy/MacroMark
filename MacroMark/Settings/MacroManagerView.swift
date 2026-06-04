@@ -203,6 +203,7 @@ struct MacroManagerView: View {
             // Markdown Headings
             Macro(trigger: "Heading One", replacement: "# ", isDefault: true, sortOrder: 0),
             Macro(trigger: "Heading Two", replacement: "## ", isDefault: true, sortOrder: 1),
+            Macro(trigger: "Heading To", replacement: "## ", notes: "Dictation often mishears 'Heading Two' as 'Heading To'.", isDefault: true, sortOrder: 1),
             Macro(trigger: "Heading Three", replacement: "### ", isDefault: true, sortOrder: 2),
             Macro(trigger: "Heading Four", replacement: "#### ", isDefault: true, sortOrder: 3),
             Macro(trigger: "Heading Five", replacement: "##### ", isDefault: true, sortOrder: 4),
@@ -222,13 +223,13 @@ struct MacroManagerView: View {
             Macro(trigger: "Task", replacement: "{newline}- [ ] ", isDefault: true, sortOrder: 14),
 
             // Clever Macros
-            Macro(trigger: "Timestamp", replacement: "{time} - ", isDefault: true, sortOrder: 15),
-            Macro(trigger: "New Journal Entry", replacement: "{newline}## {date} at {time}{newline}", isDefault: true, sortOrder: 16),
+            Macro(trigger: "Timestamp", replacement: "{time} - ", notes: "Inserts the current time.", isDefault: true, sortOrder: 15),
+            Macro(trigger: "New Journal Entry", replacement: "{newline}## {date} at {time}{newline}", notes: "Creates a new daily journal entry heading.", isDefault: true, sortOrder: 16),
             Macro(trigger: "Horizontal Rule", replacement: "{newline}---{newline}", isDefault: true, sortOrder: 17),
-            Macro(trigger: "Paste", replacement: "{clipboard}", isDefault: true, sortOrder: 18),
-            Macro(trigger: "Dropoff", replacement: "{location} - ", isDefault: true, sortOrder: 19),
+            Macro(trigger: "Paste", replacement: "{clipboard}", notes: "Pastes whatever is currently on your clipboard.", isDefault: true, sortOrder: 18),
+            Macro(trigger: "Dropoff", replacement: "{location} - ", notes: "Inserts your current street address.", isDefault: true, sortOrder: 19),
             Macro(trigger: "Smile", replacement: "😀", isDefault: true, sortOrder: 20),
-            Macro(trigger: "Block ID", replacement: "^id-{uuid}", isDefault: true, sortOrder: 21)
+            Macro(trigger: "Block ID", replacement: "^id-{uuid}", notes: "Generates a unique identifier for block references.", isDefault: true, sortOrder: 21)
         ]
     }
 
@@ -258,6 +259,7 @@ struct AddMacroView: View {
 
     @State private var trigger: String = ""
     @State private var replacement: String = ""
+    @State private var notes: String = ""
 
     var body: some View {
         Form {
@@ -270,6 +272,10 @@ struct AddMacroView: View {
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
             }
+            Section("Notes (Optional)") {
+                TextField("e.g., Use this to format headings", text: $notes, axis: .vertical)
+                    .lineLimit(2...5)
+            }
         }
         .navigationTitle("New Macro")
         .navigationBarTitleDisplayMode(.inline)
@@ -281,7 +287,7 @@ struct AddMacroView: View {
             }
             ToolbarItem(placement: .confirmationAction) {
                 Button("Save") {
-                    let newMacro = Macro(trigger: trigger, replacement: replacement)
+                    let newMacro = Macro(trigger: trigger, replacement: replacement, notes: notes)
                     modelContext.insert(newMacro)
                     dismiss()
                 }

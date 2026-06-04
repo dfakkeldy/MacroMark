@@ -10,7 +10,7 @@ public struct MacroProcessor {
     /// Process text through macro expansion and dynamic variable replacement.
     /// This is CPU-bound work — it is NOT isolated to any actor so callers
     /// should invoke it from the global cooperative pool, not the main actor.
-    public static func process(text: String, macros: [Macro], latitude: Double? = nil, longitude: Double? = nil) async -> String {
+    public static func process(text: String, macros: [Macro], date: Date = Date(), fetchLocation: (() async -> (latitude: Double, longitude: Double)?)? = nil) async -> String {
         var processedText = text
 
         // 1. Apply trigger macros
@@ -32,7 +32,6 @@ public struct MacroProcessor {
         }
 
         // 2. Evaluate dynamic variables
-        let date = Date()
 
         // ISO 8601 date (always unambiguous for file naming and logging)
         let dateString = date.formatted(Date.ISO8601FormatStyle(timeZone: .current).year().month().day().dateSeparator(.dash))
@@ -64,7 +63,9 @@ public struct MacroProcessor {
         // Evaluate {location}
         if processedText.contains("{location}") {
             var locationString = "Unknown Location"
-            if let lat = latitude, let lon = longitude {
+            if let fetch = fetchLocation, let coords = await fetch() {
+                let lat = coords.latitude
+                let lon = coords.longitude
                 let location = CLLocation(latitude: lat, longitude: lon)
                 if let request = MKReverseGeocodingRequest(location: location) {
                     do {

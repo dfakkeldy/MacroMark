@@ -13,11 +13,8 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
     private let session: WCSession?
 
     // For iOS to process received notes
-    var onNoteReceived: ((String, Double?, Double?) -> Void)?
-    var onFileReceived: ((URL, Double?, Double?) -> Void)?
-
-    private var pendingUserInfo: [[String: Any]] = []
-    private var pendingFiles: [(url: URL, metadata: [String: Any])] = []
+    var onNoteReceived: ((String, Date) -> Void)?
+    var onFileReceived: ((URL, Date) -> Void)?
 
     private override init() {
         if WCSession.isSupported() {
@@ -34,17 +31,6 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
         #if DEBUG
         print("WCSession activation completed: \(activationState.rawValue), error: \(String(describing: error))")
         #endif
-        if activationState == .activated {
-            for userInfo in pendingUserInfo {
-                session.transferUserInfo(userInfo)
-            }
-            pendingUserInfo.removeAll()
-
-            for file in pendingFiles {
-                session.transferFile(file.url, metadata: file.metadata)
-            }
-            pendingFiles.removeAll()
-        }
     }
 
     #if os(iOS)
@@ -55,49 +41,26 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
     #endif
 
     // Send a note from Watch to iOS
-    func sendNote(_ noteId: UUID, text: String, timestamp: Date, latitude: Double? = nil, longitude: Double? = nil) {
-        var userInfo: [String: Any] = [
+    func sendNote(_ noteId: UUID, text: String, timestamp: Date) {
+        let userInfo: [String: Any] = [
             "id": noteId.uuidString,
             "text": text,
             "timestamp": timestamp.timeIntervalSince1970
         ]
-        if let lat = latitude, let lon = longitude {
-            userInfo["latitude"] = lat
-            userInfo["longitude"] = lon
-        }
 
         guard let session = session else { return }
-
-        if session.activationState == .activated {
-            session.transferUserInfo(userInfo)
-        } else {
-            pendingUserInfo.append(userInfo)
-            #if DEBUG
-            print("WCSession not activated, queued note: \(noteId)")
-            #endif
-        }
+        session.transferUserInfo(userInfo)
     }
 
     // Send a file from Watch to iOS
-    func sendFile(_ url: URL, id: UUID, latitude: Double? = nil, longitude: Double? = nil) {
-        var metadata: [String: Any] = [
-            "id": id.uuidString
+    func sendFile(_ url: URL, id: UUID, timestamp: Date) {
+        let metadata: [String: Any] = [
+            "id": id.uuidString,
+            "timestamp": timestamp.timeIntervalSince1970
         ]
-        if let lat = latitude, let lon = longitude {
-            metadata["latitude"] = lat
-            metadata["longitude"] = lon
-        }
 
         guard let session = session else { return }
-
-        if session.activationState == .activated {
-            session.transferFile(url, metadata: metadata)
-        } else {
-            pendingFiles.append((url: url, metadata: metadata))
-            #if DEBUG
-            print("WCSession not activated, queued file: \(id)")
-            #endif
-        }
+        session.transferFile(url, metadata: metadata)
     }
 
     // Update Application Context (Settings Sync)
@@ -114,29 +77,23 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
 
     // Receive UserInfo
     func session(_ session: WCSession, didReceiveUserInfo userInfo: [String : Any] = [:]) {
-        Task { @MainActor in
-            #if os(iOS)
-            if let text = userInfo["text"] as? String {
-                let latitude = userInfo["latitude"] as? Double
-                let longitude = userInfo["longitude"] as? Double
-                #if DEBUG
-                print("Received text from watch")
-                #endif
-                onNoteReceived?(text, latitude, longitude)
+        if let text = userInfo["text"] as? String {
+            let timestampInterval = userInfo["timestamp"] as? TimeInterval ?? Date().timeIntervalSince1970
+            let timestamp = Date(timeIntervalSince1970: timestampInterval)
+            Task { @MainActor in
+                onNoteReceived?(text, timestamp)
             }
-            #endif
         }
     }
 
     // Receive File (for audio files from InstantCaptureView)
     func session(_ session: WCSession, didReceive file: WCSessionFile) {
-        let metadata = file.metadata ?? [:]
-        let latitude = metadata["latitude"] as? Double
-        let longitude = metadata["longitude"] as? Double
-
         // Move the file to a permanent location before this method returns
         let tempURL = file.fileURL
         let destURL = FileManager.default.temporaryDirectory.appendingPathComponent(tempURL.lastPathComponent)
+
+        let timestampInterval = file.metadata?["timestamp"] as? TimeInterval ?? Date().timeIntervalSince1970
+        let timestamp = Date(timeIntervalSince1970: timestampInterval)
 
         do {
             if FileManager.default.fileExists(atPath: destURL.path) {
@@ -149,7 +106,7 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
                 #if DEBUG
                 print("Received audio file from watch")
                 #endif
-                onFileReceived?(destURL, latitude, longitude)
+                onFileReceived?(destURL, timestamp)
                 #endif
             }
         } catch {
@@ -186,7 +143,17 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
     }
 
     func fetchDailyFile() async -> String {
-        guard let session = session, session.activationState == .activated else {
+        guard let session = session else {
+            return UserDefaults.standard.string(forKey: "cachedDailyLog") ?? ""
+        }
+
+        // Wait up to 1 second for session activation if needed
+        for _ in 0..<10 {
+            if session.activationState == .activated { break }
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+
+        guard session.activationState == .activated else {
             return UserDefaults.standard.string(forKey: "cachedDailyLog") ?? ""
         }
 

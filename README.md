@@ -4,7 +4,8 @@ MacroMark is a zero-friction, voice-to-text capture tool designed for personal k
 
 ## Features
 
-- **Zero-Friction Capture**: Tap the complication, speak, and lower your wrist. Your note is saved instantly. No fumbling with "Done" buttons or battling system timeouts.
+- **Zero-Friction Capture**: Tap the complication, speak, and lower your wrist. Your note is saved instantly with an accurate, watch-generated timestamp. No fumbling with "Done" buttons or battling system timeouts.
+- **Beautiful Watch UI**: A modernized liquid glass interface featuring large, clear microphone and keyboard buttons for instant input selection, plus quick access to "Today's Daily Log" directly from your wrist.
 - **The Append Mechanic**: Instead of cluttering your vault with hundreds of tiny files, MacroMark intelligently appends all your captures for a given day to a single `YYYY-MM-DD.md` daily note.
 - **Verbal Macros**: Speak custom trigger words to instantly format your text. Say "Heading One" to output `# `, or use variables like `{date}`, `{time}`, and `{location}` to build clever workflows.
 - **PKM Friendly**: Saves directly to a dedicated iCloud Documents folder, making it instantly accessible to Obsidian, Logseq, and other Markdown-based tools.
@@ -26,7 +27,7 @@ MacroMark is a zero-friction, voice-to-text capture tool designed for personal k
 ## How it Works
 
 1. **Speak**: Tap the `macromark://capture/instant` complication. The custom `SFSpeechRecognizer` begins transcribing immediately and *never* times out from silence.
-2. **Wrist-Down Save**: When you lower your wrist, the watchOS `scenePhase` changes, immediately saving your text to local storage.
+2. **Wrist-Down Save**: When you lower your wrist, the watchOS `scenePhase` changes, immediately saving your text and the precise origin timestamp to local storage.
 3. **Sync**: `WatchConnectivity` queues the payload and sends it to your iPhone (even in the background).
 4. **Process & Store**: The iOS app processes your text through the Macro Engine and appends it to `YYYY-MM-DD.md` in iCloud Drive.
 

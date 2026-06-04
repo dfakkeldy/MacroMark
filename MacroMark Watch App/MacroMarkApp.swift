@@ -9,6 +9,11 @@ import SwiftUI
 
 @main
 struct MacroMark_Watch_AppApp: App {
+    init() {
+        _ = WatchConnectivityProvider.shared
+        _ = LocalStore.shared
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()

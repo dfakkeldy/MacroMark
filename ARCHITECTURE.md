@@ -10,7 +10,8 @@ The watchOS app is responsible for the raw capture of user dictation. It bypasse
 - **`SpeechRecognizer`**: An `@Observable`, `@MainActor` class wrapping `SFSpeechRecognizer`. It is configured with `shouldReportPartialResults = true` and `requiresOnDeviceRecognition = true` (where supported) to prevent the OS from automatically timing out during silent pauses.
 - **`LocalStore`**: An `@Observable` singleton that immediately persists captured text to `UserDefaults`. If the Watch is disconnected from the iPhone or the app is killed in the background, no data is lost.
 - **Capture Views**:
-  - `InstantCaptureView`: Starts the `SpeechRecognizer` immediately on appear. It hooks into the SwiftUI `scenePhase` environment variable to automatically save and terminate the session the exact moment the user lowers their wrist (`.background` or `.inactive`).
+  - **Main Interface**: Features a modern liquid glass aesthetic. Replaces legacy options with large, clear microphone and keyboard buttons for capture, and a prominent "Today's Daily Log" button at the bottom.
+  - `InstantCaptureView`: Starts the `SpeechRecognizer` immediately on appear. It hooks into the SwiftUI `scenePhase` environment variable to automatically save the session with an accurate point-of-origin timestamp the exact moment the user lowers their wrist (`.background` or `.inactive`).
   - `SystemCaptureView`: A fallback using the native `TextField` for scribble or standard dictation.
 - **Widget Extension**: Exposes complications that use `widgetURL` to deep link directly into the specific capture modes (`macromark://capture/instant`).
 
@@ -20,8 +21,8 @@ Because users often capture notes away from their phones, the sync mechanism mus
 
 ### Components
 - **`WatchConnectivityProvider`**: A shared singleton wrapping `WCSession`. 
-  - On the Watch, it uses `transferUserInfo` to enqueue notes. It listens to the `didFinish` delegate callback to confirm the iPhone received the payload before deleting the note from `LocalStore`.
-  - On iOS, it receives the `userInfo` payload in the background and triggers the processing pipeline.
+  - On the Watch, it uses `transferUserInfo` to enqueue notes, ensuring the payload includes the exact origin timestamp generated at the moment of dictation. It listens to the `didFinish` delegate callback to confirm the iPhone received the payload before deleting the note from `LocalStore`.
+  - On iOS, it receives the `userInfo` payload in the background and triggers the processing pipeline with the correct timestamp.
 
 ## 3. iOS Target (Process & Store)
 

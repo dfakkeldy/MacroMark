@@ -23,9 +23,7 @@ struct InstantCaptureView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
-                    Task {
-                        await finishAndSave()
-                    }
+                    finishAndSave()
                 } label: {
                     Image(systemName: "checkmark")
                 }
@@ -41,9 +39,7 @@ struct InstantCaptureView: View {
         }
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .background || newPhase == .inactive {
-                Task {
-                    await finishAndSave()
-                }
+                finishAndSave()
             }
         }
         .onDisappear {
@@ -51,25 +47,34 @@ struct InstantCaptureView: View {
         }
     }
     
-    private func finishAndSave() async {
+    private func finishAndSave() {
         guard let fileURL = recorder.stopRecording() else {
             dismiss()
             return
         }
-        
-        let id = UUID()
-        var lat: Double? = nil
-        var lon: Double? = nil
-        
-        // Let's blindly fetch location if we record audio, since we don't know the transcript yet
-        if let location = await LocationManager.shared.getCurrentLocation() {
-            lat = location.coordinate.latitude
-            lon = location.coordinate.longitude
-        }
-        
-        WatchConnectivityProvider.shared.sendFile(fileURL, id: id, latitude: lat, longitude: lon)
-        
         dismiss()
+
+        Task.detached {
+            ProcessInfo.processInfo.performExpiringActivity(withReason: "Save Audio") { expired in
+                if !expired {
+                    let semaphore = DispatchSemaphore(value: 0)
+                    let timestamp = Date()
+                    Task {
+                        await InstantCaptureView.processAudioFile(fileURL: fileURL, timestamp: timestamp)
+                        semaphore.signal()
+                    }
+                    semaphore.wait()
+                }
+            }
+        }
+    }
+
+    private static func processAudioFile(fileURL: URL, timestamp: Date) async {
+        let id = UUID()
+        
+        await MainActor.run {
+            WatchConnectivityProvider.shared.sendFile(fileURL, id: id, timestamp: timestamp)
+        }
     }
 }
 
