@@ -53,13 +53,8 @@ struct NoteDetailView: View {
     }
     
     private func exportToICloud() {
-        // Appends to the default iCloud location as before
         Task {
-            // Because iCloudStorageManager is part of the main app, we can just use NotificationCenter or a static closure if we don't have direct access.
-            // Wait, iCloudStorageManager is in the iOS app target, not MacroMarkKit. We can use it directly here!
             iCloudStorageManager.shared.appendText(note.text + "\n\n")
-            
-            // Just updating state for UI
             await MainActor.run {
                 note.isExported = true
                 note.exportTarget = ExportTarget.iCloud.rawValue

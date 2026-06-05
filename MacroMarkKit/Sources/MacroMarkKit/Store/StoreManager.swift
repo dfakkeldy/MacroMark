@@ -69,6 +69,9 @@ public final class StoreManager {
     private func handleTransaction(_ result: VerificationResult<Transaction>) async {
         switch result {
         case .verified(let transaction):
+            // Persist entitlement before finishing — if the app crashes between
+            // finish() and persistence, the purchase would be permanently lost.
+            await EntitlementManager.shared.refreshEntitlements()
             await transaction.finish()
         case .unverified:
             print("Unverified transaction received")
@@ -83,7 +86,7 @@ public final class StoreManager {
             // After syncing, check whether there are actually restored entitlements
             // rather than unconditionally showing "purchased".
             await EntitlementManager.shared.refreshEntitlements()
-            purchaseState = EntitlementManager.shared.isSubscribed || EntitlementManager.shared.hasLifetimeUnlock
+            purchaseState = EntitlementManager.shared.isEntitled
                 ? .purchased
                 : .notStarted
         } catch {

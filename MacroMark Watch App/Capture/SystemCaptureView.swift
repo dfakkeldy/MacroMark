@@ -2,7 +2,6 @@ import SwiftUI
 import WatchKit
 
 struct SystemCaptureView: View {
-    @State private var text: String = ""
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -27,7 +26,6 @@ struct SystemCaptureView: View {
                 return
             }
 
-            text = textResult
             dismiss()
 
             Task.detached {

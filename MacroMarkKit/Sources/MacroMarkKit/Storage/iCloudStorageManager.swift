@@ -1,7 +1,11 @@
 import Foundation
 
-public final class iCloudStorageManager: @unchecked Sendable {
+@MainActor
+public final class iCloudStorageManager {
     public static let shared = iCloudStorageManager()
+
+    /// Published so UI can observe when iCloud is unavailable and data is saving locally.
+    public private(set) var isUsingFallbackStorage = false
 
     private init() {}
 
@@ -17,7 +21,13 @@ public final class iCloudStorageManager: @unchecked Sendable {
         if let bookmarkData = UserDefaults.standard.data(forKey: "customSaveBookmark") {
             var isStale = false
             if let url = try? URL(resolvingBookmarkData: bookmarkData, options: .withoutUI, relativeTo: nil, bookmarkDataIsStale: &isStale) {
-                return url
+                if isStale {
+                    // Stale bookmark — the user moved the folder. Clear it so we fall back to iCloud.
+                    UserDefaults.standard.removeObject(forKey: "customSaveBookmark")
+                    // Fall through to iCloud / local fallback below.
+                } else {
+                    return url
+                }
             }
         }
 
@@ -26,25 +36,15 @@ public final class iCloudStorageManager: @unchecked Sendable {
             if !FileManager.default.fileExists(atPath: documentsDir.path) {
                 try? FileManager.default.createDirectory(at: documentsDir, withIntermediateDirectories: true)
             }
+            isUsingFallbackStorage = false
             return documentsDir
         }
+        isUsingFallbackStorage = true
         return URL.documentsDirectory
     }
 
     private func fileURL(for date: Date, settings: FolderSettings) -> URL {
-        let dateString = date.formatted(
-            Date.ISO8601FormatStyle(timeZone: .current)
-                .year().month().day()
-                .dateSeparator(.dash)
-        )
-
-        // For custom date formats, build a simple formatter
-        let filename: String
-        if settings.dateFormat == "yyyy-MM-dd" {
-            filename = "\(dateString).md"
-        } else {
-            filename = formatDate(date, format: settings.dateFormat) + ".md"
-        }
+        let filename = settings.format(date: date) + ".md"
 
         switch settings.structure {
         case .flat:
@@ -65,30 +65,6 @@ public final class iCloudStorageManager: @unchecked Sendable {
             try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
             return dir.appending(path: filename)
         }
-    }
-
-    private func formatDate(_ date: Date, format: String) -> String {
-        // Simple date format mapping using Calendar components
-        let calendar = Calendar.current
-        let components = calendar.dateComponents([.year, .month, .day], from: date)
-
-        guard let year = components.year,
-              let month = components.month,
-              let day = components.day else {
-            return date.formatted(Date.ISO8601FormatStyle(timeZone: .current).year().month().day().dateSeparator(.dash))
-        }
-
-        let yearStr = String(year)
-        let monthStr = String(format: "%02d", month)
-        let dayStr = String(format: "%02d", day)
-
-        var result = format
-        result = result.replacing("yyyy", with: yearStr)
-        result = result.replacing("yy", with: String(year % 100))
-        result = result.replacing("MM", with: monthStr)
-        result = result.replacing("dd", with: dayStr)
-
-        return result
     }
 
     public func appendText(_ text: String, for date: Date = Date()) {
@@ -117,9 +93,9 @@ public final class iCloudStorageManager: @unchecked Sendable {
             if FileManager.default.fileExists(atPath: url.path) {
                 do {
                     let fileHandle = try FileHandle(forWritingTo: url)
+                    defer { fileHandle.closeFile() }
                     fileHandle.seekToEndOfFile()
                     fileHandle.write(dataToAppend)
-                    fileHandle.closeFile()
                 } catch {
                     print("Failed to append to existing file: \(error)")
                 }

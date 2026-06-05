@@ -1,5 +1,5 @@
 import Foundation
-import Speech
+@preconcurrency import Speech
 import AVFoundation
 
 final class AudioTranscriber {
@@ -9,64 +9,82 @@ final class AudioTranscriber {
                 continuation.resume(returning: status)
             }
         }
-        
+
         guard status == .authorized else {
             throw NSError(domain: "AudioTranscriber", code: 1, userInfo: [NSLocalizedDescriptionKey: "No speech recognition permission"])
         }
         guard let recognizer = SFSpeechRecognizer(), recognizer.isAvailable else {
             throw NSError(domain: "AudioTranscriber", code: 2, userInfo: [NSLocalizedDescriptionKey: "Speech recognizer unavailable"])
         }
-        
+
         let chunkURLs = try await splitAudio(url: fileURL, maxDuration: 50.0)
         var fullTranscript = ""
-        
+        var chunkErrors: [Error] = []
+
         for url in chunkURLs {
             let request = SFSpeechURLRecognitionRequest(url: url)
-            
+
             do {
-                let chunkText: String = try await withCheckedThrowingContinuation { continuation in
-                    var isResumed = false
-                    recognizer.recognitionTask(with: request) { result, error in
-                        if isResumed { return }
-                        if let error = error {
-                            isResumed = true
-                            continuation.resume(throwing: error)
-                            return
-                        }
-                        
-                        if let result = result, result.isFinal {
-                            isResumed = true
-                            continuation.resume(returning: result.bestTranscription.formattedString)
+                nonisolated(unsafe) var speechTask: SFSpeechRecognitionTask?
+                let chunkText: String = try await withTaskCancellationHandler {
+                    try await withCheckedThrowingContinuation { continuation in
+                        var isResumed = false
+                        speechTask = recognizer.recognitionTask(with: request) { result, error in
+                            if isResumed { return }
+                            if let error = error {
+                                isResumed = true
+                                continuation.resume(throwing: error)
+                                return
+                            }
+                            if let result = result, result.isFinal {
+                                isResumed = true
+                                continuation.resume(returning: result.bestTranscription.formattedString)
+                            }
                         }
                     }
+                } onCancel: {
+                    speechTask?.cancel()
                 }
-                
+
                 if !fullTranscript.isEmpty && !chunkText.isEmpty {
                     fullTranscript += " "
                 }
                 fullTranscript += chunkText
             } catch {
+                chunkErrors.append(error)
                 print("Failed to transcribe chunk: \(error)")
             }
-            
+
             if url != fileURL {
                 try? FileManager.default.removeItem(at: url)
             }
         }
-        
+
+        // If all chunks failed and we have errors, throw a composite error with partial transcript.
+        if fullTranscript.isEmpty && !chunkErrors.isEmpty {
+            throw NSError(
+                domain: "AudioTranscriber",
+                code: 3,
+                userInfo: [
+                    NSLocalizedDescriptionKey: "All transcription chunks failed.",
+                    "chunkErrors": chunkErrors
+                ]
+            )
+        }
+
         return fullTranscript
     }
-    
+
     private static func splitAudio(url: URL, maxDuration: TimeInterval) async throws -> [URL] {
         let asset = AVURLAsset(url: url)
         let duration = try await asset.load(.duration).seconds
         if duration <= maxDuration { return [url] }
-        
+
         var urls = [URL]()
         var startTime = 0.0
         while startTime < duration {
             guard let exportSession = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetAppleM4A) else {
-                throw NSError(domain: "AudioTranscriber", code: 3, userInfo: [NSLocalizedDescriptionKey: "Failed to create export session"])
+                throw NSError(domain: "AudioTranscriber", code: 4, userInfo: [NSLocalizedDescriptionKey: "Failed to create export session"])
             }
             let chunkURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".m4a")
 

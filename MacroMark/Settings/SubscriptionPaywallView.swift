@@ -36,7 +36,7 @@ struct SubscriptionPaywallView: View {
                         Task {
                             await storeManager.purchase(product)
                             await entitlements.refreshEntitlements()
-                            if entitlements.isSubscribed {
+                            if entitlements.isEntitled {
                                 dismiss()
                             }
                         }
@@ -55,7 +55,7 @@ struct SubscriptionPaywallView: View {
                     Task {
                         await storeManager.restorePurchases()
                         await entitlements.refreshEntitlements()
-                        if entitlements.isSubscribed {
+                        if entitlements.isEntitled {
                             dismiss()
                         }
                     }
@@ -82,7 +82,7 @@ struct SubscriptionPaywallView: View {
     private var paywallMessage: String {
         switch reason {
         case .addMacro:
-            return "You've reached the 3-macro free limit. Subscribe to add unlimited custom macros."
+            return "You've reached the \(EntitlementManager.maxFreeMacros)-macro free limit. Subscribe to add unlimited custom macros."
         case .editDefault:
             return "Editing default macros is a premium feature. Subscribe to customize built-in macros."
         case .folderSettings:

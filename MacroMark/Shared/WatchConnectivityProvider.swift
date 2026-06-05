@@ -27,68 +27,64 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
         session?.activate()
     }
 
+    // MARK: - WCSessionDelegate (all methods already @MainActor via class annotation)
+
     func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
-        #if DEBUG
+#if DEBUG
         print("WCSession activation completed: \(activationState.rawValue), error: \(String(describing: error))")
-        #endif
+#endif
     }
 
-    #if os(iOS)
+#if os(iOS)
     func sessionDidBecomeInactive(_ session: WCSession) { }
     func sessionDidDeactivate(_ session: WCSession) {
         session.activate()
     }
-    #endif
+#endif
 
-    // Send a note from Watch to iOS
+    // MARK: - Sending
+
     func sendNote(_ noteId: UUID, text: String, timestamp: Date) {
         let userInfo: [String: Any] = [
             "id": noteId.uuidString,
             "text": text,
             "timestamp": timestamp.timeIntervalSince1970
         ]
-
         guard let session = session else { return }
         session.transferUserInfo(userInfo)
     }
 
-    // Send a file from Watch to iOS
     func sendFile(_ url: URL, id: UUID, timestamp: Date) {
         let metadata: [String: Any] = [
             "id": id.uuidString,
             "timestamp": timestamp.timeIntervalSince1970
         ]
-
         guard let session = session else { return }
         session.transferFile(url, metadata: metadata)
     }
 
-    // Update Application Context (Settings Sync)
     func updateSettings(captureMode: String) {
         guard let session = session, session.activationState == .activated else { return }
         do {
             try session.updateApplicationContext(["captureMode": captureMode])
         } catch {
-            #if DEBUG
+#if DEBUG
             print("Failed to update application context: \(error)")
-            #endif
+#endif
         }
     }
 
-    // Receive UserInfo
+    // MARK: - Receiving
+
     func session(_ session: WCSession, didReceiveUserInfo userInfo: [String : Any] = [:]) {
         if let text = userInfo["text"] as? String {
             let timestampInterval = userInfo["timestamp"] as? TimeInterval ?? Date().timeIntervalSince1970
             let timestamp = Date(timeIntervalSince1970: timestampInterval)
-            Task { @MainActor in
-                onNoteReceived?(text, timestamp)
-            }
+            onNoteReceived?(text, timestamp)
         }
     }
 
-    // Receive File (for audio files from InstantCaptureView)
     func session(_ session: WCSession, didReceive file: WCSessionFile) {
-        // Move the file to a permanent location before this method returns
         let tempURL = file.fileURL
         let destURL = FileManager.default.temporaryDirectory.appendingPathComponent(tempURL.lastPathComponent)
 
@@ -101,53 +97,50 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
             }
             try FileManager.default.copyItem(at: tempURL, to: destURL)
 
-            Task { @MainActor in
-                #if os(iOS)
-                #if DEBUG
-                print("Received audio file from watch")
-                #endif
-                onFileReceived?(destURL, timestamp)
-                #endif
-            }
+#if os(iOS)
+#if DEBUG
+            print("Received audio file from watch")
+#endif
+            onFileReceived?(destURL, timestamp)
+#endif
         } catch {
-            #if DEBUG
+#if DEBUG
             print("Failed to copy received file: \(error)")
-            #endif
+#endif
         }
     }
 
-    // Called when the user info finishes transferring.
+    // MARK: - Transfer Completion
+
     func session(_ session: WCSession, didFinish userInfoTransfer: WCSessionUserInfoTransfer, error: Error?) {
-        Task { @MainActor in
-            #if os(watchOS)
-            if error == nil {
-                if let idString = userInfoTransfer.userInfo["id"] as? String, let id = UUID(uuidString: idString) {
-                    NotificationCenter.default.post(name: .noteTransferDidComplete, object: nil, userInfo: ["id": id])
-                }
-            } else {
-                #if DEBUG
-                print("Transfer failed with error: \(String(describing: error))")
-                #endif
+#if os(watchOS)
+        if error == nil {
+            if let idString = userInfoTransfer.userInfo["id"] as? String, let id = UUID(uuidString: idString) {
+                LocalStore.shared.removeNote(withId: id)
             }
-            #endif
+        } else {
+#if DEBUG
+            print("Transfer failed with error: \(String(describing: error))")
+#endif
+        }
+#endif
+    }
+
+    // MARK: - Settings Sync
+
+    func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String : Any]) {
+        if let captureMode = applicationContext["captureMode"] as? String {
+            UserDefaults.standard.set(captureMode, forKey: "captureMode")
         }
     }
 
-    // Receive Application Context (Settings Sync)
-    func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String : Any]) {
-        Task { @MainActor in
-            if let captureMode = applicationContext["captureMode"] as? String {
-                UserDefaults.standard.set(captureMode, forKey: "captureMode")
-            }
-        }
-    }
+    // MARK: - Daily File Fetch
 
     func fetchDailyFile() async -> String {
         guard let session = session else {
             return UserDefaults.standard.string(forKey: "cachedDailyLog") ?? ""
         }
 
-        // Wait up to 1 second for session activation if needed
         for _ in 0..<10 {
             if session.activationState == .activated { break }
             try? await Task.sleep(for: .milliseconds(100))
@@ -158,19 +151,21 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
         }
 
         do {
-            // Race sendMessage against a 10-second timeout to avoid hanging
-            // if the watch becomes unreachable mid-request.
             let content: String = try await withThrowingTaskGroup(of: String.self) { group in
                 group.addTask {
                     try await withCheckedThrowingContinuation { continuation in
                         session.sendMessage(["request": "dailyFile"], replyHandler: { reply in
-                            if let content = reply["content"] as? String {
-                                continuation.resume(returning: content)
-                            } else {
-                                continuation.resume(throwing: NSError(domain: "WatchConnectivity", code: 2, userInfo: [NSLocalizedDescriptionKey: "Invalid reply content."]))
+                            Task { @MainActor in
+                                if let content = reply["content"] as? String {
+                                    continuation.resume(returning: content)
+                                } else {
+                                    continuation.resume(throwing: NSError(domain: "WatchConnectivity", code: 2, userInfo: [NSLocalizedDescriptionKey: "Invalid reply content."]))
+                                }
                             }
                         }, errorHandler: { error in
-                            continuation.resume(throwing: error)
+                            Task { @MainActor in
+                                continuation.resume(throwing: error)
+                            }
                         })
                     }
                 }
@@ -189,24 +184,21 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
             UserDefaults.standard.set(content, forKey: "cachedDailyLog")
             return content
         } catch {
-            #if DEBUG
+#if DEBUG
             print("Failed to fetch daily file: \(error). Falling back to cache.")
-            #endif
+#endif
             return UserDefaults.standard.string(forKey: "cachedDailyLog") ?? ""
         }
     }
 
-    // Handle message requests (e.g., from Watch)
+    // MARK: - Message Handler
+
     func session(_ session: WCSession, didReceiveMessage message: [String : Any], replyHandler: @escaping ([String : Any]) -> Void) {
-        #if os(iOS)
+#if os(iOS)
         if let request = message["request"] as? String, request == "dailyFile" {
             let content = iCloudStorageManager.shared.readText() ?? ""
             replyHandler(["content": content])
         }
-        #endif
+#endif
     }
-}
-
-extension Notification.Name {
-    static let noteTransferDidComplete = Notification.Name("noteTransferDidComplete")
 }

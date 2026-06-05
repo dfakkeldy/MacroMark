@@ -9,18 +9,24 @@ public final class EntitlementManager {
     public static let shared = EntitlementManager()
 
     public private(set) var isSubscribed = false
-    public private(set) var isInTrial = false
     public private(set) var hasLifetimeUnlock = false
 
     public static let maxFreeMacros = 3
+
+    /// Runtime flag for development/testing. Set via launch argument `-MacroMarkSimulateEntitled`.
+    /// Safer than compile-time `#if DEBUG` because it cannot leak into distribution builds.
+    public private(set) var simulateEntitled: Bool = {
+#if DEBUG
+        ProcessInfo.processInfo.arguments.contains("-MacroMarkSimulateEntitled")
+#else
+        false
+#endif
+    }()
 
     private let lifetimeKeychainKey = "com.macromark.lifetime.keychain"
     private var updatesTask: Task<Void, Never>?
 
     private init() {
-#if DEBUG
-        isSubscribed = true
-#endif
         hasLifetimeUnlock = checkKeychainFlag()
         scheduleRefresh()
 
@@ -32,17 +38,12 @@ public final class EntitlementManager {
         }
     }
 
-    /// Schedule an async entitlement refresh without waiting for the result.
-    /// Used at init time and from fire-and-forget contexts.
     private func scheduleRefresh() {
         Task { await refreshEntitlements() }
     }
 
-    /// Refresh entitlements from StoreKit and update published state.
-    /// Await this method when callers need the updated state before proceeding.
     public func refreshEntitlements() async {
         var subscribed = false
-        var inTrial = false
 
         for await result in Transaction.currentEntitlements {
             switch result {
@@ -50,16 +51,11 @@ public final class EntitlementManager {
                 if transaction.productID == ProductIdentifiers.lifetime {
                     subscribed = true
                     hasLifetimeUnlock = true
-                    persistKeychainFlag()
+                    await persistKeychainFlag()
                 } else if transaction.productID == ProductIdentifiers.annualSubscription {
                     if let expirationDate = transaction.expirationDate,
                        expirationDate > Date() {
                         subscribed = true
-
-                        if let offer = transaction.offer,
-                           offer.type == .introductory {
-                            inTrial = true
-                        }
                     }
                 }
 
@@ -68,67 +64,53 @@ public final class EntitlementManager {
             }
         }
 
-#if !DEBUG
-        isSubscribed = subscribed
-#endif
-        isInTrial = inTrial
+        if !simulateEntitled {
+            isSubscribed = subscribed
+        }
     }
 
-    // MARK: - Free Tier Helpers
+    // MARK: - Entitlement Checks
 
-    public var canAddCustomMacro: Bool {
-#if DEBUG
-        return true
-#else
-        isSubscribed || hasLifetimeUnlock
-#endif
+    /// Single source of truth for all entitlement-gated features.
+    public var isEntitled: Bool {
+        if simulateEntitled { return true }
+        return isSubscribed || hasLifetimeUnlock
     }
 
     public func customMacroCount(_ count: Int) -> Bool {
-#if DEBUG
-        return true
-#else
-        if isSubscribed || hasLifetimeUnlock {
-            return true
-        }
+        if isEntitled { return true }
         return count < Self.maxFreeMacros
-#endif
     }
 
     public var canEditDefaultMacros: Bool {
-#if DEBUG
-        return true
-#else
-        isSubscribed || hasLifetimeUnlock
-#endif
+        isEntitled
     }
 
     public var canCustomizeFolderStructure: Bool {
-#if DEBUG
-        return true
-#else
-        isSubscribed || hasLifetimeUnlock
-#endif
+        isEntitled
     }
 
     // MARK: - Keychain (Lifetime Unlock Persistence)
 
-    private func persistKeychainFlag() {
+    /// Runs keychain operations off the main actor to avoid blocking UI.
+    private func persistKeychainFlag() async {
         guard let data = "lifetime_unlocked".data(using: .utf8) else { return }
 
-        let deleteQuery: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: lifetimeKeychainKey,
-        ]
-        SecItemDelete(deleteQuery as CFDictionary)
+        await Task.detached {
+            let deleteQuery: [String: Any] = [
+                kSecClass as String: kSecClassGenericPassword,
+                kSecAttrAccount as String: self.lifetimeKeychainKey,
+            ]
+            SecItemDelete(deleteQuery as CFDictionary)
 
-        let addQuery: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: lifetimeKeychainKey,
-            kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
-        ]
-        SecItemAdd(addQuery as CFDictionary, nil)
+            let addQuery: [String: Any] = [
+                kSecClass as String: kSecClassGenericPassword,
+                kSecAttrAccount as String: self.lifetimeKeychainKey,
+                kSecValueData as String: data,
+                kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
+            ]
+            SecItemAdd(addQuery as CFDictionary, nil)
+        }.value
     }
 
     private func checkKeychainFlag() -> Bool {

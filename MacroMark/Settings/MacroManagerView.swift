@@ -133,7 +133,7 @@ struct MacroManagerView: View {
                     HStack {
                         Text("Macros")
                         Spacer()
-                        Text("\(customMacroCount)" + (entitlements.isSubscribed ? "" : "/\(EntitlementManager.maxFreeMacros) free"))
+                        Text("\(customMacroCount)" + (entitlements.isEntitled ? "" : "/\(EntitlementManager.maxFreeMacros) free"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -149,7 +149,7 @@ struct MacroManagerView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Add", systemImage: "plus") {
-                        if !entitlements.isSubscribed && customMacroCount >= EntitlementManager.maxFreeMacros {
+                        if !entitlements.isEntitled && customMacroCount >= EntitlementManager.maxFreeMacros {
                             paywallReason = .addMacro
                             showingPaywall = true
                         } else {
@@ -194,7 +194,6 @@ struct MacroManagerView: View {
                 }
             }
             .onAppear {
-                SFSpeechRecognizer.requestAuthorization { _ in }
                 prepopulateIfNeeded()
             }
         }
@@ -259,6 +258,7 @@ struct MacroManagerView: View {
             for macro in defaultMacros {
                 modelContext.insert(macro)
             }
+            try? modelContext.save()
         }
     }
 
@@ -269,6 +269,7 @@ struct MacroManagerView: View {
         for macro in defaultMacros {
             modelContext.insert(macro)
         }
+        try? modelContext.save()
     }
 }
 

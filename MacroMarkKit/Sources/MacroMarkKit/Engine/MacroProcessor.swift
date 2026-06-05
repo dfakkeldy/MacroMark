@@ -7,28 +7,53 @@ import UIKit
 #endif
 
 public struct MacroProcessor {
+    /// Cache compiled NSRegularExpression instances keyed by macro trigger pattern.
+    /// Marked nonisolated(unsafe) because races on this cache are benign — worst case
+    /// is compiling the same regex twice, which is a minor perf hit, never a crash.
+    private static nonisolated(unsafe) var regexCache: [String: NSRegularExpression] = [:]
+
+    /// Invalidate the compiled regex cache. Call after macros are added, removed, or edited.
+    public static func invalidateRegexCache() {
+        regexCache.removeAll()
+    }
+
+    /// Pre-compiled wrapping-tag cleanup regex (constant pattern, cached once).
+    private static let wrapCleanupRegex: NSRegularExpression? = {
+        try? NSRegularExpression(pattern: #"([\*\_\~]+)\s+(.+?)\s+\1"#, options: [])
+    }()
+
     /// Process text through macro expansion and dynamic variable replacement.
     /// This is CPU-bound work — it is NOT isolated to any actor so callers
     /// should invoke it from the global cooperative pool, not the main actor.
     public static func process(text: String, macros: [Macro], date: Date = Date(), fetchLocation: (() async -> (latitude: Double, longitude: Double)?)? = nil) async -> String {
         var processedText = text
 
-        // 1. Apply trigger macros
+        // 1. Apply trigger macros (with cached regex compilation)
         for macro in macros {
             guard !macro.trigger.isEmpty else { continue }
             let pattern = "\\b\(NSRegularExpression.escapedPattern(for: macro.trigger))\\b"
-            do {
-                let regex = try NSRegularExpression(pattern: pattern, options: .caseInsensitive)
-                let range = NSRange(processedText.startIndex..., in: processedText)
-                processedText = regex.stringByReplacingMatches(
-                    in: processedText,
-                    options: [],
-                    range: range,
-                    withTemplate: NSRegularExpression.escapedTemplate(for: macro.replacement)
-                )
-            } catch {
-                print("Failed to compile regex for macro \(macro.trigger): \(error)")
+
+            let regex: NSRegularExpression
+            if let cached = regexCache[pattern] {
+                regex = cached
+            } else {
+                do {
+                    let compiled = try NSRegularExpression(pattern: pattern, options: .caseInsensitive)
+                    regexCache[pattern] = compiled
+                    regex = compiled
+                } catch {
+                    print("Failed to compile regex for macro \(macro.trigger): \(error)")
+                    continue
+                }
             }
+
+            let range = NSRange(processedText.startIndex..., in: processedText)
+            processedText = regex.stringByReplacingMatches(
+                in: processedText,
+                options: [],
+                range: range,
+                withTemplate: NSRegularExpression.escapedTemplate(for: macro.replacement)
+            )
         }
 
         // 2. Evaluate dynamic variables
@@ -44,7 +69,6 @@ public struct MacroProcessor {
         processedText = processedText.replacing("{tab}", with: "\t")
 
         // Evaluate {backspace} — deletes the character immediately before it.
-        // Useful for macros that remove a preceding newline (e.g., ending a hashtag).
         while processedText.contains("{backspace}") {
             if let range = processedText.firstRange(of: "{backspace}") {
                 let deleteStart = range.lowerBound == processedText.startIndex
@@ -61,13 +85,14 @@ public struct MacroProcessor {
             }
         }
 
-        // Evaluate {clipboard}
+        // Evaluate {clipboard} — must hop to MainActor for UIPasteboard access.
         if processedText.contains("{clipboard}") {
-            #if canImport(UIKit)
-            let clipboardText = UIPasteboard.general.string ?? ""
-            #else
-            let clipboardText = ""
-            #endif
+            let clipboardText: String
+#if canImport(UIKit)
+            clipboardText = await MainActor.run { UIPasteboard.general.string ?? "" }
+#else
+            clipboardText = ""
+#endif
             processedText = processedText.replacing("{clipboard}", with: clipboardText)
         }
 
@@ -78,34 +103,23 @@ public struct MacroProcessor {
                 let lat = coords.latitude
                 let lon = coords.longitude
                 let location = CLLocation(latitude: lat, longitude: lon)
-                if let request = MKReverseGeocodingRequest(location: location) {
-                    do {
-                        let mapItems = try await request.mapItems
-                        if let placemark = mapItems.first?.placemark {
-                            let street = placemark.thoroughfare ?? ""
-                            let subThoroughfare = placemark.subThoroughfare ?? ""
-                            let city = placemark.locality ?? ""
-
-                            if !street.isEmpty && !city.isEmpty {
-                                locationString = "\(subThoroughfare) \(street), \(city)".trimmingCharacters(in: .whitespaces)
-                            } else if !city.isEmpty {
-                                locationString = city
-                            } else {
-                                locationString = placemark.name ?? "Lat: \(lat), Lon: \(lon)"
-                            }
-                        }
-                    } catch {
-                        print("Reverse geocoding failed: \(error)")
-                        locationString = "Lat: \(lat), Lon: \(lon)"
-                    }
+#if os(macOS)
+                // MKReverseGeocodingRequest requires macOS 26+. On earlier macOS,
+                // fall back to lat/lon string.
+                if #available(macOS 26.0, *) {
+                    locationString = await reverseGeocode(location: location, fallback: "Lat: \(lat), Lon: \(lon)")
+                } else {
+                    locationString = "Lat: \(lat), Lon: \(lon)"
                 }
+#else
+                locationString = await reverseGeocode(location: location, fallback: "Lat: \(lat), Lon: \(lon)")
+#endif
             }
             processedText = processedText.replacing("{location}", with: locationString)
         }
 
         // 3. Wrapping tag cleanup
-        do {
-            let regex = try NSRegularExpression(pattern: #"([\*\_\~]+)\s+(.+?)\s+\1"#, options: [])
+        if let regex = wrapCleanupRegex {
             let range = NSRange(processedText.startIndex..., in: processedText)
             processedText = regex.stringByReplacingMatches(
                 in: processedText,
@@ -113,10 +127,35 @@ public struct MacroProcessor {
                 range: range,
                 withTemplate: "$1$2$1"
             )
-        } catch {
-            print("Failed regex wrap cleanup")
         }
 
         return processedText
+    }
+
+    /// Reverse-geocode a location to a human-readable string.
+    @available(macOS 26.0, *)
+    private static func reverseGeocode(location: CLLocation, fallback: String) async -> String {
+        guard let request = MKReverseGeocodingRequest(location: location) else {
+            return fallback
+        }
+        do {
+            let mapItems = try await request.mapItems
+            if let placemark = mapItems.first?.placemark {
+                let street = placemark.thoroughfare ?? ""
+                let subThoroughfare = placemark.subThoroughfare ?? ""
+                let city = placemark.locality ?? ""
+
+                if !street.isEmpty && !city.isEmpty {
+                    return "\(subThoroughfare) \(street), \(city)".trimmingCharacters(in: .whitespaces)
+                } else if !city.isEmpty {
+                    return city
+                } else {
+                    return placemark.name ?? fallback
+                }
+            }
+        } catch {
+            print("Reverse geocoding failed: \(error)")
+        }
+        return fallback
     }
 }

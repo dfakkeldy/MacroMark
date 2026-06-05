@@ -13,6 +13,5 @@ struct MacroMarkWidgetBundle: WidgetBundle {
     var body: some Widget {
         InstantCaptureWidget()
         SystemCaptureWidget()
-        MacroMarkWidgetControl()
     }
 }
