@@ -10,6 +10,8 @@ struct MacroManagerView: View {
 
     @AppStorage("captureMode") private var captureMode: String = "audio"
     @AppStorage("customSaveBookmark") private var customSaveBookmark: Data?
+    @AppStorage("defaultExportTarget") private var defaultExportTarget: ExportTarget = .iCloud
+    @AppStorage("autoExportEnabled") private var autoExportEnabled: Bool = false
     @State private var isShowingAddSheet = false
     @State private var showingFolderPicker = false
     @State private var editingMacro: Macro?
@@ -44,13 +46,31 @@ struct MacroManagerView: View {
                 }
 
                 // MARK: Storage Location
-                Section("Storage Location") {
+                Section("iCloud Storage Location") {
                     Button(customSaveBookmark == nil ? "Choose Save Location..." : "Change Save Location...") {
                         showingFolderPicker = true
                     }
                     if customSaveBookmark != nil {
                         Button("Reset to Default (iCloud)", role: .destructive) {
                             customSaveBookmark = nil
+                        }
+                    }
+                }
+                
+                // MARK: Export & Integrations
+                Section("Export Options") {
+                    Picker("Default Destination", selection: $defaultExportTarget) {
+                        ForEach(ExportTarget.allCases) { target in
+                            Label(target.rawValue, systemImage: target.iconName).tag(target)
+                        }
+                    }
+                    
+                    if defaultExportTarget != .iCloud && defaultExportTarget != .shareSheet {
+                        Toggle("Auto-Export on Completion", isOn: $autoExportEnabled)
+                        if autoExportEnabled {
+                            Text("When notes finish processing on the phone, MacroMark will attempt to open \(defaultExportTarget.rawValue) automatically. Note: this requires your phone to be unlocked.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                         }
                     }
                 }

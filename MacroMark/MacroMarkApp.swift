@@ -24,11 +24,11 @@ struct MacroMarkApp: App {
     init() {
         let resolvedContainer: ModelContainer
         do {
-            resolvedContainer = try ModelContainer(for: Macro.self)
+            resolvedContainer = try ModelContainer(for: Macro.self, ProcessedNote.self)
         } catch {
             print("Failed to initialize ModelContainer: \(error). Falling back to in-memory store.")
             if let memoryContainer = try? ModelContainer(
-                for: Macro.self,
+                for: Macro.self, ProcessedNote.self,
                 configurations: ModelConfiguration(isStoredInMemoryOnly: true)
             ) {
                 resolvedContainer = memoryContainer
@@ -66,7 +66,43 @@ struct MacroMarkApp: App {
                     }
                     return nil
                 }
-                iCloudStorageManager.shared.appendText(processed)
+                
+                // Save to Inbox
+                let note = ProcessedNote(text: processed, createdAt: timestamp)
+                await MainActor.run {
+                    context.insert(note)
+                    try? context.save()
+                }
+                
+                // Read settings
+                let autoExport = UserDefaults.standard.bool(forKey: "autoExportEnabled")
+                let rawTarget = UserDefaults.standard.string(forKey: "defaultExportTarget") ?? ExportTarget.iCloud.rawValue
+                
+                if let target = ExportTarget(rawValue: rawTarget) {
+                    if target == .iCloud {
+                        iCloudStorageManager.shared.appendText(processed)
+                        await MainActor.run {
+                            note.isExported = true
+                            note.exportTarget = target.rawValue
+                            try? context.save()
+                        }
+                    } else if autoExport {
+                        if let url = ExportManager.url(for: note, to: target) {
+                            await MainActor.run {
+                                UIApplication.shared.open(url) { success in
+                                    if success {
+                                        note.isExported = true
+                                        note.exportTarget = target.rawValue
+                                        try? context.save()
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    // Fallback to iCloud
+                    iCloudStorageManager.shared.appendText(processed)
+                }
 
                 #if canImport(UIKit)
                 UIApplication.shared.endBackgroundTask(bgTask)
@@ -98,7 +134,43 @@ struct MacroMarkApp: App {
                         }
                         return nil
                     }
-                    iCloudStorageManager.shared.appendText(processed)
+                    
+                    // Save to Inbox
+                    let note = ProcessedNote(text: processed, createdAt: timestamp)
+                    await MainActor.run {
+                        context.insert(note)
+                        try? context.save()
+                    }
+                    
+                    // Read settings
+                    let autoExport = UserDefaults.standard.bool(forKey: "autoExportEnabled")
+                    let rawTarget = UserDefaults.standard.string(forKey: "defaultExportTarget") ?? ExportTarget.iCloud.rawValue
+                    
+                    if let target = ExportTarget(rawValue: rawTarget) {
+                        if target == .iCloud {
+                            iCloudStorageManager.shared.appendText(processed)
+                            await MainActor.run {
+                                note.isExported = true
+                                note.exportTarget = target.rawValue
+                                try? context.save()
+                            }
+                        } else if autoExport {
+                            if let url = ExportManager.url(for: note, to: target) {
+                                await MainActor.run {
+                                    UIApplication.shared.open(url) { success in
+                                        if success {
+                                            note.isExported = true
+                                            note.exportTarget = target.rawValue
+                                            try? context.save()
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        // Fallback to iCloud
+                        iCloudStorageManager.shared.appendText(processed)
+                    }
 
                     try? FileManager.default.removeItem(at: url)
                 } catch {
@@ -116,7 +188,7 @@ struct MacroMarkApp: App {
 
     var body: some Scene {
         WindowGroup {
-            MacroManagerView()
+            AppTabView()
                 .environment(entitlementManager)
                 .environment(storeManager)
                 .overlay(alignment: .top) {
