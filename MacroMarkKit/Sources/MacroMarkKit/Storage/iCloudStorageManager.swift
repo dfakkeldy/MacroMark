@@ -67,7 +67,8 @@ public final class iCloudStorageManager {
         }
     }
 
-    public func appendText(_ text: String, for date: Date = Date()) {
+    @discardableResult
+    public func appendText(_ text: String, for date: Date = Date()) -> Bool {
         let baseDir = baseDirectoryURL
         let isSecurityScoped = UserDefaults.standard.data(forKey: "customSaveBookmark") != nil
         let settings = folderSettings
@@ -86,8 +87,9 @@ public final class iCloudStorageManager {
 
         let timeString = date.formatted(date: .omitted, time: .shortened)
         let textToAppend = "\n\n\(timeString)\n\n\(text)\n\n"
-        guard let dataToAppend = textToAppend.data(using: .utf8) else { return }
+        guard let dataToAppend = textToAppend.data(using: .utf8) else { return false }
 
+        var writeSucceeded = false
         var error: NSError?
         NSFileCoordinator().coordinate(writingItemAt: fileURL, options: .forMerging, error: &error) { url in
             if FileManager.default.fileExists(atPath: url.path) {
@@ -96,12 +98,14 @@ public final class iCloudStorageManager {
                     defer { fileHandle.closeFile() }
                     fileHandle.seekToEndOfFile()
                     fileHandle.write(dataToAppend)
+                    writeSucceeded = true
                 } catch {
                     print("Failed to append to existing file: \(error)")
                 }
             } else {
                 do {
                     try dataToAppend.write(to: url)
+                    writeSucceeded = true
                 } catch {
                     print("Failed to write to new file: \(error)")
                 }
@@ -110,6 +114,7 @@ public final class iCloudStorageManager {
         if let error {
             print("File coordinator error: \(error)")
         }
+        return writeSucceeded
     }
 
     public func readText(for date: Date = Date()) -> String? {

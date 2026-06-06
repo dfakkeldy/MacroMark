@@ -23,6 +23,7 @@ final class LocalStore {
     private var queuedNoteIDs: Set<UUID> = []
 
     private let defaultsKey = "MacroMark_PendingNotes"
+    private let queuedKey = "MacroMark_QueuedNoteIDs"
 
     private init() {
         load()
@@ -54,18 +55,24 @@ final class LocalStore {
         do {
             let data = try JSONEncoder().encode(pendingNotes)
             UserDefaults.standard.set(data, forKey: defaultsKey)
+            // Persist queuedNoteIDs so we don't re-send on cold launch
+            let queuedArray = queuedNoteIDs.map { $0.uuidString }
+            UserDefaults.standard.set(queuedArray, forKey: queuedKey)
         } catch {
             print("Failed to save pending notes: \(error)")
         }
     }
 
-    /// Rebuild the queued set from persisted notes (on cold launch, re-queue all).
+    /// Rebuild state from persisted data on cold launch.
     private func load() {
         guard let data = UserDefaults.standard.data(forKey: defaultsKey) else { return }
         do {
             pendingNotes = try JSONDecoder().decode([CapturedNote].self, from: data)
-            // On cold launch, we re-sync everything, so clear the queued set
-            queuedNoteIDs.removeAll()
+            // Restore queuedNoteIDs so we don't re-send notes that were
+            // already transferred (but not yet ACK'd) before termination.
+            if let queuedArray = UserDefaults.standard.stringArray(forKey: queuedKey) {
+                queuedNoteIDs = Set(queuedArray.compactMap { UUID(uuidString: $0) })
+            }
         } catch {
             print("Failed to load pending notes: \(error)")
         }

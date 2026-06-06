@@ -5,6 +5,15 @@ import Observation
 import MacroMarkKit
 #endif
 
+actor ContinuationTimeout {
+    var hasCompleted = false
+    func complete() -> Bool {
+        if hasCompleted { return false }
+        hasCompleted = true
+        return true
+    }
+}
+
 @MainActor
 @Observable
 final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
@@ -13,8 +22,33 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
     private let session: WCSession?
 
     // For iOS to process received notes
-    var onNoteReceived: ((String, Date) -> Void)?
-    var onFileReceived: ((URL, Date) -> Void)?
+    var onNoteReceived: ((UUID, String, Date) -> Void)? {
+        didSet {
+            // Replay any notes that arrived before the handler was set
+            if let handler = onNoteReceived, !pendingReceivedNotes.isEmpty {
+                let notes = pendingReceivedNotes
+                pendingReceivedNotes.removeAll()
+                for (id, text, timestamp) in notes {
+                    handler(id, text, timestamp)
+                }
+            }
+        }
+    }
+    var onFileReceived: ((URL, Date) -> Void)? {
+        didSet {
+            if let handler = onFileReceived, !pendingReceivedFiles.isEmpty {
+                let files = pendingReceivedFiles
+                pendingReceivedFiles.removeAll()
+                for (url, timestamp) in files {
+                    handler(url, timestamp)
+                }
+            }
+        }
+    }
+
+    /// Buffers for data received before the handlers are set (race condition on app launch).
+    private var pendingReceivedNotes: [(UUID, String, Date)] = []
+    private var pendingReceivedFiles: [(URL, Date)] = []
 
     private override init() {
         if WCSession.isSupported() {
@@ -63,6 +97,21 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
         session.transferFile(url, metadata: metadata)
     }
 
+#if os(iOS)
+    /// Send an acknowledgement back to the watch confirming the note was durably saved.
+    /// The watch should only delete a note from its LocalStore after receiving this ACK.
+    func acknowledgeNote(id: UUID) {
+        guard let session = session else { return }
+        session.transferUserInfo(["ack": id.uuidString])
+    }
+
+    /// Send an acknowledgement for a received file.
+    func acknowledgeFile(id: UUID) {
+        guard let session = session else { return }
+        session.transferUserInfo(["ackFile": id.uuidString])
+    }
+#endif
+
     func updateSettings(captureMode: String) {
         guard let session = session, session.activationState == .activated else { return }
         do {
@@ -77,10 +126,30 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
     // MARK: - Receiving
 
     func session(_ session: WCSession, didReceiveUserInfo userInfo: [String : Any] = [:]) {
+        // --- Watch side: handle acknowledgements from phone ---
+#if os(watchOS)
+        if let ackId = userInfo["ack"] as? String, let id = UUID(uuidString: ackId) {
+            LocalStore.shared.removeNote(withId: id)
+            return
+        }
+        if let ackId = userInfo["ackFile"] as? String, let id = UUID(uuidString: ackId) {
+            LocalStore.shared.removeNote(withId: id)
+            return
+        }
+#endif
+
+        // --- Phone side: handle incoming notes from watch ---
         if let text = userInfo["text"] as? String {
+            let idString = userInfo["id"] as? String ?? UUID().uuidString
+            let id = UUID(uuidString: idString) ?? UUID()
             let timestampInterval = userInfo["timestamp"] as? TimeInterval ?? Date().timeIntervalSince1970
             let timestamp = Date(timeIntervalSince1970: timestampInterval)
-            onNoteReceived?(text, timestamp)
+            if let handler = onNoteReceived {
+                handler(id, text, timestamp)
+            } else {
+                // Handler not set yet — buffer for replay when set
+                pendingReceivedNotes.append((id, text, timestamp))
+            }
         }
     }
 
@@ -101,7 +170,11 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
 #if DEBUG
             print("Received audio file from watch")
 #endif
-            onFileReceived?(destURL, timestamp)
+            if let handler = onFileReceived {
+                handler(destURL, timestamp)
+            } else {
+                pendingReceivedFiles.append((destURL, timestamp))
+            }
 #endif
         } catch {
 #if DEBUG
@@ -114,15 +187,14 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
 
     func session(_ session: WCSession, didFinish userInfoTransfer: WCSessionUserInfoTransfer, error: Error?) {
 #if os(watchOS)
-        if error == nil {
-            if let idString = userInfoTransfer.userInfo["id"] as? String, let id = UUID(uuidString: idString) {
-                LocalStore.shared.removeNote(withId: id)
-            }
-        } else {
+        if let error = error {
 #if DEBUG
             print("Transfer failed with error: \(String(describing: error))")
 #endif
+            // Note stays in LocalStore — will be re-sent on next syncPendingNotes call
         }
+        // Success case: note is NOT removed here. We wait for the phone's ACK
+        // (via didReceiveUserInfo with "ack" key) before deleting from LocalStore.
 #endif
     }
 
@@ -150,44 +222,33 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
             return UserDefaults.standard.string(forKey: "cachedDailyLog") ?? ""
         }
 
-        do {
-            let content: String = try await withThrowingTaskGroup(of: String.self) { group in
-                group.addTask {
-                    try await withCheckedThrowingContinuation { continuation in
-                        session.sendMessage(["request": "dailyFile"], replyHandler: { reply in
-                            Task { @MainActor in
-                                if let content = reply["content"] as? String {
-                                    continuation.resume(returning: content)
-                                } else {
-                                    continuation.resume(throwing: NSError(domain: "WatchConnectivity", code: 2, userInfo: [NSLocalizedDescriptionKey: "Invalid reply content."]))
-                                }
-                            }
-                        }, errorHandler: { error in
-                            Task { @MainActor in
-                                continuation.resume(throwing: error)
-                            }
-                        })
+        return await withCheckedContinuation { continuation in
+            let timeout = ContinuationTimeout()
+            
+            Task {
+                try? await Task.sleep(for: .seconds(15))
+                if await timeout.complete() {
+                    let cached = UserDefaults.standard.string(forKey: "cachedDailyLog") ?? ""
+                    continuation.resume(returning: cached)
+                }
+            }
+            
+            session.sendMessage(["request": "dailyFile"], replyHandler: { reply in
+                Task {
+                    if await timeout.complete() {
+                        let content = reply["content"] as? String ?? ""
+                        UserDefaults.standard.set(content, forKey: "cachedDailyLog")
+                        continuation.resume(returning: content)
                     }
                 }
-
-                group.addTask {
-                    try await Task.sleep(for: .seconds(10))
-                    throw NSError(domain: "WatchConnectivity", code: 3, userInfo: [NSLocalizedDescriptionKey: "Request timed out."])
+            }, errorHandler: { error in
+                Task {
+                    if await timeout.complete() {
+                        let cached = UserDefaults.standard.string(forKey: "cachedDailyLog") ?? ""
+                        continuation.resume(returning: cached)
+                    }
                 }
-
-                guard let result = try await group.next() else {
-                    throw NSError(domain: "WatchConnectivity", code: 4, userInfo: [NSLocalizedDescriptionKey: "No result."])
-                }
-                group.cancelAll()
-                return result
-            }
-            UserDefaults.standard.set(content, forKey: "cachedDailyLog")
-            return content
-        } catch {
-#if DEBUG
-            print("Failed to fetch daily file: \(error). Falling back to cache.")
-#endif
-            return UserDefaults.standard.string(forKey: "cachedDailyLog") ?? ""
+            })
         }
     }
 
