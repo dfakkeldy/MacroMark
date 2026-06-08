@@ -234,17 +234,17 @@ struct MacroManagerView: View {
             Macro(trigger: "Strikethrough", replacement: "~~", isDefault: true, sortOrder: 8),
             Macro(trigger: "Code Block", replacement: "```", isDefault: true, sortOrder: 9),
             Macro(trigger: "Inline Code", replacement: "`", isDefault: true, sortOrder: 10),
-            Macro(trigger: "Quote", replacement: "{newline}> ", isDefault: true, sortOrder: 11),
+            Macro(trigger: "Quote", replacement: "> ", isDefault: true, sortOrder: 11),
 
             // Markdown Lists
-            Macro(trigger: "Bullet", replacement: "{newline}- ", isDefault: true, sortOrder: 12),
-            Macro(trigger: "Numbered", replacement: "{newline}1. ", isDefault: true, sortOrder: 13),
-            Macro(trigger: "Task", replacement: "{newline}- [ ] ", isDefault: true, sortOrder: 14),
+            Macro(trigger: "Bullet", replacement: "- ", isDefault: true, sortOrder: 12),
+            Macro(trigger: "Numbered", replacement: "1. ", isDefault: true, sortOrder: 13),
+            Macro(trigger: "Task", replacement: "- [ ] ", isDefault: true, sortOrder: 14),
 
             // Clever Macros
             Macro(trigger: "Timestamp", replacement: "{time} - ", notes: "Inserts the current time.", isDefault: true, sortOrder: 15),
-            Macro(trigger: "New Journal Entry", replacement: "{newline}## {date} at {time}{newline}", notes: "Creates a new daily journal entry heading.", isDefault: true, sortOrder: 16),
-            Macro(trigger: "Horizontal Rule", replacement: "{newline}---{newline}", isDefault: true, sortOrder: 17),
+            Macro(trigger: "New Journal Entry", replacement: "## {date} at {time}", notes: "Creates a new daily journal entry heading.", isDefault: true, sortOrder: 16),
+            Macro(trigger: "Horizontal Rule", replacement: "---", isDefault: true, sortOrder: 17),
             Macro(trigger: "Paste", replacement: "{clipboard}", notes: "Pastes whatever is currently on your clipboard.", isDefault: true, sortOrder: 18),
             Macro(trigger: "Dropoff", replacement: "{location} - ", notes: "Inserts your current street address.", isDefault: true, sortOrder: 19),
             Macro(trigger: "Smile", replacement: "😀", isDefault: true, sortOrder: 20),

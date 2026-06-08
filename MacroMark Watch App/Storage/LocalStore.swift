@@ -39,10 +39,11 @@ final class LocalStore {
         syncPendingNotes()
     }
 
-    private func syncPendingNotes() {
+    func syncPendingNotes() {
         for note in pendingNotes where !queuedNoteIDs.contains(note.id) {
-            WatchConnectivityProvider.shared.sendNote(note.id, text: note.text, timestamp: note.timestamp)
-            queuedNoteIDs.insert(note.id)
+            if WatchConnectivityProvider.shared.sendNote(note.id, text: note.text, timestamp: note.timestamp) {
+                queuedNoteIDs.insert(note.id)
+            }
         }
     }
 

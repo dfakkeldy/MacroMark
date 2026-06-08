@@ -16,7 +16,7 @@ struct ContentView: View {
                 GlassEffectContainer(spacing: 8) {
                     HStack(spacing: 8) {
                         Button(action: {
-                            navigateToDefaultCapture()
+                            navigationPath.append(.instant)
                         }) {
                             Image(systemName: "mic.fill")
                                 .font(.title)
@@ -24,7 +24,6 @@ struct ContentView: View {
                         }
                         .buttonStyle(.plain)
                         .glassEffect(.regular.tint(.blue).interactive(), in: .rect(cornerRadius: 16))
-                        .handGestureShortcut(.primaryAction)
 
                         Button(action: {
                             navigationPath.append(.system)
@@ -50,6 +49,16 @@ struct ContentView: View {
                 }
             }
             .navigationTitle("MacroMark")
+            .background {
+                // Hidden button to catch the watchOS Double Tap (Pinch) gesture
+                Button(action: {
+                    navigateToDefaultCapture()
+                }) {
+                    EmptyView()
+                }
+                .buttonStyle(.plain)
+                .handGestureShortcut(.primaryAction)
+            }
             .navigationDestination(for: CaptureMode.self) { mode in
                 switch mode {
                 case .instant:

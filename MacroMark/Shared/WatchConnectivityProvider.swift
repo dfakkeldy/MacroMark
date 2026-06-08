@@ -67,6 +67,11 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
 #if DEBUG
         print("WCSession activation completed: \(activationState.rawValue), error: \(String(describing: error))")
 #endif
+#if os(watchOS)
+        if activationState == .activated {
+            LocalStore.shared.syncPendingNotes()
+        }
+#endif
     }
 
 #if os(iOS)
@@ -78,23 +83,27 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
 
     // MARK: - Sending
 
-    func sendNote(_ noteId: UUID, text: String, timestamp: Date) {
+    @discardableResult
+    func sendNote(_ noteId: UUID, text: String, timestamp: Date) -> Bool {
+        guard let session = session, session.activationState == .activated else { return false }
         let userInfo: [String: Any] = [
             "id": noteId.uuidString,
             "text": text,
             "timestamp": timestamp.timeIntervalSince1970
         ]
-        guard let session = session else { return }
         session.transferUserInfo(userInfo)
+        return true
     }
 
-    func sendFile(_ url: URL, id: UUID, timestamp: Date) {
+    @discardableResult
+    func sendFile(_ url: URL, id: UUID, timestamp: Date) -> Bool {
+        guard let session = session, session.activationState == .activated else { return false }
         let metadata: [String: Any] = [
             "id": id.uuidString,
             "timestamp": timestamp.timeIntervalSince1970
         ]
-        guard let session = session else { return }
         session.transferFile(url, metadata: metadata)
+        return true
     }
 
 #if os(iOS)

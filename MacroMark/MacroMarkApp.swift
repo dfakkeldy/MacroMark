@@ -105,6 +105,7 @@ struct MacroMarkApp: App {
     private var pendingProcessing: [UUID: String] { Self.readPendingProcessing() }
 
     /// Process any notes left in the pending queue from a previous terminated session.
+    @MainActor
     private func reprocessPendingItems(container: ModelContainer) {
         let items = pendingProcessing
         guard !items.isEmpty else { return }
@@ -117,6 +118,7 @@ struct MacroMarkApp: App {
     }
 
     /// Shared entry point for text notes (from watch dictation).
+    @MainActor
     private func handleIncomingNote(id: UUID, text: String, timestamp: Date, container: ModelContainer) {
 #if DEBUG
         print("MacroMark iOS Received Note: \(text)")
@@ -139,6 +141,7 @@ struct MacroMarkApp: App {
     }
 
     /// Shared entry point for audio files (from watch voice recording).
+    @MainActor
     private func handleIncomingAudio(url: URL, timestamp: Date, container: ModelContainer) {
 #if DEBUG
         print("MacroMark iOS Received Audio File: \(url)")
@@ -148,6 +151,7 @@ struct MacroMarkApp: App {
     }
 
     /// Process a text note through the full pipeline: macros → save → export.
+    @MainActor
     private func startBackgroundTaskAndProcess(
         name: String,
         noteId: UUID,
@@ -157,16 +161,19 @@ struct MacroMarkApp: App {
         container: ModelContainer
     ) {
 #if canImport(UIKit)
-        let bgTask = UIApplication.shared.beginBackgroundTask(withName: name) {
+        var bgTask = UIBackgroundTaskIdentifier.invalid
+        bgTask = UIApplication.shared.beginBackgroundTask(withName: name) {
             // Background task expiring — the raw text is already saved in pendingProcessing,
             // so it will be reprocessed on next launch. We just need to clean up.
 #if DEBUG
             print("MacroMark: Background task '\(name)' expiring for note \(noteId)")
 #endif
+            UIApplication.shared.endBackgroundTask(bgTask)
+            bgTask = .invalid
         }
 #endif
 
-        Task {
+        Task { @MainActor in
             let processedText: String
             let macros: [Macro]
 
@@ -176,12 +183,8 @@ struct MacroMarkApp: App {
             macros = (try? context.fetch(descriptor)) ?? []
 
             // Snapshot settings on main actor to avoid races
-            let (autoExport, rawTarget) = await MainActor.run {
-                return (
-                    UserDefaults.standard.bool(forKey: "autoExportEnabled"),
-                    UserDefaults.standard.string(forKey: "defaultExportTarget") ?? ExportTarget.iCloud.rawValue
-                )
-            }
+            let autoExport = UserDefaults.standard.bool(forKey: "autoExportEnabled")
+            let rawTarget = UserDefaults.standard.string(forKey: "defaultExportTarget") ?? ExportTarget.iCloud.rawValue
 
             // Transcribe audio if needed, otherwise use text directly
             if let audioURL = url {
@@ -193,7 +196,10 @@ struct MacroMarkApp: App {
                     print("Failed to transcribe audio: \(error)")
 #endif
 #if canImport(UIKit)
-                    UIApplication.shared.endBackgroundTask(bgTask)
+                    if bgTask != .invalid {
+                        UIApplication.shared.endBackgroundTask(bgTask)
+                        bgTask = .invalid
+                    }
 #endif
                     // Note: raw data is in pendingProcessing, will be retried on next launch
                     // but for audio, we can't recover — transcription failed
@@ -204,7 +210,10 @@ struct MacroMarkApp: App {
                 processedText = directText
             } else {
 #if canImport(UIKit)
-                UIApplication.shared.endBackgroundTask(bgTask)
+                if bgTask != .invalid {
+                    UIApplication.shared.endBackgroundTask(bgTask)
+                    bgTask = .invalid
+                }
 #endif
                 return
             }
@@ -221,7 +230,10 @@ struct MacroMarkApp: App {
             processAndExport(noteId: noteId, text: result, timestamp: timestamp, autoExport: autoExport, rawTarget: rawTarget, context: context)
 
 #if canImport(UIKit)
-            UIApplication.shared.endBackgroundTask(bgTask)
+            if bgTask != .invalid {
+                UIApplication.shared.endBackgroundTask(bgTask)
+                bgTask = .invalid
+            }
 #endif
         }
     }

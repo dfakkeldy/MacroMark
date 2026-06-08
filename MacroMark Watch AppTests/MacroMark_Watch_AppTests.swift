@@ -10,10 +10,16 @@ import Testing
 
 struct MacroMark_Watch_AppTests {
 
-    @Test func example() async throws {
-        // Write your test here and use APIs like `#expect(...)` to check expected conditions.
-        // Swift Testing Documentation
-        // https://developer.apple.com/documentation/testing
+    @Test("Test adding note to LocalStore")
+    @MainActor
+    func testLocalStoreQueueBehavior() async throws {
+        let store = LocalStore.shared
+        store.pendingNotes = []
+        
+        store.addNote("Hello world")
+        
+        #expect(store.pendingNotes.count == 1)
+        #expect(store.pendingNotes.first?.text == "Hello world")
     }
 
 }
