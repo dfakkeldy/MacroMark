@@ -14,6 +14,20 @@ import UIKit
 #endif
 import Speech
 
+/// A note awaiting processing. Persisted (write-ahead log) so an interrupted
+/// note is reprocessed on next launch with its ORIGINAL timestamp.
+private struct PendingNote: Codable {
+    var text: String
+    var timestamp: Date
+}
+
+/// An audio note awaiting transcription + save. The audio bytes live on disk in
+/// the durable pending-audio directory; this tracks the queue + timestamp.
+private struct PendingAudio: Codable {
+    var filename: String
+    var timestamp: Date
+}
+
 @main
 struct MacroMarkApp: App {
     let container: ModelContainer
@@ -22,12 +36,22 @@ struct MacroMarkApp: App {
     @State private var entitlementManager = EntitlementManager.shared
     @State private var containerError: String?
 
+    /// True when the on-disk SwiftData store could not be opened and we are
+    /// running on a volatile in-memory store. While true we must NOT ACK the
+    /// watch (its copy is the only durable one) and the warning is not dismissable.
+    @MainActor private static var usingInMemoryStore = false
+
+    /// IDs currently being processed this session. Prevents a re-send (or a
+    /// launch-time reprocess racing a live delivery) from creating duplicates.
+    @MainActor private static var inFlightIDs: Set<UUID> = []
+
     init() {
         let resolvedContainer: ModelContainer
         do {
             resolvedContainer = try ModelContainer(for: Macro.self, ProcessedNote.self)
         } catch {
             print("Failed to initialize ModelContainer: \(error). Falling back to in-memory store.")
+            Self.usingInMemoryStore = true
             // Try in-memory as first fallback
             if let memoryContainer = try? ModelContainer(
                 for: Macro.self, ProcessedNote.self,
@@ -76,10 +100,22 @@ struct MacroMarkApp: App {
         provider.onNoteReceived = { [container] id, text, timestamp in
             handleIncomingNote(id: id, text: text, timestamp: timestamp, container: container)
         }
-        provider.onFileReceived = { [container] url, timestamp in
-            handleIncomingAudio(url: url, timestamp: timestamp, container: container)
+        provider.onFileReceived = { [container] id, url, timestamp in
+            handleIncomingAudio(id: id, url: url, timestamp: timestamp, container: container)
         }
     }
+
+    // MARK: - Durable storage locations
+
+    /// Durable directory for received-but-not-yet-saved audio. NOT the system
+    /// temp dir, which the OS can purge before we transcribe.
+    private static let pendingAudioDirectory: URL = {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? FileManager.default.temporaryDirectory
+        let dir = base.appendingPathComponent("PendingAudioIn", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }()
 
     // MARK: - Note Processing Pipeline
 
@@ -100,20 +136,34 @@ struct MacroMarkApp: App {
 
     private var processedNoteIDs: Set<UUID> { Self.readProcessedNoteIDs() }
 
-    /// Write-ahead log: maps note UUID → raw text. Entries are added before processing
-    /// and removed only after the note is durably saved. Survives app termination.
-    private var pendingProcessing: [UUID: String] { Self.readPendingProcessing() }
+    /// Text write-ahead log: note UUID → {text, timestamp}. Entries are added
+    /// before processing and removed only after the note is durably saved.
+    private var pendingProcessing: [UUID: PendingNote] { Self.readPendingProcessing() }
 
-    /// Process any notes left in the pending queue from a previous terminated session.
+    /// Audio write-ahead log: note UUID → {filename, timestamp}. The audio bytes
+    /// stay on disk until the note is durably saved.
+    private var pendingAudio: [UUID: PendingAudio] { Self.readPendingAudio() }
+
+    /// Process any notes left in the pending queues from a previous terminated session.
     @MainActor
     private func reprocessPendingItems(container: ModelContainer) {
-        let items = pendingProcessing
-        guard !items.isEmpty else { return }
+        let textItems = pendingProcessing
+        let audioItems = pendingAudio
+        guard !textItems.isEmpty || !audioItems.isEmpty else { return }
 #if DEBUG
-        print("MacroMark: Reprocessing \(items.count) pending item(s) from previous session")
+        print("MacroMark: Reprocessing \(textItems.count) text + \(audioItems.count) audio item(s) from previous session")
 #endif
-        for (id, text) in items {
-            handleIncomingNote(id: id, text: text, timestamp: Date(), container: container)
+        for (id, item) in textItems {
+            handleIncomingNote(id: id, text: item.text, timestamp: item.timestamp, container: container)
+        }
+        for (id, item) in audioItems {
+            let url = Self.pendingAudioDirectory.appendingPathComponent(item.filename)
+            // If the audio file is gone we can't recover it; drop the dangling entry.
+            guard FileManager.default.fileExists(atPath: url.path) else {
+                removePendingAudio(id: id)
+                continue
+            }
+            processAudio(id: id, url: url, timestamp: item.timestamp, container: container)
         }
     }
 
@@ -125,49 +175,85 @@ struct MacroMarkApp: App {
 #endif
         // Deduplicate: if we've already processed this note, just re-send the ACK
         if processedNoteIDs.contains(id) {
-#if DEBUG
-            print("MacroMark: Note \(id) already processed, re-sending ACK")
-#endif
-            WatchConnectivityProvider.shared.acknowledgeNote(id: id)
+            acknowledgeNoteIfDurable(id: id)
             return
         }
+        // Already being processed this session — don't start a duplicate pass.
+        guard !Self.inFlightIDs.contains(id) else { return }
+        Self.inFlightIDs.insert(id)
 
-        // Write-ahead log: persist raw text before processing
+        // Write-ahead log: persist raw text + original timestamp before processing
         var pending = pendingProcessing
-        pending[id] = text
+        pending[id] = PendingNote(text: text, timestamp: timestamp)
         Self.writePendingProcessing(pending)
 
-        startBackgroundTaskAndProcess(name: "ProcessNote", noteId: id, text: text, timestamp: timestamp, container: container)
+        startBackgroundTaskAndProcess(name: "ProcessNote", noteId: id, text: text, isAudio: false, timestamp: timestamp, container: container)
     }
 
     /// Shared entry point for audio files (from watch voice recording).
+    /// Uses the watch-supplied `id` end-to-end so the ACK matches the watch's queue.
     @MainActor
-    private func handleIncomingAudio(url: URL, timestamp: Date, container: ModelContainer) {
+    private func handleIncomingAudio(id: UUID, url: URL, timestamp: Date, container: ModelContainer) {
 #if DEBUG
         print("MacroMark iOS Received Audio File: \(url)")
 #endif
-        let noteId = UUID()  // Audio files generate a new ID for tracking
-        startBackgroundTaskAndProcess(name: "ProcessAudio", noteId: noteId, url: url, timestamp: timestamp, container: container)
+        if processedNoteIDs.contains(id) {
+            acknowledgeFileIfDurable(id: id)
+            return
+        }
+
+        // Move the audio into durable storage and record it in the WAL BEFORE
+        // processing, so a crash mid-transcription doesn't lose the recording.
+        let destURL = Self.pendingAudioDirectory.appendingPathComponent("\(id.uuidString).m4a")
+        do {
+            if FileManager.default.fileExists(atPath: destURL.path) {
+                try FileManager.default.removeItem(at: destURL)
+            }
+            try FileManager.default.moveItem(at: url, to: destURL)
+        } catch {
+            try? FileManager.default.copyItem(at: url, to: destURL)
+        }
+        guard FileManager.default.fileExists(atPath: destURL.path) else {
+#if DEBUG
+            print("MacroMark: Failed to persist incoming audio \(id) — leaving for watch retry")
+#endif
+            return  // No ACK → watch keeps its copy and re-sends.
+        }
+
+        var pending = pendingAudio
+        pending[id] = PendingAudio(filename: destURL.lastPathComponent, timestamp: timestamp)
+        Self.writePendingAudio(pending)
+
+        processAudio(id: id, url: destURL, timestamp: timestamp, container: container)
     }
 
-    /// Process a text note through the full pipeline: macros → save → export.
+    @MainActor
+    private func processAudio(id: UUID, url: URL, timestamp: Date, container: ModelContainer) {
+        guard !Self.inFlightIDs.contains(id) else { return }
+        Self.inFlightIDs.insert(id)
+        startBackgroundTaskAndProcess(name: "ProcessAudio", noteId: id, url: url, isAudio: true, timestamp: timestamp, container: container)
+    }
+
+    /// Process a note through the full pipeline: (transcribe →) macros → save → export.
     @MainActor
     private func startBackgroundTaskAndProcess(
         name: String,
         noteId: UUID,
         text: String? = nil,
         url: URL? = nil,
+        isAudio: Bool,
         timestamp: Date,
         container: ModelContainer
     ) {
 #if canImport(UIKit)
         var bgTask = UIBackgroundTaskIdentifier.invalid
         bgTask = UIApplication.shared.beginBackgroundTask(withName: name) {
-            // Background task expiring — the raw text is already saved in pendingProcessing,
-            // so it will be reprocessed on next launch. We just need to clean up.
+            // Background task expiring — the raw text/audio is already saved in the
+            // write-ahead log, so it will be reprocessed on next launch.
 #if DEBUG
             print("MacroMark: Background task '\(name)' expiring for note \(noteId)")
 #endif
+            Self.inFlightIDs.remove(noteId)
             UIApplication.shared.endBackgroundTask(bgTask)
             bgTask = .invalid
         }
@@ -190,25 +276,26 @@ struct MacroMarkApp: App {
             if let audioURL = url {
                 do {
                     processedText = try await AudioTranscriber.transcribe(fileURL: audioURL)
-                    try? FileManager.default.removeItem(at: audioURL)
                 } catch {
 #if DEBUG
                     print("Failed to transcribe audio: \(error)")
 #endif
+                    // Keep the audio file AND the WAL entry so it can be retried on
+                    // the next launch. Do NOT delete and do NOT ACK — losing the
+                    // recording is worse than a deferred retry.
+                    Self.inFlightIDs.remove(noteId)
 #if canImport(UIKit)
                     if bgTask != .invalid {
                         UIApplication.shared.endBackgroundTask(bgTask)
                         bgTask = .invalid
                     }
 #endif
-                    // Note: raw data is in pendingProcessing, will be retried on next launch
-                    // but for audio, we can't recover — transcription failed
-                    removePendingProcessing(id: noteId)
                     return
                 }
             } else if let directText = text {
                 processedText = directText
             } else {
+                Self.inFlightIDs.remove(noteId)
 #if canImport(UIKit)
                 if bgTask != .invalid {
                     UIApplication.shared.endBackgroundTask(bgTask)
@@ -218,7 +305,7 @@ struct MacroMarkApp: App {
                 return
             }
 
-            // Run macro processing off the main actor (CPU-bound)
+            // Run macro processing (CPU-bound)
             let result = await MacroProcessor.process(text: processedText, macros: macros, date: timestamp) {
                 if let location = await LocationManager.shared.getCurrentLocation() {
                     return (latitude: location.coordinate.latitude, longitude: location.coordinate.longitude)
@@ -227,7 +314,9 @@ struct MacroMarkApp: App {
             }
 
             // Save and export — ACK is sent inside processAndExport on success
-            processAndExport(noteId: noteId, text: result, timestamp: timestamp, autoExport: autoExport, rawTarget: rawTarget, context: context)
+            processAndExport(noteId: noteId, text: result, isAudio: isAudio, timestamp: timestamp, autoExport: autoExport, rawTarget: rawTarget, context: context)
+
+            Self.inFlightIDs.remove(noteId)
 
 #if canImport(UIKit)
             if bgTask != .invalid {
@@ -238,35 +327,80 @@ struct MacroMarkApp: App {
         }
     }
 
-    /// Remove a note from the pending-processing write-ahead log.
-    /// Uses direct UserDefaults access (not computed property) to be callable
-    /// from non-mutating contexts like Task closures.
+    // MARK: - Write-ahead log accessors
+
+    /// Remove a text note from the pending-processing write-ahead log.
     private func removePendingProcessing(id: UUID) {
         var pending = Self.readPendingProcessing()
         pending.removeValue(forKey: id)
         Self.writePendingProcessing(pending)
     }
 
-    private static func readPendingProcessing() -> [UUID: String] {
-        guard let data = UserDefaults.standard.data(forKey: "MacroMark_PendingProcessing"),
-              let dict = try? JSONDecoder().decode([String: String].self, from: data)
-        else { return [:] }
-        return dict.reduce(into: [:]) { $0[UUID(uuidString: $1.key) ?? UUID()] = $1.value }
+    /// Remove an audio note from the WAL and delete its durable file.
+    private func removePendingAudio(id: UUID) {
+        var pending = Self.readPendingAudio()
+        if let item = pending[id] {
+            let url = Self.pendingAudioDirectory.appendingPathComponent(item.filename)
+            try? FileManager.default.removeItem(at: url)
+        }
+        pending.removeValue(forKey: id)
+        Self.writePendingAudio(pending)
     }
 
-    private static func writePendingProcessing(_ dict: [UUID: String]) {
-        let stringDict = dict.reduce(into: [String: String]()) { $0[$1.key.uuidString] = $1.value }
+    private static func readPendingProcessing() -> [UUID: PendingNote] {
+        guard let data = UserDefaults.standard.data(forKey: "MacroMark_PendingProcessing"),
+              let dict = try? JSONDecoder().decode([String: PendingNote].self, from: data)
+        else { return [:] }
+        return dict.reduce(into: [:]) { partial, entry in
+            if let id = UUID(uuidString: entry.key) { partial[id] = entry.value }
+        }
+    }
+
+    private static func writePendingProcessing(_ dict: [UUID: PendingNote]) {
+        let stringDict = dict.reduce(into: [String: PendingNote]()) { $0[$1.key.uuidString] = $1.value }
         if let data = try? JSONEncoder().encode(stringDict) {
             UserDefaults.standard.set(data, forKey: "MacroMark_PendingProcessing")
         }
     }
 
+    private static func readPendingAudio() -> [UUID: PendingAudio] {
+        guard let data = UserDefaults.standard.data(forKey: "MacroMark_PendingAudioIn"),
+              let dict = try? JSONDecoder().decode([String: PendingAudio].self, from: data)
+        else { return [:] }
+        return dict.reduce(into: [:]) { partial, entry in
+            if let id = UUID(uuidString: entry.key) { partial[id] = entry.value }
+        }
+    }
+
+    private static func writePendingAudio(_ dict: [UUID: PendingAudio]) {
+        let stringDict = dict.reduce(into: [String: PendingAudio]()) { $0[$1.key.uuidString] = $1.value }
+        if let data = try? JSONEncoder().encode(stringDict) {
+            UserDefaults.standard.set(data, forKey: "MacroMark_PendingAudioIn")
+        }
+    }
+
+    // MARK: - ACK helpers (suppressed on the volatile in-memory store)
+
+    @MainActor
+    private func acknowledgeNoteIfDurable(id: UUID) {
+        guard !Self.usingInMemoryStore else { return }
+        WatchConnectivityProvider.shared.acknowledgeNote(id: id)
+    }
+
+    @MainActor
+    private func acknowledgeFileIfDurable(id: UUID) {
+        guard !Self.usingInMemoryStore else { return }
+        WatchConnectivityProvider.shared.acknowledgeFile(id: id)
+    }
+
     /// Save the processed text to SwiftData and export to the configured target.
-    /// Sends an ACK back to the watch on successful SwiftData save.
+    /// Sends an ACK back to the watch on successful SwiftData save (unless we're
+    /// on the volatile in-memory store, in which case the watch must keep its copy).
     @MainActor
     private func processAndExport(
         noteId: UUID,
         text: String,
+        isAudio: Bool,
         timestamp: Date,
         autoExport: Bool,
         rawTarget: String,
@@ -282,27 +416,30 @@ struct MacroMarkApp: App {
 #if DEBUG
             print("MacroMark: SwiftData save failed for note \(noteId): \(error)")
 #endif
-            // Leave the note in pendingProcessing for retry on next launch.
-            // Do NOT send ACK — the watch will re-send on next launch.
+            // Leave the note in the WAL for retry on next launch.
+            // Do NOT send ACK — the watch will re-send.
             return
         }
 
         // SwiftData save succeeded — note is durably stored.
-        // Add to processed set and remove from pending log.
+        // Add to processed set and clear the write-ahead log entry.
         Self.addProcessedNoteID(noteId)
-        removePendingProcessing(id: noteId)
-
-        // Send ACK to watch so it can delete its copy
-        WatchConnectivityProvider.shared.acknowledgeNote(id: noteId)
+        if isAudio {
+            removePendingAudio(id: noteId)
+            acknowledgeFileIfDurable(id: noteId)
+        } else {
+            removePendingProcessing(id: noteId)
+            acknowledgeNoteIfDurable(id: noteId)
+        }
 
         // Export to iCloud / third-party targets (best-effort; failures don't undo the ACK)
         guard let target = ExportTarget(rawValue: rawTarget) else {
-            _ = iCloudStorageManager.shared.appendText(text)  // fallback
+            _ = iCloudStorageManager.shared.appendText(text, for: timestamp)  // fallback
             return
         }
 
         if target == .iCloud {
-            if iCloudStorageManager.shared.appendText(text) {
+            if iCloudStorageManager.shared.appendText(text, for: timestamp) {
                 note.isExported = true
                 note.exportTarget = target.rawValue
                 try? context.save()
@@ -334,13 +471,18 @@ struct MacroMarkApp: App {
                             Text("Storage error: \(error). Using temporary storage — changes may not be saved.")
                                 .font(.caption)
                                 .foregroundStyle(.white)
-                            Button {
-                                withAnimation {
-                                    containerError = nil
+                            // Only allow dismissal when we are NOT on the volatile
+                            // in-memory store. On in-memory storage the warning must
+                            // stay visible because notes will be lost on quit.
+                            if !Self.usingInMemoryStore {
+                                Button {
+                                    withAnimation {
+                                        containerError = nil
+                                    }
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundStyle(.white.opacity(0.8))
                                 }
-                            } label: {
-                                Image(systemName: "xmark.circle.fill")
-                                    .foregroundStyle(.white.opacity(0.8))
                             }
                         }
                         .padding(12)

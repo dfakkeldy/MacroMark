@@ -34,13 +34,13 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
             }
         }
     }
-    var onFileReceived: ((URL, Date) -> Void)? {
+    var onFileReceived: ((UUID, URL, Date) -> Void)? {
         didSet {
             if let handler = onFileReceived, !pendingReceivedFiles.isEmpty {
                 let files = pendingReceivedFiles
                 pendingReceivedFiles.removeAll()
-                for (url, timestamp) in files {
-                    handler(url, timestamp)
+                for (id, url, timestamp) in files {
+                    handler(id, url, timestamp)
                 }
             }
         }
@@ -48,7 +48,7 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
 
     /// Buffers for data received before the handlers are set (race condition on app launch).
     private var pendingReceivedNotes: [(UUID, String, Date)] = []
-    private var pendingReceivedFiles: [(URL, Date)] = []
+    private var pendingReceivedFiles: [(UUID, URL, Date)] = []
 
     private override init() {
         if WCSession.isSupported() {
@@ -70,6 +70,7 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
 #if os(watchOS)
         if activationState == .activated {
             LocalStore.shared.syncPendingNotes()
+            LocalStore.shared.syncPendingAudio()
         }
 #endif
     }
@@ -142,7 +143,7 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
             return
         }
         if let ackId = userInfo["ackFile"] as? String, let id = UUID(uuidString: ackId) {
-            LocalStore.shared.removeNote(withId: id)
+            LocalStore.shared.removeAudio(withId: id)
             return
         }
 #endif
@@ -168,6 +169,8 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
 
         let timestampInterval = file.metadata?["timestamp"] as? TimeInterval ?? Date().timeIntervalSince1970
         let timestamp = Date(timeIntervalSince1970: timestampInterval)
+        let idString = file.metadata?["id"] as? String ?? UUID().uuidString
+        let id = UUID(uuidString: idString) ?? UUID()
 
         do {
             if FileManager.default.fileExists(atPath: destURL.path) {
@@ -180,9 +183,9 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
             print("Received audio file from watch")
 #endif
             if let handler = onFileReceived {
-                handler(destURL, timestamp)
+                handler(id, destURL, timestamp)
             } else {
-                pendingReceivedFiles.append((destURL, timestamp))
+                pendingReceivedFiles.append((id, destURL, timestamp))
             }
 #endif
         } catch {
@@ -200,10 +203,34 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
 #if DEBUG
             print("Transfer failed with error: \(String(describing: error))")
 #endif
-            // Note stays in LocalStore — will be re-sent on next syncPendingNotes call
+            // Un-queue the note so the next sync actually re-sends it. Without this,
+            // queuedNoteIDs still contains the id and syncPendingNotes would skip it.
+            if let idString = userInfoTransfer.userInfo["id"] as? String,
+               let id = UUID(uuidString: idString) {
+                LocalStore.shared.markNoteUnqueued(id)
+                LocalStore.shared.syncPendingNotes()
+            }
         }
         // Success case: note is NOT removed here. We wait for the phone's ACK
         // (via didReceiveUserInfo with "ack" key) before deleting from LocalStore.
+#endif
+    }
+
+    func session(_ session: WCSession, didFinish fileTransfer: WCSessionFileTransfer, error: Error?) {
+#if os(watchOS)
+        if let error = error {
+#if DEBUG
+            print("File transfer failed with error: \(String(describing: error))")
+#endif
+            // Un-queue so the audio note is re-sent on the next sync. The file
+            // stays in LocalStore's durable audio dir until the phone ACKs it.
+            if let idString = fileTransfer.file.metadata?["id"] as? String,
+               let id = UUID(uuidString: idString) {
+                LocalStore.shared.markAudioUnqueued(id)
+            }
+        }
+        // Success case: audio is NOT removed here. We wait for the phone's ACK
+        // (via didReceiveUserInfo with "ackFile" key) before deleting it.
 #endif
     }
 

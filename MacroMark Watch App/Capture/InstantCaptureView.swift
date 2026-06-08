@@ -71,9 +71,11 @@ struct InstantCaptureView: View {
 
     private static func processAudioFile(fileURL: URL, timestamp: Date) async {
         let id = UUID()
-        
+
         await MainActor.run {
-            WatchConnectivityProvider.shared.sendFile(fileURL, id: id, timestamp: timestamp)
+            // Persist to a durable queue + retry until the phone ACKs it.
+            // Never fire-and-forget: a dropped transfer must not lose the recording.
+            LocalStore.shared.enqueueAudio(from: fileURL, id: id, timestamp: timestamp)
         }
     }
 }

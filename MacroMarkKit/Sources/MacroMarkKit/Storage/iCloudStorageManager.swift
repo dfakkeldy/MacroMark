@@ -85,6 +85,12 @@ public final class iCloudStorageManager {
 
         let fileURL = self.fileURL(for: date, settings: settings)
 
+        // If the day's file already exists in iCloud but hasn't been downloaded
+        // to this device yet, FileManager.fileExists returns false — which would
+        // otherwise make us OVERWRITE the whole file with just this one entry,
+        // wiping every earlier note for the day. Materialize it first.
+        ensureDownloaded(fileURL)
+
         let timeString = date.formatted(date: .omitted, time: .shortened)
         let textToAppend = "\n\n\(timeString)\n\n\(text)\n\n"
         guard let dataToAppend = textToAppend.data(using: .utf8) else { return false }
@@ -102,6 +108,11 @@ public final class iCloudStorageManager {
                 } catch {
                     print("Failed to append to existing file: \(error)")
                 }
+            } else if cloudCopyExistsButNotDownloaded(url) {
+                // The file exists remotely but still isn't local. Refuse to write
+                // (which would clobber it). The note is already safe in SwiftData;
+                // it will be appended on a later call once the file has downloaded.
+                print("iCloud file not yet downloaded — deferring append to avoid overwrite")
             } else {
                 do {
                     try dataToAppend.write(to: url)
@@ -115,6 +126,32 @@ public final class iCloudStorageManager {
             print("File coordinator error: \(error)")
         }
         return writeSucceeded
+    }
+
+    /// iCloud stores not-yet-downloaded files as a hidden `.<name>.icloud` placeholder.
+    private func cloudPlaceholderURL(for url: URL) -> URL {
+        url.deletingLastPathComponent()
+            .appendingPathComponent("." + url.lastPathComponent + ".icloud")
+    }
+
+    private func cloudCopyExistsButNotDownloaded(_ url: URL) -> Bool {
+        FileManager.default.fileExists(atPath: cloudPlaceholderURL(for: url).path)
+    }
+
+    /// If the file exists in iCloud but isn't materialized locally, trigger a
+    /// download and wait briefly for it so an append doesn't overwrite it.
+    private func ensureDownloaded(_ url: URL) {
+        guard !FileManager.default.fileExists(atPath: url.path),
+              cloudCopyExistsButNotDownloaded(url) else { return }
+
+        try? FileManager.default.startDownloadingUbiquitousItem(at: url)
+
+        // Bounded wait (~2s). If it doesn't arrive we fall through to the
+        // deferral branch in appendText rather than risk clobbering.
+        for _ in 0..<20 {
+            if FileManager.default.fileExists(atPath: url.path) { return }
+            Thread.sleep(forTimeInterval: 0.1)
+        }
     }
 
     public func readText(for date: Date = Date()) -> String? {
