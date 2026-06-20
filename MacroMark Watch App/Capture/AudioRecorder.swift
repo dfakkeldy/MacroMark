@@ -16,7 +16,9 @@ final class AudioRecorder {
         do {
             let hasPermission = await AVAudioApplication.requestRecordPermission()
             guard hasPermission else {
+                #if DEBUG
                 print("No permission to record")
+                #endif
                 return
             }
 
@@ -49,7 +51,9 @@ final class AudioRecorder {
             self.isRecording = true
 
         } catch {
+            #if DEBUG
             print("Failed to start recording: \(error)")
+            #endif
             self.isRecording = false
         }
     }

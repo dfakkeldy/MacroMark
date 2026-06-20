@@ -60,7 +60,9 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
     
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         Task { @MainActor in
+            #if DEBUG
             print("Location request failed: \(error)")
+            #endif
             activeContinuation?.resume(returning: nil)
             activeContinuation = nil
         }

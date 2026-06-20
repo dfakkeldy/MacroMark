@@ -7,11 +7,13 @@ public final class ProcessedNote {
     public var createdAt: Date = Date()
     public var isExported: Bool = false
     public var exportTarget: String? = nil
+    public var transcriptionPartial: Bool = false
 
-    public init(text: String, createdAt: Date = Date(), isExported: Bool = false, exportTarget: String? = nil) {
+    public init(text: String, createdAt: Date = Date(), isExported: Bool = false, exportTarget: String? = nil, transcriptionPartial: Bool = false) {
         self.text = text
         self.createdAt = createdAt
         self.isExported = isExported
         self.exportTarget = exportTarget
+        self.transcriptionPartial = transcriptionPartial
     }
 }

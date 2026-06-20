@@ -7,6 +7,12 @@ struct NoteDetailView: View {
     
     var body: some View {
         Form {
+            if note.transcriptionPartial {
+                Section {
+                    Label("Some parts of this dictation may be missing. The audio was partially transcribed.", systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.yellow)
+                }
+            }
             Section {
                 TextEditor(text: $note.text)
                     .frame(minHeight: 200)

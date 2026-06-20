@@ -66,7 +66,9 @@ struct MacroMarkApp: App {
         do {
             resolvedContainer = try ModelContainer(for: Macro.self, ProcessedNote.self)
         } catch {
+#if DEBUG
             print("Failed to initialize ModelContainer: \(error). Falling back to in-memory store.")
+#endif
             Self.usingInMemoryStore = true
             // Try in-memory as first fallback
             if let memoryContainer = try? ModelContainer(
@@ -299,9 +301,12 @@ struct MacroMarkApp: App {
             let rawTarget = UserDefaults.standard.string(forKey: UserDefaultsKey.defaultExportTarget.rawValue) ?? ExportTarget.iCloud.rawValue
 
             // Transcribe audio if needed, otherwise use text directly
+            var transcriptionPartial = false
             if let audioURL = url {
                 do {
-                    processedText = try await AudioTranscriber.transcribe(fileURL: audioURL)
+                    let result = try await AudioTranscriber.transcribe(fileURL: audioURL)
+                    processedText = result.text
+                    transcriptionPartial = result.hadPartialFailure
                 } catch {
 #if DEBUG
                     print("Failed to transcribe audio: \(error)")
@@ -341,7 +346,7 @@ struct MacroMarkApp: App {
 
             // Save and export — ACK is sent inside processAndExport only after the
             // export target actually succeeds (§5.1).
-            await processAndExport(noteId: noteId, text: result, isAudio: isAudio, timestamp: timestamp, autoExport: autoExport, rawTarget: rawTarget, context: context)
+            await processAndExport(noteId: noteId, text: result, isAudio: isAudio, timestamp: timestamp, autoExport: autoExport, rawTarget: rawTarget, context: context, transcriptionPartial: transcriptionPartial)
 
             Self.inFlightIDs.remove(noteId)
 
@@ -436,9 +441,10 @@ struct MacroMarkApp: App {
         timestamp: Date,
         autoExport: Bool,
         rawTarget: String,
-        context: ModelContext
+        context: ModelContext,
+        transcriptionPartial: Bool = false
     ) async {
-        let note = ProcessedNote(text: text, createdAt: timestamp)
+        let note = ProcessedNote(text: text, createdAt: timestamp, transcriptionPartial: transcriptionPartial)
         context.insert(note)
 
         // Save to SwiftData (the durable source of truth for the note content).

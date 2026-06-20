@@ -26,6 +26,10 @@ struct InboxView: View {
                                 HStack {
                                     Text(note.createdAt.formatted(date: .abbreviated, time: .shortened))
                                     Spacer()
+                                    if note.transcriptionPartial {
+                                        Label("Incomplete", systemImage: "exclamationmark.triangle.fill")
+                                            .foregroundStyle(.yellow)
+                                    }
                                     if note.isExported {
                                         Label(note.exportTarget ?? "Exported", systemImage: "checkmark.circle.fill")
                                             .foregroundStyle(.green)

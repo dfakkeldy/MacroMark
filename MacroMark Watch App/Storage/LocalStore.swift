@@ -108,7 +108,9 @@ final class LocalStore {
 
         // Only enqueue if the audio actually made it to durable storage.
         guard FileManager.default.fileExists(atPath: destURL.path) else {
+            #if DEBUG
             print("Failed to persist audio note \(id) — not enqueued")
+            #endif
             return
         }
 
@@ -157,7 +159,9 @@ final class LocalStore {
             UserDefaults.standard.set(audioData, forKey: pendingAudioKey)
             UserDefaults.standard.set(queuedAudioIDs.map { $0.uuidString }, forKey: queuedAudioKey)
         } catch {
+            #if DEBUG
             print("Failed to save pending notes: \(error)")
+            #endif
         }
     }
 
@@ -167,7 +171,9 @@ final class LocalStore {
             do {
                 pendingNotes = try JSONDecoder().decode([CapturedNote].self, from: data)
             } catch {
+                #if DEBUG
                 print("Failed to load pending notes: \(error)")
+                #endif
             }
         }
         // Restore queuedNoteIDs so we don't re-send notes that were already
@@ -180,7 +186,9 @@ final class LocalStore {
             do {
                 pendingAudio = try JSONDecoder().decode([PendingAudio].self, from: audioData)
             } catch {
+                #if DEBUG
                 print("Failed to load pending audio: \(error)")
+                #endif
             }
         }
         if let queuedAudioArray = UserDefaults.standard.stringArray(forKey: queuedAudioKey) {

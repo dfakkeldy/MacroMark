@@ -3,7 +3,16 @@ import Foundation
 import AVFoundation
 
 final class AudioTranscriber {
-    static func transcribe(fileURL: URL) async throws -> String {
+    /// The outcome of a transcription session. When some chunks fail but others
+    /// succeed, the partial text is returned with `hadPartialFailure = true` so
+    /// the UI can surface a warning. Only when every chunk fails does this throw
+    /// (the caller defers reprocessing via the write-ahead log).
+    struct TranscriptionResult {
+        let text: String
+        let hadPartialFailure: Bool
+    }
+
+    static func transcribe(fileURL: URL) async throws -> TranscriptionResult {
         let status = await withCheckedContinuation { continuation in
             SFSpeechRecognizer.requestAuthorization { status in
                 continuation.resume(returning: status)
@@ -52,7 +61,9 @@ final class AudioTranscriber {
                 fullTranscript += chunkText
             } catch {
                 chunkErrors.append(error)
+                #if DEBUG
                 print("Failed to transcribe chunk: \(error)")
+                #endif
             }
 
             if url != fileURL {
@@ -72,7 +83,10 @@ final class AudioTranscriber {
             )
         }
 
-        return fullTranscript
+        return TranscriptionResult(
+            text: fullTranscript,
+            hadPartialFailure: !chunkErrors.isEmpty
+        )
     }
 
     private static func splitAudio(url: URL, maxDuration: TimeInterval) async throws -> [URL] {

@@ -191,7 +191,9 @@ struct MacroManagerView: View {
                         customSaveBookmark = bookmark
                     }
                 case .failure(let error):
+                    #if DEBUG
                     print("Error selecting folder: \(error)")
+                    #endif
                 }
             }
             .confirmationDialog("Restore defaults?", isPresented: $showingRestoreConfirmation) {
