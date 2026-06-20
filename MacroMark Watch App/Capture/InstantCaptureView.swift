@@ -54,18 +54,14 @@ struct InstantCaptureView: View {
         }
         dismiss()
 
-        Task.detached {
-            ProcessInfo.processInfo.performExpiringActivity(withReason: "Save Audio") { expired in
-                if !expired {
-                    let semaphore = DispatchSemaphore(value: 0)
-                    let timestamp = Date()
-                    Task {
-                        await InstantCaptureView.processAudioFile(fileURL: fileURL, timestamp: timestamp)
-                        semaphore.signal()
-                    }
-                    semaphore.wait()
-                }
-            }
+        // Enqueue the recording into the durable LocalStore queue. The work is
+        // trivial (a file move + a UserDefaults write on the MainActor), so it
+        // needs neither `performExpiringActivity` nor a semaphore — blocking a
+        // cooperative-pool thread on `DispatchSemaphore.wait()` waiting for a
+        // MainActor hop can deadlock under pool pressure on watchOS, losing the
+        // recording before it ever reaches the WAL.
+        Task {
+            await InstantCaptureView.processAudioFile(fileURL: fileURL, timestamp: Date())
         }
     }
 

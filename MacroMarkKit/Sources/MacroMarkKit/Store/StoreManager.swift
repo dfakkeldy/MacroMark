@@ -1,6 +1,7 @@
 import Foundation
 @preconcurrency import StoreKit
 import Observation
+import os
 
 public enum PurchaseState {
     case notStarted
@@ -36,7 +37,7 @@ public final class StoreManager {
             products = try await Product.products(for: ProductIdentifiers.all)
             products.sort { $0.price < $1.price }
         } catch {
-            print("Failed to load products: \(error)")
+            Logger.store.error("Failed to load products: \(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -62,7 +63,7 @@ public final class StoreManager {
             }
         } catch {
             purchaseState = .failed(error)
-            print("Purchase failed: \(error)")
+            Logger.store.error("Purchase failed: \(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -74,7 +75,7 @@ public final class StoreManager {
             await EntitlementManager.shared.refreshEntitlements()
             await transaction.finish()
         case .unverified:
-            print("Unverified transaction received")
+            Logger.store.notice("Unverified transaction received")
         }
     }
 
@@ -91,7 +92,7 @@ public final class StoreManager {
                 : .notStarted
         } catch {
             purchaseState = .failed(error)
-            print("Restore purchases failed: \(error)")
+            Logger.store.error("Restore purchases failed: \(error.localizedDescription, privacy: .public)")
         }
     }
 }

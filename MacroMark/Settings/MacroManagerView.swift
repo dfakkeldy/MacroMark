@@ -205,6 +205,7 @@ struct MacroManagerView: View {
         for index in offsets {
             modelContext.delete(macros[index])
         }
+        MacroProcessor.invalidateRegexCache()
     }
 
     private func moveMacros(from source: IndexSet, to destination: Int) {
@@ -213,6 +214,9 @@ struct MacroManagerView: View {
         for (index, macro) in sorted.enumerated() {
             macro.sortOrder = index
         }
+        // sortOrder changes don't affect trigger patterns, but invalidation is
+        // cheap and keeps the cache in lockstep with the macro set.
+        MacroProcessor.invalidateRegexCache()
     }
 
     // MARK: - Default Macros (Fixed: single newlines)
@@ -270,6 +274,7 @@ struct MacroManagerView: View {
             modelContext.insert(macro)
         }
         try? modelContext.save()
+        MacroProcessor.invalidateRegexCache()
     }
 }
 
@@ -311,6 +316,7 @@ struct AddMacroView: View {
                 Button("Save") {
                     let newMacro = Macro(trigger: trigger, replacement: replacement, notes: notes)
                     modelContext.insert(newMacro)
+                    MacroProcessor.invalidateRegexCache()
                     dismiss()
                 }
                 .disabled(trigger.trimmingCharacters(in: .whitespaces).isEmpty || replacement.isEmpty)

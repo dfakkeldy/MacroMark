@@ -73,6 +73,9 @@ struct MacroEditView: View {
                     if macro.isDefault {
                         macro.isDefaultEdited = true
                     }
+                    // The regex cache is keyed by trigger pattern; an edit may have
+                    // changed it, so drop stale compiled regexes.
+                    MacroProcessor.invalidateRegexCache()
                     dismiss()
                 }
                 .disabled(editedTrigger.trimmingCharacters(in: .whitespaces).isEmpty || editedReplacement.isEmpty)

@@ -28,6 +28,22 @@ private struct PendingAudio: Codable {
     var timestamp: Date
 }
 
+/// A note that has been processed (macros expanded, transcription done) and
+/// saved to SwiftData, but whose export to the final target (iCloud `.md` file
+/// or a third-party app) has not yet been confirmed. Persisted so a `.deferred`
+/// or `.failed` export is retried on subsequent launches / a periodic timer
+/// rather than silently dropped after the watch has been ACK'd.
+private struct PendingExport: Codable {
+    /// The note's UUID — matches the watch-side id and the `processedNoteIDs` set.
+    var noteId: UUID
+    /// The fully-processed text ready to append (post macro expansion).
+    var processedText: String
+    /// The original capture timestamp (used for the daily-note filename + heading).
+    var timestamp: Date
+    /// Whether the originating capture was audio (controls which ACK to send).
+    var isAudio: Bool
+}
+
 @main
 struct MacroMarkApp: App {
     let container: ModelContainer
@@ -167,6 +183,15 @@ struct MacroMarkApp: App {
         }
     }
 
+    /// Re-attempt any exports that saved to SwiftData but failed to reach the
+    /// final target (e.g. iCloud daily file wasn't materialized). Called from
+    /// the scene's `.task` on appear and on a periodic timer.
+    @MainActor
+    private func reprocessAndRetry(container: ModelContainer) {
+        reprocessPendingItems(container: container)
+        retryDeferredExports(container: container)
+    }
+
     /// Shared entry point for text notes (from watch dictation).
     @MainActor
     private func handleIncomingNote(id: UUID, text: String, timestamp: Date, container: ModelContainer) {
@@ -178,6 +203,9 @@ struct MacroMarkApp: App {
             acknowledgeNoteIfDurable(id: id)
             return
         }
+        // Already saved to SwiftData and awaiting export — the retry timer will
+        // deliver it. Don't re-process (would create a duplicate note).
+        guard pendingExports[id] == nil else { return }
         // Already being processed this session — don't start a duplicate pass.
         guard !Self.inFlightIDs.contains(id) else { return }
         Self.inFlightIDs.insert(id)
@@ -201,6 +229,9 @@ struct MacroMarkApp: App {
             acknowledgeFileIfDurable(id: id)
             return
         }
+        // Already transcribed + saved to SwiftData, awaiting export — the retry
+        // timer will deliver it. Don't re-process (would duplicate the note).
+        guard pendingExports[id] == nil else { return }
 
         // Move the audio into durable storage and record it in the WAL BEFORE
         // processing, so a crash mid-transcription doesn't lose the recording.
@@ -313,8 +344,9 @@ struct MacroMarkApp: App {
                 return nil
             }
 
-            // Save and export — ACK is sent inside processAndExport on success
-            processAndExport(noteId: noteId, text: result, isAudio: isAudio, timestamp: timestamp, autoExport: autoExport, rawTarget: rawTarget, context: context)
+            // Save and export — ACK is sent inside processAndExport only after the
+            // export target actually succeeds (§5.1).
+            await processAndExport(noteId: noteId, text: result, isAudio: isAudio, timestamp: timestamp, autoExport: autoExport, rawTarget: rawTarget, context: context)
 
             Self.inFlightIDs.remove(noteId)
 
@@ -394,8 +426,13 @@ struct MacroMarkApp: App {
     }
 
     /// Save the processed text to SwiftData and export to the configured target.
-    /// Sends an ACK back to the watch on successful SwiftData save (unless we're
-    /// on the volatile in-memory store, in which case the watch must keep its copy).
+    ///
+    /// The ACK to the watch (and clearing the write-ahead log) happens **only after
+    /// the export target succeeds** — the user's definition of "delivered" is "in
+    /// the daily-note file," not "saved to SwiftData." On `.deferred` or `.failed`
+    /// (or a third-party export that doesn't confirm), the note is recorded in the
+    /// `PendingExport` WAL and retried by `retryDeferredExports` so it is never
+    /// silently dropped.
     @MainActor
     private func processAndExport(
         noteId: UUID,
@@ -405,57 +442,229 @@ struct MacroMarkApp: App {
         autoExport: Bool,
         rawTarget: String,
         context: ModelContext
-    ) {
+    ) async {
         let note = ProcessedNote(text: text, createdAt: timestamp)
         context.insert(note)
 
-        // Save to SwiftData (the durable source of truth)
+        // Save to SwiftData (the durable source of truth for the note content).
         do {
             try context.save()
         } catch {
 #if DEBUG
             print("MacroMark: SwiftData save failed for note \(noteId): \(error)")
 #endif
-            // Leave the note in the WAL for retry on next launch.
+            // Leave the note in the input WAL for retry on next launch.
             // Do NOT send ACK — the watch will re-send.
             return
         }
 
-        // SwiftData save succeeded — note is durably stored.
-        // Add to processed set and clear the write-ahead log entry.
-        Self.addProcessedNoteID(noteId)
-        if isAudio {
-            removePendingAudio(id: noteId)
-            acknowledgeFileIfDurable(id: noteId)
-        } else {
-            removePendingProcessing(id: noteId)
-            acknowledgeNoteIfDurable(id: noteId)
-        }
+        // Attempt the export. The ACK and WAL-clearing are gated on its result.
+        let exportResult = await performExport(
+            note: note,
+            text: text,
+            timestamp: timestamp,
+            autoExport: autoExport,
+            rawTarget: rawTarget,
+            context: context
+        )
 
-        // Export to iCloud / third-party targets (best-effort; failures don't undo the ACK)
+        switch exportResult {
+        case .appended, .exported:
+            // Fully delivered — record as processed, clear the input WAL, ACK the
+            // watch so it deletes its copy.
+            Self.addProcessedNoteID(noteId)
+            if isAudio {
+                removePendingAudio(id: noteId)
+                acknowledgeFileIfDurable(id: noteId)
+            } else {
+                removePendingProcessing(id: noteId)
+                acknowledgeNoteIfDurable(id: noteId)
+            }
+        case .deferred, .failed, .noTarget:
+            // Saved to SwiftData but NOT delivered to the final target. Keep
+            // everything durable in place: the input WAL entry (raw text or the
+            // .m4a file), the watch's copy (no ACK), and do NOT mark as processed.
+            // Only record a PendingExport entry so the export is retried. This is
+            // the data-loss-safe contract: the watch keeps its copy and the phone
+            // keeps the raw input until the final target actually confirms
+            // delivery. A re-send from the watch (lost ACK) is harmless — the
+            // in-flight guard and the input WAL prevent duplicate processing.
+            addPendingExport(
+                PendingExport(noteId: noteId, processedText: text, timestamp: timestamp, isAudio: isAudio)
+            )
+        }
+    }
+
+    /// The outcome of an export attempt to the configured final target.
+    private enum ExportOutcome {
+        case appended       // iCloud append succeeded
+        case exported       // third-party URL export succeeded
+        case deferred       // iCloud file not materialized; retryable
+        case failed         // I/O or coordinator failure; retryable
+        case noTarget       // no/invalid target configured
+    }
+
+    /// Run the configured export. Does not touch the WAL or send any ACK — the
+    /// caller decides what to do based on the outcome.
+    @MainActor
+    private func performExport(
+        note: ProcessedNote,
+        text: String,
+        timestamp: Date,
+        autoExport: Bool,
+        rawTarget: String,
+        context: ModelContext
+    ) async -> ExportOutcome {
         guard let target = ExportTarget(rawValue: rawTarget) else {
-            _ = iCloudStorageManager.shared.appendText(text, for: timestamp)  // fallback
-            return
+            // No valid target — fall back to iCloud; if that also has no target,
+            // treat as deferred so the note isn't lost.
+            let result = await iCloudStorageManager.shared.appendText(text, for: timestamp)
+            if result == .appended {
+                markExported(note: note, target: .iCloud, context: context)
+            }
+            return mapAppendResult(result)
         }
 
         if target == .iCloud {
-            if iCloudStorageManager.shared.appendText(text, for: timestamp) {
-                note.isExported = true
-                note.exportTarget = target.rawValue
-                try? context.save()
+            let result = await iCloudStorageManager.shared.appendText(text, for: timestamp)
+            if result == .appended {
+                markExported(note: note, target: .iCloud, context: context)
             }
+            return mapAppendResult(result)
         } else if autoExport {
             if let exportURL = ExportManager.url(for: note, to: target) {
-                Task {
-                    let success = await UIApplication.shared.open(exportURL)
-                    if success {
-                        note.isExported = true
-                        note.exportTarget = target.rawValue
-                        try? context.save()
+                let success = await UIApplication.shared.open(exportURL)
+                if success {
+                    markExported(note: note, target: target, context: context)
+                    return .exported
+                }
+                return .failed
+            }
+            return .failed
+        }
+        // Non-iCloud target with auto-export disabled: nothing to do. Treat as
+        // exported (the user opted out of auto-export; the note is in the Inbox).
+        return .exported
+    }
+
+    @MainActor
+    private func mapAppendResult(_ result: AppendResult) -> ExportOutcome {
+        switch result {
+        case .appended: return .appended
+        case .deferred: return .deferred
+        case .failed: return .failed
+        }
+    }
+
+    @MainActor
+    private func markExported(note: ProcessedNote, target: ExportTarget, context: ModelContext) {
+        note.isExported = true
+        note.exportTarget = target.rawValue
+        do {
+            try context.save()
+        } catch {
+#if DEBUG
+            print("MacroMark: failed to persist export flag: \(error)")
+#endif
+        }
+    }
+
+    // MARK: - Pending-export WAL (retry until the final target confirms)
+
+    private static let pendingExportKey = "MacroMark_PendingExports"
+
+    private var pendingExports: [UUID: PendingExport] { Self.readPendingExports() }
+
+    private func addPendingExport(_ entry: PendingExport) {
+        var pending = Self.readPendingExports()
+        pending[entry.noteId] = entry
+        Self.writePendingExports(pending)
+    }
+
+    private func removePendingExport(id: UUID) {
+        var pending = Self.readPendingExports()
+        pending.removeValue(forKey: id)
+        Self.writePendingExports(pending)
+    }
+
+    private static func readPendingExports() -> [UUID: PendingExport] {
+        guard let data = UserDefaults.standard.data(forKey: pendingExportKey),
+              let dict = try? JSONDecoder().decode([String: PendingExport].self, from: data)
+        else { return [:] }
+        return dict.reduce(into: [:]) { partial, entry in
+            if let id = UUID(uuidString: entry.key) { partial[id] = entry.value }
+        }
+    }
+
+    private static func writePendingExports(_ dict: [UUID: PendingExport]) {
+        let stringDict = dict.reduce(into: [String: PendingExport]()) { $0[$1.key.uuidString] = $1.value }
+        if let data = try? JSONEncoder().encode(stringDict) {
+            UserDefaults.standard.set(data, forKey: pendingExportKey)
+        }
+    }
+
+    /// Retry every pending export whose final target hasn't confirmed yet.
+    /// Called on launch (after `reprocessPendingItems`) and on a periodic timer.
+    @MainActor
+    private func retryDeferredExports(container: ModelContainer) {
+        let pending = pendingExports
+        guard !pending.isEmpty else { return }
+        let context = container.mainContext
+        let autoExport = UserDefaults.standard.bool(forKey: "autoExportEnabled")
+        let rawTarget = UserDefaults.standard.string(forKey: "defaultExportTarget") ?? ExportTarget.iCloud.rawValue
+
+        for (id, entry) in pending {
+            // Skip entries already being retried by a prior tick — prevents the
+            // periodic timer from spawning a second retry Task for the same id
+            // while the first is still awaiting `performExport` (which would
+            // double-append the note to the daily file).
+            guard !Self.retryingExportIDs.contains(id) else { continue }
+            Self.retryingExportIDs.insert(id)
+
+            Task { @MainActor in
+                let outcome = await performExport(
+                    note: Self.fetchStoredNote(in: context, matching: entry)
+                        ?? ProcessedNote(text: entry.processedText, createdAt: entry.timestamp),
+                    text: entry.processedText,
+                    timestamp: entry.timestamp,
+                    autoExport: autoExport,
+                    rawTarget: rawTarget,
+                    context: context
+                )
+                Self.retryingExportIDs.remove(id)
+
+                if outcome == .appended || outcome == .exported {
+                    // Full delivery cleanup — the note has now reached its final
+                    // target, so clear the input WAL, drop the durable audio file
+                    // (if any), mark as processed, and ACK the watch so it frees
+                    // its copy. This is the symmetric counterpart of the success
+                    // arm in `processAndExport`.
+                    Self.addProcessedNoteID(entry.noteId)
+                    if entry.isAudio {
+                        removePendingAudio(id: entry.noteId)
+                        acknowledgeFileIfDurable(id: entry.noteId)
+                    } else {
+                        removePendingProcessing(id: entry.noteId)
+                        acknowledgeNoteIfDurable(id: entry.noteId)
                     }
+                    removePendingExport(id: entry.noteId)
                 }
             }
         }
+    }
+
+    /// IDs whose export retry is currently in flight (guarded so the periodic
+    /// timer doesn't double-append a note while a prior retry awaits an append).
+    @MainActor private static var retryingExportIDs: Set<UUID> = []
+
+    /// Find the persisted `ProcessedNote` matching a pending-export entry, so its
+    /// `isExported` flag can be updated on retry success. Matches on the exact
+    /// `createdAt` + `text` the WAL recorded.
+    private static func fetchStoredNote(in context: ModelContext, matching entry: PendingExport) -> ProcessedNote? {
+        let timestamp = entry.timestamp
+        let text = entry.processedText
+        let predicate = #Predicate<ProcessedNote> { $0.createdAt == timestamp && $0.text == text }
+        return (try? context.fetch(FetchDescriptor<ProcessedNote>(predicate: predicate)))?.first
     }
 
     // MARK: - Body
@@ -465,6 +674,18 @@ struct MacroMarkApp: App {
             AppTabView()
                 .environment(entitlementManager)
                 .environment(storeManager)
+                .task {
+                    // Retry any exports that saved to SwiftData but didn't reach
+                    // the final target before (iCloud file wasn't materialized, etc.).
+                    reprocessAndRetry(container: container)
+                    // Periodically retry while foregrounded — bounded so we don't
+                    // spin forever if iCloud is permanently unavailable.
+                    while !Task.isCancelled {
+                        try? await Task.sleep(for: .seconds(60))
+                        if Task.isCancelled { break }
+                        retryDeferredExports(container: container)
+                    }
+                }
                 .overlay(alignment: .top) {
                     if let error = containerError {
                         HStack {

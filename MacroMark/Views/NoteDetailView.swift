@@ -54,10 +54,11 @@ struct NoteDetailView: View {
     
     private func exportToICloud() {
         Task {
-            iCloudStorageManager.shared.appendText(note.text + "\n\n")
-            await MainActor.run {
+            let result = await iCloudStorageManager.shared.appendText(note.text + "\n\n")
+            if result == .appended {
                 note.isExported = true
                 note.exportTarget = ExportTarget.iCloud.rawValue
+                try? note.modelContext?.save()
             }
         }
     }

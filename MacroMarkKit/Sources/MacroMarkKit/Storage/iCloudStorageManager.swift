@@ -1,4 +1,19 @@
 import Foundation
+import os
+
+/// Outcome of an append attempt. The caller must treat `.deferred` and `.failed`
+/// as "not yet delivered" and keep the note in its write-ahead log for retry —
+/// the user's definition of "delivered" is "in the daily-note file," not "saved
+/// to SwiftData."
+public enum AppendResult {
+    /// The text was appended (or a new file created) successfully.
+    case appended
+    /// The day's file exists in iCloud but is not materialized locally; the write
+    /// was skipped to avoid clobbering it. Retryable.
+    case deferred
+    /// The write failed (I/O error, coordinator error). Retryable.
+    case failed
+}
 
 @MainActor
 public final class iCloudStorageManager {
@@ -68,7 +83,7 @@ public final class iCloudStorageManager {
     }
 
     @discardableResult
-    public func appendText(_ text: String, for date: Date = Date()) -> Bool {
+    public func appendText(_ text: String, for date: Date = Date()) async -> AppendResult {
         let baseDir = baseDirectoryURL
         let isSecurityScoped = UserDefaults.standard.data(forKey: "customSaveBookmark") != nil
         let settings = folderSettings
@@ -89,12 +104,15 @@ public final class iCloudStorageManager {
         // to this device yet, FileManager.fileExists returns false — which would
         // otherwise make us OVERWRITE the whole file with just this one entry,
         // wiping every earlier note for the day. Materialize it first.
-        ensureDownloaded(fileURL)
+        await ensureDownloaded(fileURL)
 
         let timeString = date.formatted(date: .omitted, time: .shortened)
         let textToAppend = "\n\n\(timeString)\n\n\(text)\n\n"
-        guard let dataToAppend = textToAppend.data(using: .utf8) else { return false }
+        guard let dataToAppend = textToAppend.data(using: .utf8) else { return .failed }
 
+        // Tracks whether the un-materialized-placeholder branch fired so we can
+        // report `.deferred` distinctly from a real I/O `.failed`.
+        var deferred = false
         var writeSucceeded = false
         var error: NSError?
         NSFileCoordinator().coordinate(writingItemAt: fileURL, options: .forMerging, error: &error) { url in
@@ -106,26 +124,30 @@ public final class iCloudStorageManager {
                     fileHandle.write(dataToAppend)
                     writeSucceeded = true
                 } catch {
-                    print("Failed to append to existing file: \(error)")
+                    Logger.storage.error("Failed to append to existing file: \(error.localizedDescription, privacy: .public)")
                 }
             } else if cloudCopyExistsButNotDownloaded(url) {
                 // The file exists remotely but still isn't local. Refuse to write
-                // (which would clobber it). The note is already safe in SwiftData;
-                // it will be appended on a later call once the file has downloaded.
-                print("iCloud file not yet downloaded — deferring append to avoid overwrite")
+                // (which would clobber it). Report `.deferred` so the caller keeps
+                // the note in its write-ahead log and retries once iCloud
+                // materializes the file.
+                deferred = true
+                Logger.storage.info("iCloud file not yet downloaded — deferring append to avoid overwrite")
             } else {
                 do {
                     try dataToAppend.write(to: url)
                     writeSucceeded = true
                 } catch {
-                    print("Failed to write to new file: \(error)")
+                    Logger.storage.error("Failed to write to new file: \(error.localizedDescription, privacy: .public)")
                 }
             }
         }
         if let error {
-            print("File coordinator error: \(error)")
+            Logger.storage.error("File coordinator error: \(error.localizedDescription, privacy: .public)")
         }
-        return writeSucceeded
+        if writeSucceeded { return .appended }
+        if deferred { return .deferred }
+        return .failed
     }
 
     /// iCloud stores not-yet-downloaded files as a hidden `.<name>.icloud` placeholder.
@@ -140,7 +162,8 @@ public final class iCloudStorageManager {
 
     /// If the file exists in iCloud but isn't materialized locally, trigger a
     /// download and wait briefly for it so an append doesn't overwrite it.
-    private func ensureDownloaded(_ url: URL) {
+    /// Uses cooperative `Task.sleep` so it never blocks the MainActor.
+    private func ensureDownloaded(_ url: URL) async {
         guard !FileManager.default.fileExists(atPath: url.path),
               cloudCopyExistsButNotDownloaded(url) else { return }
 
@@ -150,7 +173,7 @@ public final class iCloudStorageManager {
         // deferral branch in appendText rather than risk clobbering.
         for _ in 0..<20 {
             if FileManager.default.fileExists(atPath: url.path) { return }
-            Thread.sleep(forTimeInterval: 0.1)
+            try? await Task.sleep(for: .milliseconds(100))
         }
     }
 
@@ -177,7 +200,7 @@ public final class iCloudStorageManager {
             fileContent = try? String(contentsOf: url, encoding: .utf8)
         }
         if let error {
-            print("File coordinator read error: \(error)")
+            Logger.storage.error("File coordinator read error: \(error.localizedDescription, privacy: .public)")
         }
 
         return fileContent

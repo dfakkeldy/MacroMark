@@ -1,6 +1,7 @@
 import Foundation
 import CoreLocation
 import MapKit
+import os
 
 #if canImport(UIKit)
 import UIKit
@@ -8,13 +9,14 @@ import UIKit
 
 public struct MacroProcessor {
     /// Cache compiled NSRegularExpression instances keyed by macro trigger pattern.
-    /// Marked nonisolated(unsafe) because races on this cache are benign — worst case
-    /// is compiling the same regex twice, which is a minor perf hit, never a crash.
-    private static nonisolated(unsafe) var regexCache: [String: NSRegularExpression] = [:]
+    /// Synchronized with an unfair lock because `process(...)` is non-isolated and
+    /// can be invoked concurrently from the cooperative pool; a Swift `Dictionary`
+    /// is not safe under concurrent mutation.
+    private static let regexCache = OSAllocatedUnfairLock<[String: NSRegularExpression]>(initialState: [:])
 
     /// Invalidate the compiled regex cache. Call after macros are added, removed, or edited.
     public static func invalidateRegexCache() {
-        regexCache.removeAll()
+        regexCache.withLock { $0.removeAll() }
     }
 
     /// Pre-compiled wrapping-tag cleanup regex (constant pattern, cached once).
@@ -34,15 +36,15 @@ public struct MacroProcessor {
             let pattern = "\\b\(NSRegularExpression.escapedPattern(for: macro.trigger))\\b"
 
             let regex: NSRegularExpression
-            if let cached = regexCache[pattern] {
+            if let cached = regexCache.withLock({ $0[pattern] }) {
                 regex = cached
             } else {
                 do {
                     let compiled = try NSRegularExpression(pattern: pattern, options: .caseInsensitive)
-                    regexCache[pattern] = compiled
+                    regexCache.withLock { $0[pattern] = compiled }
                     regex = compiled
                 } catch {
-                    print("Failed to compile regex for macro \(macro.trigger): \(error)")
+                    Logger.engine.error("Failed to compile regex for macro \(macro.trigger): \(error.localizedDescription, privacy: .public)")
                     continue
                 }
             }
@@ -154,7 +156,7 @@ public struct MacroProcessor {
                 }
             }
         } catch {
-            print("Reverse geocoding failed: \(error)")
+            Logger.engine.error("Reverse geocoding failed: \(error.localizedDescription, privacy: .public)")
         }
         return fallback
     }

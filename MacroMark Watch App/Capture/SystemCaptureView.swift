@@ -28,17 +28,12 @@ struct SystemCaptureView: View {
 
             dismiss()
 
-            Task.detached {
-                ProcessInfo.processInfo.performExpiringActivity(withReason: "Save Dictation") { expired in
-                    if !expired {
-                        let semaphore = DispatchSemaphore(value: 0)
-                        Task {
-                            await SystemCaptureView.finishAndSave(text: textResult)
-                            semaphore.signal()
-                        }
-                        semaphore.wait()
-                    }
-                }
+            // Enqueue into the durable LocalStore queue directly. The work is
+            // trivial (a UserDefaults write on the MainActor); wrapping it in
+            // `performExpiringActivity` + `DispatchSemaphore.wait()` risks
+            // deadlocking the cooperative pool on watchOS.
+            Task {
+                await SystemCaptureView.finishAndSave(text: textResult)
             }
         }
     }
