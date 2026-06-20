@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MacroMark — Zero-friction voice capture for your Markdown vault</title>
+<meta name="description" content="MacroMark turns a tap on your Apple Watch into a timestamped note in your iCloud Markdown daily log — ready for Obsidian, Logseq, and anything that reads plain text. iOS 26.5 · watchOS 26.5.">
+<meta name="theme-color" content="#FBF6EE">
+<meta property="og:type" content="website">
+<meta property="og:title" content="MacroMark — Zero-friction voice capture for your Markdown vault">
+<meta property="og:description" content="Speak. Lower your wrist. It's saved. Timestamped voice capture to plain-text Markdown daily notes, built for Apple Watch and the PKM crowd.">
+<meta property="og:url" content="https://dfakkeldy.github.io/MacroMark/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231A1714'/%3E%3Ctext x='16' y='23' font-family='Georgia,serif' font-size='20' font-weight='700' text-anchor='middle' fill='%23E2553A'%3E%23%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..900;1,9..144,400..700&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#FBF6EE; --paper-2:#F4EBDC; --paper-3:#EFE3D0;
+    --ink:#1A1714; --ink-soft:#4C443B; --ink-faint:#9A8E7C;
+    --accent:#E2553A; --accent-deep:#BF3D24; --accent-wash:#F8E7DF;
+    --line:#E2D6C2; --line-strong:#CDBDA2;
+    --green:#3F7A4E;
+    --shadow:18px 18px 0 rgba(26,23,20,.06);
+    --radius:18px;
+    --maxw:1140px;
+    --serif:"Fraunces",Georgia,serif;
+    --sans:"Hanken Grotesk",system-ui,sans-serif;
+    --mono:"JetBrains Mono",ui-monospace,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--paper); color:var(--ink); font-family:var(--sans);
+    font-size:17px; line-height:1.6; -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+    background-image:
+      radial-gradient(circle at 1px 1px, rgba(26,23,20,.05) 1px, transparent 0);
+    background-size:26px 26px;
+  }
+  ::selection{background:var(--accent);color:var(--paper)}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 28px}
+  .mono{font-family:var(--mono)}
+  .accent{color:var(--accent)}
+
+  /* grain overlay */
+  body::after{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:9999;opacity:.5;
+    mix-blend-mode:multiply;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.045'/%3E%3C/svg%3E");
+  }
+
+  /* ---------- header ---------- */
+  header{position:sticky;top:0;z-index:50;
+    background:color-mix(in srgb, var(--paper) 88%, transparent);
+    backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+  .nav{display:flex;align-items:center;justify-content:space-between;height:68px}
+  .brand{display:flex;align-items:center;gap:10px;font-family:var(--serif);font-weight:700;font-size:21px;letter-spacing:-.02em}
+  .brand .glyph{display:grid;place-items:center;width:30px;height:30px;border-radius:9px;background:var(--ink);color:var(--accent);font-family:var(--mono);font-weight:700;font-size:18px;line-height:1}
+  .nav-links{display:flex;gap:30px;align-items:center}
+  .nav-links a{font-size:15px;color:var(--ink-soft);font-weight:500;transition:color .2s}
+  .nav-links a:hover{color:var(--accent)}
+  .nav-links .pill{border:1px solid var(--line-strong);border-radius:100px;padding:7px 15px;font-family:var(--mono);font-size:12.5px;color:var(--ink);background:var(--paper-2)}
+  @media(max-width:780px){.nav-links a:not(.pill){display:none}}
+
+  /* ---------- hero ---------- */
+  .hero{position:relative;padding:84px 0 56px}
+  .hero-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:54px;align-items:center}
+  @media(max-width:920px){.hero-grid{grid-template-columns:1fr;gap:40px}}
+  .eyebrow{font-family:var(--mono);font-size:13px;letter-spacing:.06em;color:var(--accent-deep);text-transform:uppercase;margin-bottom:22px;display:flex;align-items:center;gap:10px}
+  .eyebrow::before{content:"";width:30px;height:1.5px;background:var(--accent)}
+  h1{font-family:var(--serif);font-weight:600;font-size:clamp(2.7rem,6vw,4.5rem);line-height:1.02;letter-spacing:-.025em}
+  h1 .hash{color:var(--accent);font-weight:400;margin-right:.12em}
+  h1 em{font-style:italic;font-weight:500}
+  .lede{margin-top:24px;font-size:clamp(1.05rem,1.6vw,1.22rem);color:var(--ink-soft);max-width:33ch}
+  .cta-row{margin-top:34px;display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+  .btn{display:inline-flex;align-items:center;gap:9px;font-weight:600;font-size:15.5px;padding:14px 22px;border-radius:13px;transition:transform .15s ease, box-shadow .15s ease, background .2s}
+  .btn-primary{background:var(--accent);color:var(--paper);box-shadow:0 0 0 0 rgba(0,0,0,0)}
+  .btn-primary:hover{background:var(--accent-deep);transform:translateY(-2px);box-shadow:0 8px 22px rgba(191,61,36,.28)}
+  .btn-ghost{border:1.5px solid var(--line-strong);color:var(--ink)}
+  .btn-ghost:hover{border-color:var(--ink);transform:translateY(-2px)}
+  .meta-line{margin-top:20px;font-family:var(--mono);font-size:12.5px;color:var(--ink-faint)}
+  .meta-line b{color:var(--ink-soft);font-weight:500}
+
+  /* decorative oversized glyph */
+  .ghost-glyph{position:absolute;font-family:var(--serif);font-size:42vw;line-height:1;color:var(--ink);opacity:.025;right:-4vw;top:-12vw;pointer-events:none;z-index:0;font-weight:900}
+
+  /* ---------- hero visual: note + watch ---------- */
+  .visual{position:relative;z-index:1}
+  .note{
+    background:var(--paper); border:1px solid var(--line-strong);border-radius:var(--radius);
+    box-shadow:var(--shadow); overflow:hidden;
+  }
+  .note-bar{display:flex;align-items:center;gap:8px;padding:13px 16px;background:var(--paper-2);border-bottom:1px solid var(--line)}
+  .dot{width:11px;height:11px;border-radius:50%;background:var(--line-strong)}
+  .dot:nth-child(1){background:#E2553A}.dot:nth-child(2){background:#E8B23A}.dot:nth-child(3){background:#5FA86E}
+  .note-name{margin-left:8px;font-family:var(--mono);font-size:13px;color:var(--ink-soft)}
+  .note-name .rec{margin-left:auto;display:inline-flex;align-items:center;gap:7px;color:var(--accent-deep);font-size:11.5px}
+  .note-name .rec b{width:8px;height:8px;border-radius:50%;background:var(--accent);animation:pulse 1.6s ease-in-out infinite}
+  .note-body{padding:22px 22px 26px;font-family:var(--mono);font-size:13.5px;line-height:1.95}
+  .note-body .h{color:var(--ink);font-weight:700}
+  .note-body .ts{color:var(--accent-deep)}
+  .note-body .tag{color:var(--green)}
+  .note-body .q{color:var(--ink-faint)}
+  .note-body .var{background:var(--accent-wash);color:var(--accent-deep);border-radius:5px;padding:1px 5px}
+  .note-body p{opacity:0;transform:translateY(6px);animation:appear .5s ease forwards;color:var(--ink-soft)}
+  .note-body p:nth-child(1){animation-delay:.2s}
+  .note-body p:nth-child(2){animation-delay:.75s}
+  .note-body p:nth-child(3){animation-delay:1.3s}
+  .note-body p:nth-child(4){animation-delay:1.85s}
+  .note-body p:nth-child(5){animation-delay:2.4s}
+  .cursor{display:inline-block;width:8px;height:1.05em;background:var(--accent);vertical-align:-2px;animation:blink 1s steps(2) infinite;margin-left:2px}
+
+  /* watch */
+  .watch{position:absolute;right:-26px;bottom:-34px;width:150px;z-index:2;filter:drop-shadow(10px 14px 22px rgba(26,23,20,.22))}
+  @media(max-width:920px){.watch{right:8px;bottom:-20px;width:128px}}
+  .watch-body{background:#0E0C0B;border-radius:38px;padding:13px;border:2px solid #2a2520}
+  .watch-screen{background:linear-gradient(160deg,#211c18,#0d0b09);border-radius:27px;padding:14px 12px;display:flex;flex-direction:column;gap:9px;align-items:center}
+  .w-title{font-family:var(--mono);font-size:8.5px;color:#b9ad9a;letter-spacing:.04em}
+  .w-mic{width:60px;height:60px;border-radius:50%;background:radial-gradient(circle at 50% 40%,#F0664A,#C23E27);display:grid;place-items:center;position:relative;color:#fff;font-size:26px;
+    box-shadow:0 0 0 0 rgba(226,85,58,.55);animation:ring 2s ease-out infinite}
+  .w-row{display:flex;gap:8px;width:100%}
+  .w-key{flex:1;height:26px;border-radius:10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);display:grid;place-items:center;color:#d8cdbb;font-size:13px}
+  .w-log{width:100%;height:24px;border-radius:10px;background:rgba(226,85,58,.16);border:1px solid rgba(226,85,58,.3);display:grid;place-items:center;color:#F0A892;font-family:var(--mono);font-size:8px}
+  .watch-crown{position:absolute;right:-4px;top:42%;width:6px;height:34px;background:#2a2520;border-radius:3px}
+
+  /* ---------- section scaffolding ---------- */
+  section.band{padding:84px 0;position:relative}
+  .band.alt{background:var(--paper-2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .sec-head{max-width:620px;margin-bottom:48px}
+  .sec-kicker{font-family:var(--mono);font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent-deep);margin-bottom:14px}
+  .sec-head h2{font-family:var(--serif);font-weight:600;font-size:clamp(1.9rem,3.8vw,2.85rem);line-height:1.08;letter-spacing:-.02em}
+  .sec-head p{margin-top:14px;color:var(--ink-soft);font-size:1.06rem}
+
+  /* how it works */
+  .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+  @media(max-width:860px){.steps{grid-template-columns:1fr 1fr}}
+  @media(max-width:520px){.steps{grid-template-columns:1fr}}
+  .step{background:var(--paper);padding:30px 26px;transition:background .25s}
+  .band.alt .step{background:var(--paper-2)}
+  .step:hover{background:var(--accent-wash)}
+  .step .n{font-family:var(--mono);font-size:13px;color:var(--accent-deep)}
+  .step h3{font-family:var(--serif);font-weight:600;font-size:1.32rem;margin:14px 0 8px;letter-spacing:-.01em}
+  .step p{font-size:.98rem;color:var(--ink-soft)}
+  .step code{font-family:var(--mono);font-size:.82em;background:var(--paper-3);padding:1px 5px;border-radius:5px;color:var(--ink)}
+
+  /* features */
+  .features{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+  @media(max-width:880px){.features{grid-template-columns:1fr 1fr}}
+  @media(max-width:560px){.features{grid-template-columns:1fr}}
+  .feat{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:28px 26px;transition:transform .2s, box-shadow .2s, border-color .2s}
+  .feat:hover{transform:translateY(-4px);box-shadow:var(--shadow);border-color:var(--line-strong)}
+  .feat .bullet{font-family:var(--mono);color:var(--accent);font-size:1.4rem;line-height:1}
+  .feat h3{font-family:var(--serif);font-weight:600;font-size:1.3rem;margin:16px 0 9px;letter-spacing:-.01em}
+  .feat p{font-size:.98rem;color:var(--ink-soft)}
+
+  /* macros */
+  .macro-card{background:var(--ink);border-radius:var(--radius);padding:8px;box-shadow:var(--shadow)}
+  .macro-card .bar{display:flex;gap:7px;padding:12px 14px}
+  .macro-card .bar .dot{opacity:.85}
+  .macro-grid{font-family:var(--mono);font-size:14.5px;padding:8px 22px 26px;display:grid;gap:14px}
+  .macro-row{display:grid;grid-template-columns:1fr auto 1fr;gap:18px;align-items:center}
+  @media(max-width:600px){.macro-row{grid-template-columns:1fr;gap:4px;text-align:left}.macro-row .arrow{display:none}}
+  .say{color:#cdbfa9}.say .kw{color:#F0A892}
+  .arrow{color:var(--accent);font-weight:700}
+  .get{color:#EFE3D0}.get .out{background:rgba(226,85,58,.22);color:#F0A892;border-radius:5px;padding:2px 7px}
+
+  /* pricing */
+  .prices{display:grid;grid-template-columns:1fr 1fr;gap:24px;max-width:840px}
+  @media(max-width:680px){.prices{grid-template-columns:1fr}}
+  .price{background:var(--paper);border:1px solid var(--line-strong);border-radius:var(--radius);padding:34px 30px;position:relative}
+  .price.pro{border:2px solid var(--accent);box-shadow:var(--shadow)}
+  .price .tier{font-family:var(--mono);font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint)}
+  .price.pro .tier{color:var(--accent-deep)}
+  .price .amt{font-family:var(--serif);font-weight:600;font-size:2.6rem;margin:10px 0 4px;letter-spacing:-.02em}
+  .price .amt small{font-family:var(--sans);font-size:1rem;color:var(--ink-faint);font-weight:500}
+  .price .sub{color:var(--ink-soft);font-size:.95rem;margin-bottom:20px}
+  .price ul{list-style:none;display:grid;gap:11px}
+  .price li{display:flex;gap:11px;font-size:.98rem;color:var(--ink-soft)}
+  .price li::before{content:"›";color:var(--accent);font-family:var(--mono);font-weight:700}
+  .badge-pro{position:absolute;top:-13px;right:24px;background:var(--accent);color:var(--paper);font-family:var(--mono);font-size:11.5px;padding:5px 12px;border-radius:100px;letter-spacing:.03em}
+
+  /* cta band */
+  .closer{text-align:center;padding:96px 0}
+  .closer h2{font-family:var(--serif);font-weight:600;font-size:clamp(2rem,5vw,3.4rem);letter-spacing:-.02em;line-height:1.05}
+  .closer h2 .hash{color:var(--accent);font-weight:400}
+  .closer p{color:var(--ink-soft);margin:18px auto 30px;max-width:46ch}
+
+  /* footer */
+  footer{background:var(--ink);color:var(--paper);padding:54px 0 40px}
+  .foot{display:flex;justify-content:space-between;gap:30px;flex-wrap:wrap;align-items:flex-start}
+  .foot .brand{color:var(--paper)}
+  .foot .brand .glyph{background:var(--paper);color:var(--ink)}
+  .foot-tag{color:#bdae9b;font-size:.95rem;margin-top:14px;max-width:34ch}
+  .foot-links{display:flex;gap:42px;flex-wrap:wrap}
+  .foot-col h4{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#8c8070;margin-bottom:14px}
+  .foot-col a{display:block;color:#e4d8c6;font-size:.96rem;margin-bottom:9px;transition:color .2s}
+  .foot-col a:hover{color:var(--accent)}
+  .foot-bottom{border-top:1px solid rgba(255,255,255,.1);margin-top:40px;padding-top:22px;display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;font-family:var(--mono);font-size:12px;color:#8c8070}
+
+  /* reveal on load for top sections handled w/ delay; respect reduced motion */
+  @keyframes appear{to{opacity:1;transform:none}}
+  @keyframes blink{0%,49%{opacity:1}50%,100%{opacity:0}}
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.8)}}
+  @keyframes ring{0%{box-shadow:0 0 0 0 rgba(226,85,58,.5)}70%{box-shadow:0 0 0 16px rgba(226,85,58,0)}100%{box-shadow:0 0 0 0 rgba(226,85,58,0)}}
+  .rise{opacity:0;transform:translateY(16px);animation:appear .7s cubic-bezier(.2,.7,.2,1) forwards}
+  .d1{animation-delay:.05s}.d2{animation-delay:.15s}.d3{animation-delay:.27s}.d4{animation-delay:.4s}
+  @media(prefers-reduced-motion:reduce){
+    *{animation:none!important;transition:none!important}
+    .note-body p,.rise{opacity:1;transform:none}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <a class="brand" href="#top"><span class="glyph">#</span>MacroMark</a>
+    <nav class="nav-links">
+      <a href="#how">How it works</a>
+      <a href="#features">Features</a>
+      <a href="#macros">Macros</a>
+      <a href="#pricing">Pricing</a>
+      <a class="pill" href="#">Coming Aug 2026</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+  <!-- HERO -->
+  <section class="hero">
+    <span class="ghost-glyph" aria-hidden="true">#</span>
+    <div class="wrap hero-grid">
+      <div class="hero-copy">
+        <div class="eyebrow rise d1">Voice → Markdown · Apple Watch first</div>
+        <h1 class="rise d2"><span class="hash">#</span>Speak. Lower your wrist.<br><em>It's saved.</em></h1>
+        <p class="lede rise d3">Zero-friction voice capture for your Markdown vault. A tap on your Apple Watch becomes a timestamped note in your iCloud daily log — ready for Obsidian, Logseq, and anything that reads plain text.</p>
+        <div class="cta-row rise d4">
+          <a class="btn btn-primary" href="mailto:dan@kinnokilabs.com?subject=MacroMark%20launch%20updates&body=Let%20me%20know%20when%20MacroMark%20ships!">✉ Get launch updates</a>
+          <a class="btn btn-ghost" href="https://github.com/dfakkeldy/MacroMark" target="_blank" rel="noopener">★ View on GitHub</a>
+        </div>
+        <p class="meta-line rise d4"><b>Requires</b> iOS 26.5 · watchOS 26.5 &nbsp;·&nbsp; <b>Free</b> with optional Pro</p>
+      </div>
+
+      <div class="visual rise d3">
+        <div class="note">
+          <div class="note-bar">
+            <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+            <span class="note-name">2026-06-20.md<span class="rec"><b></b>capturing</span></span>
+          </div>
+          <div class="note-body">
+            <p class="h"># 2026-06-20</p>
+            <p><span class="ts">08:14</span>&nbsp; append captures to one daily note <span class="var">{date}</span></p>
+            <p><span class="ts">08:41</span>&nbsp; <span class="tag">#design</span> ship the Liquid Glass watch UI first</p>
+            <p><span class="ts">12:03</span>&nbsp; voice macros could insert <span class="var">{location}</span></p>
+            <p><span class="ts">15:27</span>&nbsp; <span class="q">&gt; remember:</span> wrist-down = instant save<span class="cursor"></span></p>
+          </div>
+        </div>
+        <div class="watch" aria-hidden="true">
+          <div class="watch-body">
+            <div class="watch-crown"></div>
+            <div class="watch-screen">
+              <span class="w-title">TAP TO CAPTURE</span>
+              <div class="w-mic">🎙</div>
+              <div class="w-row">
+                <div class="w-key">⌨</div>
+                <div class="w-key">Aa</div>
+              </div>
+              <div class="w-log">TODAY'S LOG</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section class="band alt" id="how">
+    <div class="wrap">
+      <div class="sec-head">
+        <div class="sec-kicker">// the flow</div>
+        <h2>From thought to vault in four beats.</h2>
+        <p>No "Done" button. No silence timeout. The watch does the timestamp; your phone does the filing.</p>
+      </div>
+      <div class="steps">
+        <div class="step">
+          <div class="n">01</div><h3>Speak</h3>
+          <p>Tap the <code>capture/instant</code> complication. <code>SFSpeechRecognizer</code> starts transcribing immediately and never times out from silence.</p>
+        </div>
+        <div class="step">
+          <div class="n">02</div><h3>Wrist-down save</h3>
+          <p>Lower your wrist and <code>scenePhase</code> changes — your text and the precise origin timestamp are saved at once.</p>
+        </div>
+        <div class="step">
+          <div class="n">03</div><h3>Sync</h3>
+          <p><code>WatchConnectivity</code> queues the payload and delivers it to your iPhone, even in the background.</p>
+        </div>
+        <div class="step">
+          <div class="n">04</div><h3>Append</h3>
+          <p>The Macro Engine formats your words and appends them to <code>YYYY-MM-DD.md</code> in iCloud Drive.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section class="band" id="features">
+    <div class="wrap">
+      <div class="sec-head">
+        <div class="sec-kicker">// why it's different</div>
+        <h2>Built for people who live in plain text.</h2>
+      </div>
+      <div class="features">
+        <div class="feat"><div class="bullet">*</div><h3>Zero-friction capture</h3><p>Tap, speak, drop your wrist. The note lands instantly with an accurate, watch-generated timestamp — no buttons to fumble.</p></div>
+        <div class="feat"><div class="bullet">*</div><h3>The append mechanic</h3><p>Every capture for a day joins one <span class="mono">YYYY-MM-DD.md</span> daily note, instead of scattering hundreds of tiny files across your vault.</p></div>
+        <div class="feat"><div class="bullet">*</div><h3>Verbal macros</h3><p>Say a trigger word to format text, or drop in <span class="mono">{date}</span>, <span class="mono">{time}</span>, and <span class="mono">{location}</span> variables to build real workflows.</p></div>
+        <div class="feat"><div class="bullet">*</div><h3>Liquid Glass watch UI</h3><p>Large microphone and keyboard buttons for instant input, plus one-tap access to today's daily log — right from your wrist.</p></div>
+        <div class="feat"><div class="bullet">*</div><h3>PKM-native</h3><p>Writes plain-text Markdown to a dedicated iCloud Documents folder — instantly readable by Obsidian, Logseq, and friends.</p></div>
+        <div class="feat"><div class="bullet">*</div><h3>On-device &amp; yours</h3><p>Dictation runs through Apple's <span class="mono">SFSpeechRecognizer</span>. Your words go to your vault — not a server.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MACROS -->
+  <section class="band alt" id="macros">
+    <div class="wrap">
+      <div class="sec-head">
+        <div class="sec-kicker">// verbal macros</div>
+        <h2>Say it. Watch it format.</h2>
+        <p>Trigger words become Markdown. Variables expand on the fly. Make your own in Settings → Macros.</p>
+      </div>
+      <div class="macro-card">
+        <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+        <div class="macro-grid">
+          <div class="macro-row"><span class="say">you say <span class="kw">"Heading One"</span></span><span class="arrow">→</span><span class="get"><span class="out"># </span> heading</span></div>
+          <div class="macro-row"><span class="say">you say <span class="kw">"Quote"</span></span><span class="arrow">→</span><span class="get"><span class="out">&gt; </span> blockquote</span></div>
+          <div class="macro-row"><span class="say">you type <span class="kw">{date}</span></span><span class="arrow">→</span><span class="get"><span class="out">2026-06-20</span></span></div>
+          <div class="macro-row"><span class="say">you type <span class="kw">{time}</span></span><span class="arrow">→</span><span class="get"><span class="out">15:27</span></span></div>
+          <div class="macro-row"><span class="say">you type <span class="kw">{location}</span></span><span class="arrow">→</span><span class="get"><span class="out">your current place</span></span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PRICING -->
+  <section class="band" id="pricing">
+    <div class="wrap">
+      <div class="sec-head">
+        <div class="sec-kicker">// pricing</div>
+        <h2>Free to capture. Pro to go further.</h2>
+        <p>Core capture is free, forever. Upgrade once you want the power tools.</p>
+      </div>
+      <div class="prices">
+        <div class="price">
+          <div class="tier">Free</div>
+          <div class="amt">$0</div>
+          <div class="sub">Everything you need to start capturing.</div>
+          <ul>
+            <li>Zero-friction voice &amp; keyboard capture</li>
+            <li>Append to daily Markdown notes</li>
+            <li>The built-in starter macros</li>
+            <li>iCloud Drive sync</li>
+          </ul>
+        </div>
+        <div class="price pro">
+          <span class="badge-pro">free trial</span>
+          <div class="tier">Pro</div>
+          <div class="amt">$4.99<small> / year</small></div>
+          <div class="sub">or <b>$12.99</b> once — Lifetime.</div>
+          <ul>
+            <li>Unlimited custom macros</li>
+            <li>Edit the default macros</li>
+            <li>Folder structure customization</li>
+            <li>Support an indie, built in public</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CLOSER -->
+  <section class="closer band alt">
+    <div class="wrap">
+      <h2><span class="hash">#</span> Your next thought deserves a home.</h2>
+      <p>MacroMark is in the works for iOS 26.5 and watchOS 26.5. Leave your email and I'll tell you the moment it ships.</p>
+      <div class="cta-row" style="justify-content:center">
+        <a class="btn btn-primary" href="mailto:dan@kinnokilabs.com?subject=MacroMark%20launch%20updates&body=Let%20me%20know%20when%20MacroMark%20ships!">✉ Get launch updates</a>
+        <a class="btn btn-ghost" href="https://github.com/dfakkeldy/MacroMark" target="_blank" rel="noopener">★ Star on GitHub</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <div>
+        <a class="brand" href="#top"><span class="glyph">#</span>MacroMark</a>
+        <p class="foot-tag">Zero-friction voice capture for your Markdown vault. Built in public by KinNoKi Labs.</p>
+      </div>
+      <div class="foot-links">
+        <div class="foot-col">
+          <h4>Product</h4>
+          <a href="#features">Features</a>
+          <a href="#how">How it works</a>
+          <a href="#pricing">Pricing</a>
+        </div>
+        <div class="foot-col">
+          <h4>Project</h4>
+          <a href="https://github.com/dfakkeldy/MacroMark" target="_blank" rel="noopener">GitHub repository</a>
+          <a href="https://github.com/dfakkeldy/MacroMark/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a>
+        </div>
+        <div class="foot-col">
+          <h4>Contact</h4>
+          <a href="mailto:dan@kinnokilabs.com">dan@kinnokilabs.com</a>
+          <a href="mailto:dan@kinnokilabs.com?subject=MacroMark%20press">Press &amp; media</a>
+        </div>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span>© 2026 KinNoKi Labs</span>
+      <span>iOS 26.5 · watchOS 26.5 · made for thinkers</span>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
