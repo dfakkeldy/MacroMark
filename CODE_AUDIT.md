@@ -1,408 +1,417 @@
 # MacroMark Code Audit
 
-Generated 2026-06-05. Scope: ~42 Swift source files + test files + widget extension across 4 targets (MacroMark iOS, MacroMark Watch App, MacroMarkKit SPM, MacroMarkWidget). `.claude/`, `.build/`, `Pods/`, and `Tests/` directories are excluded. No `Dead/` archive directory exists.
+Generated 2026-06-20. Scope: 43 Swift source files (~3,700 LOC) across 4 targets — `MacroMark` (iOS), `MacroMark Watch App`, `MacroMarkKit` (SPM), `MacroMarkWidget`. Excluded: `.git`, `.build`, `.swiftpm`, `MacroMarkKit/.build`, `MacroMarkKit/.swiftpm`, and the untracked scratch file `test.swift` at the repo root. No `Dead/` archive directory exists.
 
-Findings cite `path/to/file.swift:LINE` so you can jump straight to them in Xcode. Each item has a recommended action; no code changes were made.
+This audit supersedes the 2026-06-05 snapshot. Since then, commits `0a8a9ec`, `b16c535`, `4e2c3dd`, and `f015c9e` landed an end-to-end ACK protocol, a write-ahead log, and several concurrency fixes. Those changes were re-verified here; the prior report's §3.1 (UIPasteboard off MainActor), §3.3 (AudioTranscriber leaked continuation), §3.4 (sendMessage continuation isolation), §5.4 (StoreManager finish-before-entitlement), and §6.1 (compile-time `#if DEBUG` paywall bypass) are now **resolved** and intentionally not re-raised.
+
+Findings cite `path/to/file.swift:LINE` so you can jump straight to them in Xcode. Each item has a recommended action; no code changes were made during the audit.
+
+Build ground truth: both the `MacroMark` (iOS) and `MacroMark Watch App` schemes build **clean** under Xcode 26.5 / Swift 6.3.2 with strict concurrency. No Swift warnings were emitted; the concurrency findings below come from reading the code, not the compiler.
 
 ---
 
 ## 1. Executive summary
 
-Top items to address, in priority order:
+Top items to address, in priority order. Data-loss in the note-sync pipeline is the user's stated #1 concern and dominates this list.
 
-1. **[High] LocalStore re-sends all pending notes on every call → duplicate entries on iOS** — §5.1 — `MacroMark Watch App/Storage/LocalStore.swift:43-46`. Every new note triggers a full re-transfer of the pending queue; when the iPhone reconnects, the daily note gets repeated content.
-2. **[High] UIPasteboard accessed from non-isolated MacroProcessor** — §3.1 — `MacroMarkKit/Sources/MacroMarkKit/Engine/MacroProcessor.swift:67`. UIKit API called from background thread; undefined behavior in release builds, compile error under Swift 6.
-3. **[High] Non-Sendable Macro models passed across actor boundary** — §3.2 — `MacroMark/MacroMarkApp.swift:54-55,119-120`. `[Macro]` fetched on MainActor is passed to non-isolated `process()`; Swift 6 strict concurrency will reject this.
-4. **[High] AudioTranscriber recognition task leaks continuation on Task cancellation** — §3.3 — `MacroMark/Engine/AudioTranscriber.swift:27-42`. `SFSpeechRecognitionTask` return value discarded, no `onCancel` handler; produces Swift runtime "leaked continuation" warning.
-5. **[High] Duplicate WatchConnectivityProvider source file across targets** — §9.1 — Two identical 212-line files; any fix to one silently misses the other.
-6. **[High] sendMessage reply/error handlers violate @MainActor isolation** — §3.4 — `MacroMark/Shared/WatchConnectivityProvider.swift:163-175`. WCSession callbacks run on arbitrary queues but resume a MainActor continuation.
-7. **[High] StoreManager finishes transaction before entitlement delivery is confirmed** — §5.4 — `MacroMarkKit/Sources/MacroMarkKit/Store/StoreManager.swift:71`. Crash between `finish()` and keychain write permanently loses the lifetime unlock.
-8. **[High] MacroMarkWidgetControl ships a non-functional timer template** — §8.1 — `MacroMarkWidget/MacroMarkWidgetControl.swift:12-77`. A "Start Timer" control unrelated to dictation, with a typo in the user-facing description.
-9. **[High] #if DEBUG paywall bypass has no release-configuration safeguard** — §6.1 — `MacroMarkKit/Sources/MacroMarkKit/Store/EntitlementManager.swift:22,48-51,80,88-90,99,108`. If `DEBUG` is defined in any distribution build, all paid features unlock for free.
-10. **[High] Duplicate export/processing flow in MacroMarkApp** — §9.3 — `MacroMark/MacroMarkApp.swift:52-105,119-185`. ~60 lines of identical export logic in two closures; already showing signs of divergence.
+1. **[Critical] ACK is sent before the iCloud append is confirmed** — §5.1 — `MacroMark/MacroMarkApp.swift:424-433`. A note that saves to SwiftData but fails the iCloud append is ACK'd, removed from the WAL, and deleted from the watch — yet never reaches the daily-note file.
+2. **[Critical] iCloud append silently drops notes when the day's file is an un-materialized placeholder** — §5.2 — `MacroMarkKit/Sources/MacroMarkKit/Storage/iCloudStorageManager.swift:111-115`. Combined with §5.1, a note captured right after a device wake is permanently absent from the `.md` output with no retry.
+3. **[Critical] Data race on the MacroProcessor regex cache** — §3.1 — `MacroMarkKit/Sources/MacroMarkKit/Engine/MacroProcessor.swift:13,37-43`. `nonisolated(unsafe)` dictionary mutated from concurrent `process()` calls; the "benign" comment is wrong — Dictionary mutation is a crash-class data race.
+4. **[High] Stale compiled regex is never invalidated when macros are edited** — §5.3 — `MacroProcessor.invalidateRegexCache()` exists but is called nowhere; editing a trigger leaves the old pattern replacing text.
+5. **[High] watchOS semaphore+main-actor pattern can deadlock and lose the recording** — §3.2 — `MacroMark Watch App/Capture/InstantCaptureView.swift:57-69` (and `SystemCaptureView.swift:31-43`). Blocking a cooperative-pool thread on `DispatchSemaphore.wait()` waiting for a MainActor hop.
+6. **[High] Blocking `Thread.sleep` on the @MainActor during iCloud download wait** — §3.3 — `iCloudStorageManager.swift:151-154`. Up to 2s UI freeze whenever the daily file isn't local.
+7. **[High] `WatchConnectivityProvider` is byte-for-byte duplicated across the iOS and watch targets** — §9.1 — 301 lines × 2; the ACK/WAL protocol this code implements must not drift.
+8. **[High] Unguarded `print()` calls ship IAP errors and file paths to release logs** — §6.3 — 9 calls in `MacroMarkKit` (incl. `StoreManager` IAP failures), 7 in the watch app, 4 in the iOS app.
+9. **[High] `restoreDefaults` silently deletes the user's custom macros** — §5.4 — `MacroMark/Settings/MacroManagerView.swift:265-273`. No confirmation; deletes everything before re-inserting defaults.
+10. **[High] Magic `UserDefaults`/`@AppStorage` key strings scattered across 6 files** — §9.4 — 18+ raw-string uses of 5 keys; a typo silently breaks a setting.
 
 ---
 
 ## 2. Quick wins (≤30 min each)
 
-- **Remove `MacroMarkWidgetControl.swift` from the widget target** — `MacroMarkWidget/MacroMarkWidgetControl.swift` — non-functional timer template unrelated to the app. Remove the file and its `AppIntent` registration from `MacroMarkWidgetBundle.swift`.
-- **Remove dead `@State private var text` in SystemCaptureView** — `MacroMark Watch App/Capture/SystemCaptureView.swift:5` — set but never read; `finishAndSave` receives the text directly.
-- **Remove unused properties** — `EntitlementManager.isInTrial` (line 12), `EntitlementManager.canAddCustomMacro` (line 79), `ProcessedNote.idString` (line 6), `StoreManager.purchaseState` and `isLoadingProducts` (lines 18-19) — all set but never read by any consumer.
-- **Fix typo in MacroMarkWidgetControl description** — line 29: `"A an example control that runs a timer."` → remove or fix.
-- **Clean up stale developer comment in NoteDetailView** — `MacroMark/Views/NoteDetailView.swift:57-59` — multi-line thinking-out-loud comment that should have been removed before commit.
-- **Call `SFSpeechRecognizer.requestAuthorization` once in `MacroMarkApp.init()`** instead of on every `MacroManagerView.onAppear` — avoids redundant no-op calls.
-- **Use `AVAudioQuality.high` enum directly** instead of `.rawValue` at `AudioRecorder.swift:33`.
-- **Replace hardcoded `"3-macro free limit"` string** in `SubscriptionPaywallView.swift:85` with `"\(EntitlementManager.maxFreeMacros)-macro free limit"`.
+These deliver outsized value relative to effort and have no architectural ripples.
+
+- **Delete the untracked `test.swift` at the repo root** — `test.swift`. Scratch file, references `WCSession.sendMessage` with the wrong arity, not in any target.
+- **Delete `MacroMarkWidget/MacroMarkWidgetControl.swift` and `MacroMarkWidget/AppIntent.swift`** — `MacroMarkWidget/MacroMarkWidgetControl.swift:1-77`, `MacroMarkWidget/AppIntent.swift:1-18`. Xcode "Start Timer" / "Favorite Emoji" template leftovers, unregistered in `MacroMarkWidgetBundle`.
+- **Wrap the 4 ungated iOS-app `print()` calls in `#if DEBUG`** — `MacroMark/MacroMarkApp.swift:53`, `MacroMark/Settings/MacroManagerView.swift:193`, `MacroMark/Engine/LocationManager.swift:63`, `MacroMark/Engine/AudioTranscriber.swift:55`.
+- **Call `MacroProcessor.invalidateRegexCache()` from every macro-mutation site** — §5.3. One-line fix per site; resolves the stale-regex correctness bug.
+- **Add a `.confirmationDialog` to "Restore Default Macros"** — §5.4. The button is already `role: .destructive`; just confirm before the bulk delete.
+- **Add a `Task.sleep` timeout to `LocationManager.getCurrentLocation`** — `MacroMark/Engine/LocationManager.swift:27-41`. Reuse the `ContinuationTimeout` actor already in `WatchConnectivityProvider`.
+- **Save `note.exportTarget`/`isExported` with a real `do/try/catch` in `NoteDetailView.exportTo`** — `MacroMark/Views/NoteDetailView.swift:44-53`. Currently mutates the model but never calls `context.save()`.
+- **Remove the redundant `SFSpeechRecognizer.requestAuthorization` call in `MacroMarkApp.init`** — `MacroMark/MacroMarkApp.swift:82-88`. Result is discarded; `AudioTranscriber.transcribe` already requests it.
+- **Rename `MacroMark_Watch_AppApp` → `MacroMarkApp`** — `MacroMark Watch App/MacroMarkApp.swift:11`. Double-App, non-idiomatic.
+- **Render `Macro.notes` in the macro row, or remove the field** — §9.7. Today AddMacroView/MacroEditView collect notes that are then invisible.
 
 ---
 
 ## 3. Concurrency
 
-### 3.1 UIPasteboard accessed from non-isolated function
-- **Location:** `MacroMarkKit/Sources/MacroMarkKit/Engine/MacroProcessor.swift:67`
-- **What:** `MacroProcessor.process()` is explicitly documented as NOT actor-isolated (line 11-12), but reads `UIPasteboard.general.string` which requires `@MainActor` in Swift 6.
-- **Why:** Accessing UIKit from a background thread is undefined behavior — can crash, return stale data, or trigger Main Thread Checker. Under Swift 6 strict concurrency this is a compile-time error.
-- **Action:** Wrap the clipboard read in `await MainActor.run { UIPasteboard.general.string ?? "" }`, or lift the clipboard read to the caller and pass the value as a parameter.
+### 3.1 Data race on the MacroProcessor regex cache
+- **Location:** `MacroMarkKit/Sources/MacroMarkKit/Engine/MacroProcessor.swift:13` (declared), `:37-43` (read+written), `:16-18` (`invalidateRegexCache` writes it)
+- **What:** `regexCache` is `private static nonisolated(unsafe) var regexCache: [String: NSRegularExpression]`. The doc comment claims races are "benign — worst case is compiling the same regex twice." That is incorrect: `regexCache[pattern] = compiled` at line 42 mutates a Swift `Dictionary`, and `process(text:macros:...)` is explicitly documented as non-isolated ("callers should invoke it from the global cooperative pool"). `MacroMarkApp.startBackgroundTaskAndProcess` calls it from a `Task { @MainActor in ... await MacroProcessor.process(...) }`, so it runs off-actor. Two notes processed concurrently → concurrent Dictionary read/write.
+- **Why:** Swift `Dictionary` is not thread-safe; concurrent mutation is undefined behavior and a known source of `EXC_BAD_ACCESS` / heap corruption. `nonisolated(unsafe)` only silences the compiler; it does not make the access safe. A crash here aborts the note pipeline mid-transcription.
+- **Action:** Protect the cache with `OSAllocatedUnfairLock<[String: NSRegularExpression]>` (or an `actor RegexCache`). `NSRegularExpression` matching is already thread-safe, so only the dictionary mutation needs guarding.
+- **Severity:** Critical
+
+### 3.2 DispatchSemaphore.wait() over cooperative-pool work (deadlock risk) on watchOS
+- **Location:** `MacroMark Watch App/Capture/InstantCaptureView.swift:57-69`; identical pattern at `MacroMark Watch App/Capture/SystemCaptureView.swift:31-43`
+- **What:** `Task.detached { ProcessInfo.processInfo.performExpiringActivity(...) { expired in ... let semaphore = DispatchSemaphore(value: 0); Task { await InstantCaptureView.processAudioFile(...); semaphore.signal() }; semaphore.wait() } }`. A cooperative-pool thread is parked on `semaphore.wait()` waiting for an inner `Task` whose body calls `MainActor.run { LocalStore.shared.enqueueAudio(...) }`.
+- **Why:** Blocking a cooperative thread waiting for other cooperative work (here, a MainActor hop) is the classic Swift Concurrency deadlock anti-pattern. Under cooperative-pool pressure on watchOS (tight thread budget) the inner `Task` never schedules and the wait never returns — the audio file is never enqueued into `LocalStore`, so it is never transferred and the recording is lost before it even reaches the WAL. The wrapped work is trivial and needs neither `performExpiringActivity` nor the semaphore.
+- **Action:** Drop the semaphore and the `Task.detached`. Call `Task { await InstantCaptureView.processAudioFile(...) }` directly (the `MainActor.run` inside is fine). If a background-execution guarantee is genuinely needed, use a `WKApplication` lifecycle hook instead of blocking a pool thread.
 - **Severity:** High
 
-### 3.2 Non-Sendable SwiftData models passed across actor boundary
-- **Location:** `MacroMark/MacroMarkApp.swift:54-55,119-120`
-- **What:** `[Macro]` arrays fetched on the `@MainActor` via `context.fetch()` are passed to `MacroProcessor.process(text:macros:...)` which runs off the main actor. `Macro` is a `@Model` reference type without `Sendable` conformance.
-- **Why:** Swift 6 strict concurrency will emit compile-time errors for passing non-Sendable types across actor isolation boundaries. While the data is read-only in `process()`, the compiler cannot prove this.
-- **Action:** Extract the needed values (`trigger`, `replacement`, `notes`) into a Sendable value type (e.g., `struct MacroSnapshot: Sendable`) before crossing the actor boundary, or annotate `process()` as `@MainActor`.
+### 3.3 Blocking Thread.sleep on the @MainActor during iCloud download wait
+- **Location:** `MacroMarkKit/Sources/MacroMarkKit/Storage/iCloudStorageManager.swift:143-155` (the `ensureDownloaded` loop), reached from `appendText(_:for:)` at `:92` — `iCloudStorageManager` is `@MainActor` (line 3)
+- **What:** `ensureDownloaded` spins `for _ in 0..<20 { ... Thread.sleep(forTimeInterval: 0.1) }` — up to 2 seconds of synchronous blocking. `appendText` is `@MainActor` and is called from `MacroMarkApp.processAndExport` (already on MainActor) and from `NoteDetailView.exportToICloud` (user tap).
+- **Why:** Up to a 2-second main-thread freeze whenever the daily file is an iCloud placeholder (common right after a device wake). On iOS this is a frozen UI / watchdog-kill risk; the user perceives the app as hung right after capturing a note.
+- **Action:** Make `appendText` `async` and replace `Thread.sleep` with `try? await Task.sleep(for: .milliseconds(100))`. Or move the whole manager off `@MainActor` (it has no UI state beyond `isUsingFallbackStorage`, which can publish from any actor via `@Observable`).
 - **Severity:** High
 
-### 3.3 AudioTranscriber recognition task leaks continuation on cancellation
-- **Location:** `MacroMark/Engine/AudioTranscriber.swift:27-42`
-- **What:** `SFSpeechRecognizer.recognitionTask(with:)` returns an `SFSpeechRecognitionTask` that is discarded at line 29. The enclosing `withCheckedThrowingContinuation` has no `onCancel` handler. If the Swift concurrency `Task` is cancelled, the continuation is never resumed.
-- **Why:** Produces "SWIFT TASK CONTINUATION MISUSE: leaked its continuation!" runtime warning. The underlying speech recognition task continues running in the background indefinitely, consuming resources.
-- **Action:** Capture the returned `SFSpeechRecognitionTask` and call `.cancel()` on it inside a `withTaskCancellationHandler` or by checking `Task.isCancelled`.
-- **Severity:** High
-
-### 3.4 sendMessage reply/error handlers violate @MainActor isolation
-- **Location:** `MacroMark/Shared/WatchConnectivityProvider.swift:163-175` (also duplicated in watch counterpart)
-- **What:** `WatchConnectivityProvider` is `@MainActor`, but `WCSession.sendMessage` delivers `replyHandler` and `errorHandler` callbacks on arbitrary background queues. Both handlers resume a `CheckedContinuation` created on the main actor.
-- **Why:** Resuming a continuation from the wrong executor triggers a Swift runtime warning and risks data races on any captured MainActor-bound state.
-- **Action:** Wrap each handler body in `Task { @MainActor in continuation.resume(...) }` or use `MainActor.assumeIsolated` if the handler is guaranteed to return on the main actor.
-- **Severity:** High
-
-### 3.5 @unchecked Sendable on iCloudStorageManager suppresses real isolation warnings
-- **Location:** `MacroMarkKit/Sources/MacroMarkKit/Storage/iCloudStorageManager.swift:3`
-- **What:** `iCloudStorageManager` is declared `@unchecked Sendable` but its computed properties read mutable state from `UserDefaults` and resolve security-scoped bookmarks without any synchronization. If two callers on different actors invoke `appendText` concurrently, the file writes can interleave.
-- **Why:** The `@unchecked` annotation tells the compiler "trust me" but no actual thread safety mechanism exists. Swift 6 strict concurrency would correctly flag the unsynchronized access.
-- **Action:** Either add `@MainActor` isolation (all current callers already run on or hop to MainActor) and remove `@unchecked`, or add a private serial `DispatchQueue` for synchronization.
+### 3.4 withCheckedContinuation for speech authorization lacks a timeout
+- **Location:** `MacroMark/MacroMarkApp.swift:83-87` and `MacroMark/Engine/AudioTranscriber.swift:7-11`
+- **What:** `SFSpeechRecognizer.requestAuthorization { continuation.resume(returning: status) }` is wrapped in a plain `withCheckedContinuation` with no cancellation handler and no timeout.
+- **Why:** If the Speech framework never invokes the completion handler (rare but reported on restricted/first-launch devices), the continuation is never resumed and the surrounding `Task` hangs forever — leaving the note stuck in-flight (`Self.inFlightIDs` never cleared) and blocking its reprocessing.
+- **Action:** Race the callback against a `Task.sleep(for: .seconds(N))` using the `ContinuationTimeout` actor pattern already in `WatchConnectivityProvider.fetchDailyFile` (lines 261-288) — the correct idiom already exists in this codebase.
 - **Severity:** Medium
 
-### 3.6 Redundant MainActor.run hopping in MacroMarkApp Task blocks
-- **Location:** `MacroMark/MacroMarkApp.swift:62-110,128-185`
-- **What:** The `onNoteReceived` and `onFileReceived` closures create non-isolated `Task { }` blocks, then scatter `await MainActor.run { ... }` around every SwiftData operation. The entire task body needs main-actor isolation.
-- **Why:** Each `await MainActor.run` is an unnecessary suspension-resumption cycle. Code between the `MainActor.run` blocks might inadvertently touch MainActor-bound state.
-- **Action:** Change `Task { }` to `Task { @MainActor in }` and remove all inner `await MainActor.run { ... }` wrappers.
+### 3.5 Stored continuations in LocationManager can leak (no timeout)
+- **Location:** `MacroMark/Engine/LocationManager.swift:11-12, 27-41`
+- **What:** `activeContinuation`/`authContinuation` are stored properties resumed only from CoreLocation delegate callbacks (`didUpdateLocations`, `didFailWithError`, `locationManagerDidChangeAuthorization`). `getCurrentLocation()` has no timeout.
+- **Why:** If CoreLocation never delivers a location or an error (intermittent GPS, or the app is backgrounded mid-request), the continuation never resumes. The note containing `{location}` then hangs in processing indefinitely; WAL replay hits the same hang.
+- **Action:** Wrap the `requestLocation` continuation in a `Task.sleep(for: .seconds(5))` timeout that resumes with `nil`, reusing the `ContinuationTimeout` pattern.
+- **Severity:** Medium
+
+### 3.6 fetchDailyFile's timeout Task is never cancelled on success
+- **Location:** `MacroMark/Shared/WatchConnectivityProvider.swift:261-289` (and the watch-target duplicate)
+- **What:** The `withCheckedContinuation` spawns `Task { try? await Task.sleep(for: .seconds(15)); ... }` as a timeout racer. When `sendMessage`'s replyHandler fires first, the 15s sleep Task keeps running (it no-ops because `complete()` returns `false`).
+- **Why:** Minor resource leak; on watchOS with tight memory, repeated daily-log fetches accumulate sleeper Tasks.
+- **Action:** Capture the timeout `Task` and `cancel()` it from the reply/error handlers before resuming.
 - **Severity:** Low
 
-### 3.7 Redundant Task { @MainActor in } wrapping in @MainActor delegate methods
-- **Location:** `MacroMark/Shared/WatchConnectivityProvider.swift:83,104,121,138` (also in watch counterpart)
-- **What:** The class is annotated `@MainActor`, so its `WCSessionDelegate` methods already execute on MainActor. Yet each method wraps its body in a redundant `Task { @MainActor in }`.
-- **Why:** Unnecessary task creation adds overhead; the additional hop delays already-MainActor work by at least one scheduler tick.
-- **Action:** Remove the inner `Task { @MainActor in }` wrapping; the class-level `@MainActor` already guarantees isolation.
-- **Severity:** Low
-
-### 3.8 NotificationCenter used instead of @Observable observation
-- **Location:** `MacroMark/Shared/WatchConnectivityProvider.swift:125` and `MacroMark Watch App/Storage/LocalStore.swift:26`
-- **What:** `NotificationCenter` is used to communicate transfer completion between `WatchConnectivityProvider` and `LocalStore`. Both classes are already `@Observable`.
-- **Why:** NotificationCenter is stringly-typed, not compile-time checked, and requires manual observer cleanup. A direct method call or `@Observable` published property avoids this.
-- **Action:** Replace the NotificationCenter pairing with a direct call from `WatchConnectivityProvider` to `LocalStore.shared.removeNote(withId:)` in the transfer completion handler, or use an `@Observable` published property.
+### 3.7 nonisolated(unsafe) capture of speechTask in AudioTranscriber
+- **Location:** `MacroMark/Engine/AudioTranscriber.swift:28-47`
+- **What:** `nonisolated(unsafe) var speechTask: SFSpeechRecognitionTask?` is assigned inside the continuation body and read in the `withTaskCancellationHandler onCancel:`. Sequencing makes this benign today (the `isResumed` guard prevents double-resume, and `onCancel` seeing `nil` is safe).
+- **Why:** Theoretical race on the optional itself if cancellation arrives during assignment. Low risk but the `nonisolated(unsafe)` is a smell.
+- **Action:** Wrap in `OSAllocatedUnfairLock<SFSpeechRecognitionTask?>` (init `nil`) and `withLock` on both assignment and cancel; drop `nonisolated(unsafe)`.
 - **Severity:** Low
 
 ---
 
 ## 4. API modernity
 
-### 4.1 withCheckedContinuation wrapping SFSpeechRecognizer.requestAuthorization
-- **Location:** `MacroMark/Engine/AudioTranscriber.swift:7-11`
-- **What:** `SFSpeechRecognizer.requestAuthorization` is wrapped in `withCheckedContinuation`. A native async overload `await SFSpeechRecognizer.requestAuthorization()` has been available since iOS 17.
-- **Why:** The deployment target is 26.5, so the async overload is guaranteed to exist. The continuation wrapper adds unnecessary boilerplate and risks misuse.
-- **Action:** Replace with `let status = await SFSpeechRecognizer.requestAuthorization()`.
+Both schemes build clean, so there are no deprecation warnings. The items below are opportunities, not compile-time issues. Deployment target is iOS 26.0 / latest watchOS, so any `#available` guard below 26 is dead.
+
+### 4.1 `beginBackgroundTask` legacy pattern, no error-path cleanup
+- **Location:** `MacroMark/MacroMarkApp.swift:248-260`
+- **What:** `UIApplication.shared.beginBackgroundTask(withName:expirationHandler:)` is used to extend processing during watch-data receipt. It's the correct API for "finish a short piece of work if the app is backgrounded," so this is acceptable — but several early-return paths in the surrounding `Task` (transcription failure at `:286-292`, missing text/audio at `:298-305`) duplicate the `endBackgroundTask` cleanup.
+- **Why:** Minor; the duplication invites a future path that forgets to call `endBackgroundTask`, leaking a background-time slot.
+- **Action:** Hoist the `endBackgroundTask` call into a `defer` at the top of the `Task` so every exit path cleans up.
+- **Severity:** Low
+
+### 4.2 Redundant speech-authorization request at launch
+- **Location:** `MacroMark/MacroMarkApp.swift:82-88`
+- **What:** `init()` calls `SFSpeechRecognizer.requestAuthorization` via a continuation and discards the result (`_ = await ...`). `AudioTranscriber.transcribe` requests it again on every transcription.
+- **Why:** Wasted async work at launch; the launch-time result is unused.
+- **Action:** Remove the launch-time call and let `AudioTranscriber` own authorization (ideally caching the status and only calling when `.notDetermined`).
+- **Severity:** Low
+
+### 4.3 `WKExtension.presentTextInputController` deprecated; `as? [String]` drops non-string picks
+- **Location:** `MacroMark Watch App/Capture/SystemCaptureView.swift:23-27`
+- **What:** `WKExtension.shared().visibleInterfaceController?.presentTextInputController(...)` is deprecated. The result is cast `as? [String]`; if the user picks a moji/emoji (non-string `Any` element), the cast yields `nil` and the input is silently dropped — dismiss-without-save.
+- **Why:** Deprecation will eventually block builds; the silent-drop is a data-loss path for emoji/moji input.
+- **Action:** Migrate to the non-deprecated `WKInterfaceController.presentTextInputController`. Handle `result` as `[Any]`, extract the first `String`, and fall back to a localized description for non-string picks.
 - **Severity:** Medium
-
-### 4.2 UIApplication.shared.open completion handler instead of async overload
-- **Location:** `MacroMark/MacroMarkApp.swift:92,160` and `MacroMark/Views/NoteDetailView.swift:46`
-- **What:** `UIApplication.shared.open(url, options:completionHandler:)` is called with a closure. The async overload `await UIApplication.shared.open(url)` exists since iOS 15.
-- **Why:** The closure variant forces extra indentation and manual state management inside the closure; the async variant integrates naturally with the surrounding async flow.
-- **Action:** Replace with `let success = await UIApplication.shared.open(url)` in all three locations.
-- **Severity:** Low
-
-### 4.3 Dead #available else branch in ContentView
-- **Location:** `MacroMark Watch App/ContentView.swift:16,52`
-- **What:** `#available(iOS 26, watchOS 11, *)` guards a `GlassEffectContainer` block with a fallback `else` path. The deployment target is 26.5 — the `else` branch is dead code.
-- **Why:** Dead code increases maintenance surface and misleads readers into thinking older watchOS versions are supported.
-- **Action:** Remove the `#available` / `#else` branches and keep only the `GlassEffectContainer` path.
-- **Severity:** Low
-
-### 4.4 beginBackgroundTask legacy pattern
-- **Location:** `MacroMark/MacroMarkApp.swift:59,108,125,183`
-- **What:** `UIApplication.shared.beginBackgroundTask(withName:expirationHandler:)` is used to extend background execution during watch data processing.
-- **Why:** While not deprecated, this iOS 7-era API lacks modern integration. For iOS 26.5, `BGProcessingTask` would be more appropriate for the "ProcessNote" / "ProcessAudio" work.
-- **Action:** Evaluate `BGProcessingTask` for longer processing work; if keeping `beginBackgroundTask`, ensure all paths call `endBackgroundTask` (currently missing from error paths).
-- **Severity:** Low
 
 ---
 
 ## 5. Bugs / logic errors
 
-### 5.1 LocalStore.syncPendingNotes re-sends all pending notes on every call
-- **Location:** `MacroMark Watch App/Storage/LocalStore.swift:43-46`
-- **What:** `syncPendingNotes()` iterates ALL `pendingNotes` and calls `transferUserInfo()` for each, every time a new note is added (line 40) or on init (line 25). It does not filter for notes already queued.
-- **Why:** When the iPhone is out of range, queued transfers accumulate. When a new note is added, ALL notes (including already-queued ones) are re-sent. When the iPhone reconnects, it receives duplicates, producing repeated text in the daily note.
-- **Action:** Track queued note IDs in a `Set<UUID>` and skip notes that have already been transferred. Only remove a note from pending when the transfer completion handler fires.
+### 5.1 ACK is sent before the iCloud append is confirmed — note saved but never written to the daily file
+- **Location:** `MacroMark/MacroMarkApp.swift:424-458` (ACK at `:429`/`:432`, iCloud append at `:442`)
+- **What:** `processAndExport` calls `addProcessedNoteID(noteId)`, removes the WAL entry, and fires `acknowledgeNoteIfDurable`/`acknowledgeFileIfDurable` immediately after `context.save()` succeeds. The iCloud append (`iCloudStorageManager.shared.appendText(...)`) happens *after* the ACK. The comment at line 435 ("failures don't undo the ACK") explicitly accepts this gap.
+- **Why:** The app's entire value proposition is "Markdown appended to iCloud Drive." A note that the watch believes delivered, that disappears from the WAL, and that never lands in the `.md` file is effectively lost from the user's perspective. This directly contradicts the data-loss-prevention intent of the recent ACK/WAL commits.
+- **Action:** Do not ACK (and do not clear the WAL entry / add to `processedNoteIDs`) until the configured export target has actually succeeded. For the `.iCloud` target, gate the ACK on `appendText` returning `true`. Introduce a separate "exported" WAL state so a note that saved to SwiftData but failed iCloud append is retried on next launch rather than silently dropped from the pipeline.
+- **Severity:** Critical
+
+### 5.2 iCloud append silently drops notes when the day's file is an un-materialized placeholder
+- **Location:** `MacroMarkKit/Sources/MacroMarkKit/Storage/iCloudStorageManager.swift:88-128` (deferral at `:111-115`)
+- **What:** When `cloudCopyExistsButNotDownloaded(url)` is true after the 2s `ensureDownloaded` wait, the coordinator prints and leaves `writeSucceeded = false`, so `appendText` returns `false`. The caller (`MacroMarkApp.processAndExport`) only uses that return to set `note.isExported`; it does **not** re-queue. Combined with §5.1, the note is then gone from the WAL.
+- **Why:** Anytime the daily file is an iCloud placeholder (common right after a device wake or mid-sync), a captured note is permanently absent from the `.md` output. There is no retry loop — the deferral only resolves if another note happens to arrive later and triggers a download.
+- **Action:** Return a distinct "deferred" result from `appendText` and have the caller re-enqueue deferred notes (timer-based retry, or re-add to the WAL) until the file materializes. Consider buffering pending appends in SwiftData with a `pendingExport: Bool` flag and a background `ensureDownloaded` + retry pass.
+- **Severity:** Critical
+
+### 5.3 Stale compiled regex never invalidated when macros are edited
+- **Location:** `MacroMarkKit/Sources/MacroMarkKit/Engine/MacroProcessor.swift:16-18` (the method); uncalled from `MacroMark/Settings/MacroManagerView.swift:204-216` (`deleteMacros`/`moveMacros`), `:265-273` (`restoreDefaults`), `:310-315` (`AddMacroView` Save), `MacroMark/Settings/MacroEditView.swift:69-77` (Save)
+- **What:** `MacroProcessor` caches compiled regex keyed by the escaped trigger pattern (`MacroProcessor.swift:13,37-43`) and exposes `invalidateRegexCache()`. None of the five mutation sites call it. After a user edits a macro trigger from "Bold" to "Strong", the cached `\bBold\b` regex persists and keeps replacing "Bold" in new notes; "Strong" is compiled lazily on the next `process`, but the stale entry lingers (and any rename of an existing trigger leaves the old pattern firing).
+- **Why:** Users who edit/rename macros see incorrect macro expansion — a real, user-visible correctness bug in the core processing path. Restoring defaults after heavy editing leaves a mix of stale and fresh regexes.
+- **Action:** Call `MacroProcessor.invalidateRegexCache()` from `deleteMacros`, `moveMacros`, `restoreDefaults`, `AddMacroView`'s Save, and `MacroEditView`'s Save. (Also pairs with §3.1 — once the cache is locked, invalidation is a one-liner.)
 - **Severity:** High
 
-### 5.2 FileHandle leak on write failure in iCloudStorageManager
-- **Location:** `MacroMarkKit/Sources/MacroMarkKit/Storage/iCloudStorageManager.swift:118-122`
-- **What:** When `fileHandle.write(dataToAppend)` throws, execution jumps to the `catch` block at line 123 without calling `fileHandle.closeFile()`.
-- **Why:** Each failed write leaks a `FileHandle`, consuming file descriptors. Repeated failures (e.g., disk full) will exhaust the per-process limit, causing all subsequent file I/O to fail.
-- **Action:** Add `defer { fileHandle.closeFile() }` immediately after creating the file handle at line 118.
-- **Severity:** Medium
-
-### 5.3 Stale security-scoped bookmark never detected or refreshed
-- **Location:** `MacroMarkKit/Sources/MacroMarkKit/Storage/iCloudStorageManager.swift:18-21`
-- **What:** `URL(resolvingBookmarkData:options:relativeTo:bookmarkDataIsStale:)` stores staleness in `isStale` but never checks the flag. A stale bookmark causes `startAccessingSecurityScopedResource()` to fail silently.
-- **Why:** Users who move their iCloud folder after granting access will experience silent write failures with no feedback.
-- **Action:** Check `isStale` after resolving; if `true`, recreate the bookmark from a fresh security-scoped URL or prompt the user to re-select the folder.
-- **Severity:** Medium
-
-### 5.4 StoreManager finishes transaction before entitlement delivery is confirmed
-- **Location:** `MacroMarkKit/Sources/MacroMarkKit/Store/StoreManager.swift:71`
-- **What:** `transaction.finish()` is called immediately on verified transactions. `EntitlementManager.refreshEntitlements()` runs separately via `Transaction.updates` stream.
-- **Why:** If the app crashes between `finish()` and the keychain persistence of the entitlement, the lifetime purchase is permanently lost — StoreKit has already marked it as delivered. StoreKit best practice is to finish only after entitlement delivery is confirmed.
-- **Action:** Move `transaction.finish()` to after `EntitlementManager.persistKeychainFlag()` completes successfully, or call `refreshEntitlements()` synchronously before finishing.
+### 5.4 "Restore Default Macros" silently deletes the user's custom macros
+- **Location:** `MacroMark/Settings/MacroManagerView.swift:265-273`
+- **What:** The destructive button loops over **all** macros (including user customizations) and deletes them before re-inserting the 23 defaults. `role: .destructive` only styles the row; there is no `.confirmationDialog`.
+- **Why:** User data loss with no confirmation. A user who built custom macros and taps "Restore Defaults" expecting only the defaults to reset loses their custom work.
+- **Action:** Add a `.confirmationDialog`. Scope the deletion to `macro.isDefault == true` macros only, leaving custom macros intact.
 - **Severity:** High
 
-### 5.5 Lifetime unlock not checked in UI entitlement gates
-- **Location:** `MacroMark/Settings/MacroManagerView.swift:152` and similar checks throughout
-- **What:** The "Add" button checks `!entitlements.isSubscribed` but not `entitlements.hasLifetimeUnlock`. A lifetime unlock user with `isSubscribed == false` (race window before async `refreshEntitlements` completes) sees the paywall.
-- **Why:** User who paid for lifetime unlock may be incorrectly paywalled during the window between app launch and entitlement refresh.
-- **Action:** Use `!(entitlements.isSubscribed || entitlements.hasLifetimeUnlock)` consistently, or add a single computed property `var isEntitled: Bool` to `EntitlementManager`.
+### 5.5 Audio transcription silently truncates on chunk failure
+- **Location:** `MacroMark/Engine/AudioTranscriber.swift:48-76`
+- **What:** Chunks that fail transcription are appended to `chunkErrors` (`:54`) and skipped; the loop continues and returns whatever partial transcript exists (`:75`). Chunks are joined with a single space (`:50`), which can merge the last word of chunk N with the first word of chunk N+1 into a non-word. The only failure signal is `print("Failed to transcribe chunk")` (`:55`).
+- **Why:** A 3-minute recording split into 4 chunks where chunk 2 fails silently produces a note with a gap the user cannot detect. Silent partial loss of dictated content is a data-integrity bug.
+- **Action:** When any chunk fails, mark the note `transcriptionPartial` in SwiftData and surface a visible warning in InboxView/NoteDetailView. Insert a newline (or configurable separator) between chunks rather than a space. Consider failing the whole note (relying on WAL retry) if more than N% of chunks fail.
+- **Severity:** High
+
+### 5.6 Export badge in InboxView can be wrong (silent save drops; NoteDetailView never saves)
+- **Location:** `MacroMark/MacroMarkApp.swift:441-458` (`try? context.save()`); `MacroMark/Views/NoteDetailView.swift:44-53` (mutates `note` but never saves)
+- **What:** After a successful iCloud append or URL export, the iOS pipeline sets `note.isExported`/`note.exportTarget` and calls `try? context.save()`, discarding the error. `NoteDetailView.exportTo` mutates `note` inside the `UIApplication.open` completion but never calls `context.save()` at all.
+- **Why:** The "Exported" badge in `InboxView` (lines 29-32) can be wrong — either stuck false (silent save failure) or set true in memory but never persisted (NoteDetailView). Not data loss, but incorrect UI state the user relies on to know a note reached its target.
+- **Action:** Persist export-state changes with a real `do/try/catch` (log on failure). In `NoteDetailView.exportTo`, save the context after mutating `note`.
 - **Severity:** Medium
 
-### 5.6 iCloud fallback to local documents directory is silent
-- **Location:** `MacroMarkKit/Sources/MacroMarkKit/Storage/iCloudStorageManager.swift:24-32`
-- **What:** When `url(forUbiquityContainerIdentifier:)` returns `nil`, the manager silently falls back to `URL.documentsDirectory` (local sandbox). No notification is surfaced to the user.
-- **Why:** The user who configured "iCloud Drive" storage has data saved locally without knowing it. If they later sign into iCloud, old data is invisible in the local sandbox while new data goes to iCloud — creating data fragmentation.
-- **Action:** Expose the fallback state through a published property so the UI can show a banner ("iCloud unavailable; saving locally"), or attempt periodic reconnection.
+### 5.7 `wrapCleanupRegex` mangles legitimate `*`/`_`/`~` in user dictation
+- **Location:** `MacroMarkKit/Sources/MacroMarkKit/Engine/MacroProcessor.swift:21-23, 121-130`
+- **What:** The regex `([\*\_\~]+)\s+(.+?)\s+\1` → `$1$2$1` collapses `** text **` into `**text**`. It runs over the **entire** processed text, including legitimate markdown or symbols the user dictated — e.g., "3 * 4 * 5" or a code snippet.
+- **Why:** Silent mutation of user content. Users dictating math, code, or literal asterisks/underscores/tildes see corrupted output.
+- **Action:** Apply the cleanup only to substrings produced by macro expansion, not the whole string. Or require the wrapping to span a single word boundary. Add tests for `*`/`_`/`~` in non-markdown contexts.
 - **Severity:** Medium
 
-### 5.7 AudioTranscriber silently drops chunk transcription errors
-- **Location:** `MacroMark/Engine/AudioTranscriber.swift:48-50`
-- **What:** When a chunk transcription fails, the error is printed and the chunk is skipped. `fullTranscript` accumulates however many chunks completed before the failure, with no indication of data loss.
-- **Why:** The user receives a silently truncated transcript. In release builds where `print` is absent, the failure is completely invisible.
-- **Action:** Collect chunk errors and either throw a composite error including partial transcript, or attach error metadata to the returned string so the caller can surface it.
+### 5.8 `processedNoteIDs` dedup set grows unbounded in UserDefaults
+- **Location:** `MacroMark/MacroMark/MacroMarkApp.swift:126-137`
+- **What:** `addProcessedNoteID` reads the entire `MacroMark_ProcessedNoteIDs` string array from `UserDefaults`, inserts one UUID, and re-writes the whole array on every received note. `processedNoteIDs` (line 137) re-decodes the full set on every read, and `handleIncomingNote` reads it on every incoming message.
+- **Why:** After months of use this is tens of thousands of UUID strings serialized/deserialized on the main actor for every note — degrading receive latency and inflating the UserDefaults plist. The dedup is also the only thing preventing duplicates when the watch re-sends after a missed ACK, so its reliability matters.
+- **Action:** Move dedup state to SwiftData (a lightweight `ProcessedNoteID` model with the UUID as a unique attribute), or cap the set to an LRU window. At minimum, cache the set in memory rather than re-decoding per call.
 - **Severity:** Medium
 
-### 5.8 fatalError in MacroMarkApp.init reachable in production
-- **Location:** `MacroMark/MacroMarkApp.swift:36`
-- **What:** When both the primary `ModelContainer` init and the in-memory fallback fail, the app calls `fatalError()`, unconditionally crashing on launch.
-- **Why:** While unlikely, a launch crash is the worst possible user experience. The app should degrade gracefully — show the `containerError` overlay or use a bare-bones container.
-- **Action:** Remove `fatalError`; instead set `containerError` and use a final fallback container configuration. The error overlay already exists (line 195-203) but is only used for the primary init failure.
+### 5.9 Watch notes whose ACK was lost become permanent zombies
+- **Location:** `MacroMark Watch App/Storage/LocalStore.swift:72-79, 165-189`
+- **What:** `syncPendingNotes` correctly skips notes already in `queuedNoteIDs`, and `queuedNoteIDs` is persisted across cold launch. So a note that was transferred but whose ACK was lost stays in both `pendingNotes` and `queuedNoteIDs` forever — never re-sent (good, the phone dedups) but never removed. `DailyLogView` shows these as "Pending Offline Notes" indefinitely.
+- **Why:** Not data loss on the phone side (the phone has the note and its `processedNoteIDs` dedup protects against duplicates), but the watch's queue grows unbounded and the user sees stale "pending" notes forever.
+- **Action:** Add a watchdog: after a grace period (e.g., 24h) with the note still queued and no ACK, reconcile via a `sendMessage` "isProcessed?" query when the phone is reachable (the phone already answers messages), then remove confirmed ones.
 - **Severity:** Medium
 
-### 5.9 NoteDetailView export runs synchronous file I/O in unstructured Task
-- **Location:** `MacroMark/Views/NoteDetailView.swift:56-67`
-- **What:** `exportToICloud` creates a `Task` and calls `iCloudStorageManager.shared.appendText(note.text)` which performs synchronous `NSFileCoordinator`-wrapped file I/O inside the task.
-- **Why:** Synchronous I/O inside an unstructured `Task` constrains the cooperative thread pool. Errors are not propagated to the UI (no feedback on failure).
-- **Action:** Make `appendText` an async method, or explicitly dispatch to a background queue with `Task.detached`. Surface errors to the user via a published error property.
-- **Severity:** Low
+### 5.10 FolderSettings date-format token replacement has no escaping
+- **Location:** `MacroMarkKit/Sources/MacroMarkKit/Models/FolderSettings.swift:28-40` (and duplicated in `FolderSettingsView.swift:99-104, 115-120`)
+- **What:** The format string is processed by sequential `replacing("yyyy", ...)`, then `"yy"`, `"MM"`, `"dd"`. There is no way to include a literal "dd"/"MM"/"yy" in a filename — the tokens are always substituted. The two view-local copies can also drift from the kit's version.
+- **Why:** A user wanting literal text in their date format cannot get it. Combined with the duplication, the "example" shown in settings can disagree with the actual filename.
+- **Action:** Use `Date.FormatStyle` (or `DateFormatter` with the user's format string, which supports `'literal'` quoting), or document the limitation and validate the format on save. De-duplicate into `FolderSettings.format` only (§9.2).
+- **Severity:** Medium
 
-### 5.10 Default macro insertions don't explicitly save model context
-- **Location:** `MacroMark/Settings/MacroManagerView.swift:257-263,265-271`
-- **What:** `prepopulateIfNeeded()` and `restoreDefaults()` insert/delete macros without calling `try? modelContext.save()`.
-- **Why:** SwiftData auto-saves are periodic. An app termination during the window before auto-save loses the user's default macros or restore action, with no indication of failure.
-- **Action:** Call `try? modelContext.save()` after batch mutations; log if the save fails.
-- **Severity:** Low
-
-### 5.11 ExportManager ignores URL length limits for long notes
-- **Location:** `MacroMarkKit/Sources/MacroMarkKit/Engine/ExportManager.swift:6-35`
-- **What:** The entire note text is encoded into a URL query string for deep-link export (Drafts, Bear, Obsidian, Day One). Very long dictations can exceed system URL length limits (~8 KB for some schemes).
-- **Why:** Long notes will silently fail to export via URL schemes with no user-facing error.
-- **Action:** Truncate note text to a safe length (e.g., first 4000 characters) with an ellipsis indicator, or fall back to clipboard export for long notes.
-- **Severity:** Low
+### 5.11 LocalStore `pendingNotes.didSet` triggers a redundant save on every mutation
+- **Location:** `MacroMark Watch App/Storage/LocalStore.swift:23-27, 149-162`
+- **What:** `pendingNotes` has `didSet { save() }`, and `save()` JSON-encodes both `pendingNotes` and `pendingAudio` plus writes four UserDefaults keys. `addNote`, `syncPendingNotes`, `removeNote`, `enqueueAudio`, `syncPendingAudio`, and `removeAudio` also call `save()` explicitly — so every `pendingNotes.append` triggers a double full re-encode of both arrays.
+- **Why:** On watchOS with limited CPU/battery, repeated JSON encoding of growing arrays on the main actor is wasteful. `pendingNotes.append` becomes O(n) in array size due to the didSet save.
+- **Action:** Remove the `didSet { save() }` (rely on the explicit `save()` calls at mutation sites), or debounce.
+- **Severity:** Medium
 
 ---
 
 ## 6. Security
 
-### 6.1 #if DEBUG paywall bypass has no release-configuration safeguard
-- **Location:** `MacroMarkKit/Sources/MacroMarkKit/Store/EntitlementManager.swift:22,48-51,80,88-90,99,108`
-- **What:** Every entitlement check uses `#if DEBUG` to unconditionally return `true`. `init()` sets `isSubscribed = true` inside `#if DEBUG`. `refreshEntitlements()` uses `#if !DEBUG` to prevent overwriting.
-- **Why:** If the `DEBUG` flag is defined in any distribution configuration (TestFlight, internal distribution, ad-hoc), all paid features unlock for free with zero StoreKit validation. There is no separate `#if INTERNAL` or `#if STORE_SANDBOX` gate.
-- **Action:** Add a separate compilation flag (e.g., `STORE_SANDBOX`) for development bypasses. Audit all build configurations to ensure `DEBUG` is NOT defined in Release or any distribution config. Consider using `EntitlementManager.simulateEntitled` (a runtime flag) instead of compile-time `#if DEBUG`.
-- **Severity:** High
-
-### 6.2 Keychain operations block @MainActor in EntitlementManager
-- **Location:** `MacroMarkKit/Sources/MacroMarkKit/Store/EntitlementManager.swift:131,143`
-- **What:** `EntitlementManager` is `@MainActor`, but `persistKeychainFlag()` and `checkKeychainFlag()` call synchronous `SecItemAdd` / `SecItemCopyMatching` on the main actor's thread.
-- **Why:** Keychain I/O can block for tens of milliseconds, causing UI jank. More importantly, a keychain operation failure blocks the main actor from processing other work.
-- **Action:** Move Keychain read/write to a nonisolated helper or a detached background task; call it from the MainActor without blocking.
+### 6.1 Keychain lifetime-unlock is local-only (no `kSecAttrSynchronizable`, no access group)
+- **Location:** `MacroMarkKit/Sources/MacroMarkKit/Store/EntitlementManager.swift:99-138`; entitlements `MacroMark/MacroMark.entitlements:1-14`
+- **What:** The keychain add/query (lines 103-115, 120-125) specify no `kSecAttrAccessGroup` and no `kSecAttrSynchronizable`, so the lifetime flag lives in the app's default local keychain. The iOS entitlements file declares iCloud CloudDocuments only — no `keychain-access-groups`, no `com.apple.security.application-groups`. The watch target has no entitlements file. `EntitlementManager` is iOS-only today, so this is internally consistent, but: a fresh install on a new device relies entirely on `Transaction.currentEntitlements` re-running. If StoreKit is unavailable at first launch, the lifetime unlock is invisible until the next `Transaction.updates` fire.
+- **Why:** A lifetime-paying user who reinstalls on a device with no network at launch briefly appears non-entitled. Not permanent (the unlock returns once StoreKit syncs), but the keychain flag — meant to be the durable backstop — provides no cross-device resilience.
+- **Action:** Add `kSecAttrSynchronizable: true` to both the add and query (iCloud-syncs across the user's devices as a backstop), or add an App Group + shared keychain access group and persist there. Verify the watch target's entitlements if/when it ever reads entitlement.
 - **Severity:** Medium
 
-### 6.3 print() calls outside #if DEBUG in library code
-- **Location:** 19 `print()` calls across `MacroMarkKit/` and watch app (detailed in §9.4)
-- **What:** Library code in MacroMarkKit and the watch app uses `print()` for error logging without `#if DEBUG` guards because the library cannot see the app's compile-time flags.
-- **Why:** Release builds log internal errors to stdout. While no PII, bearer tokens, or IAP receipts appear in the logged data, file paths and error descriptions could reveal user-identifiable information.
-- **Action:** Replace `print()` with `os_log` (unified logging) in library code, which is production-safe and supports log levels. In app code, wrap `print()` in `#if DEBUG`.
-- **Severity:** Low
+### 6.2 `simulateEntitled` heuristic grants entitlement in TestFlight
+- **Location:** `MacroMarkKit/Sources/MacroMarkKit/Store/EntitlementManager.swift:18-27, 78-81`
+- **What:** `simulateEntitled` returns `true` when the receipt is `sandboxReceipt` (TestFlight) OR an embedded provisioning profile is present (any dev/ad-hoc build). `isEntitled` short-circuits to `true` when `simulateEntitled`. (Note: the previous audit's compile-time `#if DEBUG` bypass is resolved; this is the runtime replacement.)
+- **Why:** TestFlight beta testers see all features unlocked — appropriate for testing, but the comment claims it "cannot leak into distribution builds" while App Store builds can transit TestFlight for some distribution flows, and any build with an embedded profile (ad-hoc, enterprise) is also unlocked. The boundary is fuzzier than the comment implies.
+- **Action:** Document this loudly. Gate on a stricter signal — a `DEBUG`-only launch argument (`-MacroMarkSimulateEntitled`, which the doc comment already references but the code doesn't read) — rather than the presence of a sandbox receipt / profile.
+- **Severity:** Medium
+
+### 6.3 Unguarded `print()` calls ship IAP errors and file paths to release logs
+- **Location:** `MacroMarkKit/Sources/MacroMarkKit/Store/StoreManager.swift:39, 65, 77, 94`; `MacroMarkKit/Sources/MacroMarkKit/Storage/iCloudStorageManager.swift:109, 115, 121, 126, 180`; `MacroMarkKit/Sources/MacroMarkKit/Engine/MacroProcessor.swift:45, 157`; `MacroMark Watch App/Storage/LocalStore.swift:111, 160, 170, 183`; `MacroMark Watch App/Capture/AudioRecorder.swift:19, 52`; `MacroMark/MacroMarkApp.swift:53`; `MacroMark/Settings/MacroManagerView.swift:193`; `MacroMark/Engine/LocationManager.swift:63`; `MacroMark/Engine/AudioTranscriber.swift:55`
+- **What:** ~20 `print()` calls are not behind `#if DEBUG`. The MacroMarkKit library cannot reliably see the app's `DEBUG` flag (SPM `DEBUG` isn't propagated the same way for app-consuming-package release builds), so its 9 prints ship unconditionally. Notably `StoreManager.swift:65 print("Purchase failed: \(error)")` and `:94 print("Restore purchases failed: \(error)")` leak StoreKit error details, and `:77 print("Unverified transaction received")` runs on every unverified (potentially fraudulent) transaction.
+- **Why:** Release builds log internal errors to stdout. No PII/bearer tokens/IAP receipts appear, but file paths and StoreKit error descriptions do, which can reveal user-identifiable information.
+- **Action:** Replace all kit `print()` with `os.Logger` (subsystem `com.macromark`, categories per module) — production-safe and level-filtered at runtime. Wrap the 4 iOS-app prints in `#if DEBUG`. This is the single most impactful logging cleanup.
+- **Severity:** High
 
 ---
 
 ## 7. Performance
 
-### 7.1 NSRegularExpression recompiled per macro per call
-- **Location:** `MacroMarkKit/Sources/MacroMarkKit/Engine/MacroProcessor.swift:19-28`
-- **What:** `NSRegularExpression(pattern:)` is created for every macro on every call to `process(text:)`. No caching is used.
-- **Why:** Regex compilation is CPU-intensive. A user with 22 default macros processing a long dictation creates 22 new `NSRegularExpression` objects per call. Over many calls this is wasteful.
-- **Action:** Cache compiled `NSRegularExpression` instances keyed by macro trigger in a dictionary. Invalidate the cache when macros are added, removed, or edited.
+### 7.1 NSRegularExpression recompiled per macro per call (cache exists but unsynchronized — see §3.1)
+- **Location:** `MacroMarkKit/Sources/MacroMarkKit/Engine/MacroProcessor.swift:13, 37-43`
+- **What:** A cache *does* exist (the prior audit's "no caching" finding is resolved). However, until §3.1's lock is added and §5.3's invalidation is wired, the cache is both unsafe and stale.
+- **Why:** Once those are fixed, per-call regex compilation drops to zero for an unchanged macro set. Listed here so the perf win is credited alongside the correctness work.
+- **Action:** Resolve §3.1 and §5.3 together; the cache then delivers its intended benefit.
 - **Severity:** Medium
 
-### 7.2 Duplicate post-processing code between text and audio paths
-- **Location:** `MacroMark/MacroMarkApp.swift:52-105` (onNoteReceived) and `:119-185` (onFileReceived)
-- **What:** The two closures share ~60 lines of identical export/save logic. Only the first ~15 lines differ (direct text vs. transcription). The `onFileReceived` handler has a `do/catch` around transcription while `onNoteReceived` has no error handling at all — the blocks are already diverging.
-- **Why:** Double the maintenance surface; any change to the export flow must be edited in two places. The divergence means bugs fixed in one path may not be fixed in the other.
-- **Action:** Extract the shared pipeline into a single `processAndExport(text:timestamp:macros:context:)` method on `MacroMarkApp`.
+### 7.2 `reprocessPendingItems` runs synchronously in `MacroMarkApp.init` on the main thread
+- **Location:** `MacroMark/MacroMarkApp.swift:93, 148-168`
+- **What:** `init()` calls `reprocessPendingItems(container:)`, which iterates the WAL and calls `handleIncomingNote`/`processAudio` for each item. The dedup checks and WAL reads/writes are synchronous on the main thread during launch.
+- **Why:** With a backlog at launch (phone was off, watch queued many notes), launch is delayed by synchronous UserDefaults churn on the main thread.
+- **Action:** Move `reprocessPendingItems` into a `.task` modifier on the root view (or a `Task` launched from `init` that hops off the main actor for the read phase) so it runs after launch completes.
 - **Severity:** Medium
 
-### 7.3 SFSpeechRecognizer.requestAuthorization called on every view appear
-- **Location:** `MacroMark/Settings/MacroManagerView.swift:196-198`
-- **What:** `SFSpeechRecognizer.requestAuthorization { _ in }` is called on every `.onAppear` of the settings view, even though this API only prompts once per installation.
-- **Why:** Subsequent calls are no-ops but the unnecessary API call on every settings visit is wasteful and confusing.
-- **Action:** Move the authorization request to `MacroMarkApp.init()` or call it lazily in `AudioTranscriber.transcribe()`.
+### 7.3 `baseDirectoryURL` recomputed (bookmark resolve + ubiquity lookup) on every append/read
+- **Location:** `MacroMarkKit/Sources/MacroMarkKit/Storage/iCloudStorageManager.swift:20-44, 71-73, 157-160`
+- **What:** `baseDirectoryURL` is a computed property. `appendText` and `readText` each resolve the security-scoped bookmark, call `url(forUbiquityContainerIdentifier:)` (known-slow), and mutate `isUsingFallbackStorage` as a side effect of a "getter."
+- **Why:** `forUbiquityContainerIdentifier` can take hundreds of ms on first call; calling it per-append is a perf hit, and the side-effect-on-read pattern is fragile (reading a property mutates published state, risking SwiftUI re-render loops if observed).
+- **Action:** Cache the resolved URL after first successful resolution; invalidate only when a bookmark is marked stale. Make the fallback flag a method, not a side effect of the computed property.
+- **Severity:** Medium
+
+### 7.4 `@Query` in InboxView/MacroManagerView has no fetch limit
+- **Location:** `MacroMark/Views/InboxView.swift:7`; `MacroMark/Settings/MacroManagerView.swift:9`
+- **What:** `@Query(sort: \ProcessedNote.createdAt, order: .reverse) private var notes` fetches all notes with no `fetchLimit`. `List { ForEach(notes) }` materializes a row per note.
+- **Why:** After thousands of captures the Inbox initial render gets slow.
+- **Action:** Add `fetchLimit` to the `FetchDescriptor` or paginate; consider sectioning by day.
 - **Severity:** Low
 
 ---
 
 ## 8. SwiftUI / UI
 
-### 8.1 MacroMarkWidgetControl is a non-functional timer template
-- **Location:** `MacroMarkWidget/MacroMarkWidgetControl.swift:12-77`
-- **What:** The control widget displays a "Start Timer" toggle with a `StartTimerIntent`, completely unrelated to macro capture or dictation. The `perform()` method is a no-op. Description reads "A an example control that runs a timer." (typo).
-- **Why:** Leftover Xcode template code. If shipped, users see a non-functional "Timer" control in their Control Center / widget gallery with a typo in the description.
-- **Action:** Remove the file and its `AppIntent` from `MacroMarkWidgetBundle.swift`, or replace with a relevant MacroMark control (e.g., quick capture).
-- **Severity:** High
+### 8.1 `AddMacroView` lives inside `MacroManagerView.swift` (AGENTS.md violation)
+- **Location:** `MacroMark/Settings/MacroManagerView.swift:278-320`
+- **What:** `AddMacroView` is a peer of `MacroEditView.swift` (which correctly gets its own file) but is bundled into `MacroManagerView.swift`. AGENTS.md: "Break different types up into different Swift files."
+- **Why:** Inconsistent with the sibling-view convention; the host file is 326 lines.
+- **Action:** Extract `AddMacroView` to `Settings/AddMacroView.swift`.
+- **Severity:** Medium
 
-### 8.2 containerError overlay is never dismissable
-- **Location:** `MacroMark/MacroMarkApp.swift:195-203`
-- **What:** When ModelContainer init fails and falls back to in-memory storage, a `containerError` banner overlay is shown permanently with no dismiss button or timeout.
-- **Why:** The error banner occupies screen space for the entire app session. Once acknowledged, the user cannot hide it.
-- **Action:** Add a dismiss button or `onTapGesture` that sets `containerError = nil`.
+### 8.2 `Macro.notes` is collected but never shown
+- **Location:** `MacroMark/Settings/MacroManagerView.swift:111-126` (row omits it); set at `:225, 246, 248, 249, 252`; editable in `AddMacroView:297-300` and `MacroEditView`
+- **What:** The `notes` help text (e.g., "Dictation often mishears 'Heading Two' as 'Heading To'.") is stored and editable, but the macro row only renders `trigger` and `replacement`. `AddMacroView` lets the user type notes that then vanish.
+- **Why:** Misleading UX and dead data. The "Notes (Optional)" section implies the user will see them later.
+- **Action:** Render `notes` as a caption in the macro row (under `replacement`), or remove the field and the Section.
+- **Severity:** Medium
+
+### 8.3 Hardcoded frame heights and `minHeight` literals
+- **Location:** `MacroMark Watch App/ContentView.swift:38, 45` (`.frame(height: 70)`, `.frame(minHeight: 44)`); `MacroMark/Views/NoteDetailView.swift:12` (`.frame(minHeight: 200)`); `MacroMark Watch App/Capture/InstantCaptureView.swift:13` (`.frame(width: 80, height: 80)`)
+- **What:** Hardcoded layout dimensions. AGENTS.md leans on Dynamic Type for fonts; frames are a softer case but still magic numbers.
+- **Why:** Minor; inconsistent with a scalable-layout philosophy and uncentralized.
+- **Action:** Extract named layout constants, or remove where Dynamic Type / relative sizing could replace them.
 - **Severity:** Low
 
-### 8.3 MacroMark_Watch_AppApp naming convention violation
-- **Location:** `MacroMark Watch App/MacroMarkApp.swift:11`
-- **What:** The watch app's main struct is named `MacroMark_Watch_AppApp` — underscores and double "App" violate Swift naming conventions.
-- **Why:** Inconsistent with the iOS target's clean `MacroMarkApp` naming. Underscores in type names are non-idiomatic Swift.
-- **Action:** Rename to `MacroMarkWatchApp` throughout.
-- **Severity:** Low
-
-### 8.4 captureMode uses raw string comparisons
-- **Location:** `MacroMark/Settings/MacroManagerView.swift:11,37-43` and `MacroMark Watch App/ContentView.swift:10,113-122`
-- **What:** Capture mode is stored and compared as raw strings (`"audio"`, `"system"`) in `@AppStorage` and `switch` statements.
+### 8.4 `captureMode` stored/compared as raw strings
+- **Location:** `MacroMark/Settings/MacroManagerView.swift:11, 39-42`; `MacroMark Watch App/ContentView.swift:10, 86-94`
+- **What:** Capture mode is stored in `@AppStorage` and compared via raw strings (`"audio"`, `"system"`). (The watch `ContentView` does define a local `CaptureMode` enum, but it's the navigation enum, not the storage one.)
 - **Why:** A typo in any string silently breaks functionality with no compiler help.
-- **Action:** Define `enum CaptureMode: String, CaseIterable { case audio, system }` in MacroMarkKit and use `.rawValue` for `@AppStorage` storage.
+- **Action:** Define `enum CaptureMode: String, CaseIterable { case audio, system }` in MacroMarkKit and use `.rawValue` for `@AppStorage`.
 - **Severity:** Low
 
 ---
 
 ## 9. Dead code / duplication / refactor
 
-### 9.1 Duplicate WatchConnectivityProvider (212 lines each)
-- **Location:** `MacroMark/Shared/WatchConnectivityProvider.swift` and `MacroMark Watch App/Storage/WatchConnectivityProvider.swift`
-- **What:** Two nearly-identical 212-line files compiled into separate targets. The watch copy lives under `Storage/` (misleading — it handles connectivity, not storage).
-- **Why:** Any bug fix to WCSession handling must be applied to both files. The copies will inevitably diverge. Every maintainer must discover and remember the duplication.
-- **Action:** Move the shared implementation into MacroMarkKit with `#if os(iOS)` / `#if os(watchOS)` conditional compilation for platform-specific code, or add a single source file to both target memberships.
+### 9.1 `WatchConnectivityProvider.swift` duplicated byte-for-byte across iOS and watch targets
+- **Locations:** `MacroMark/Shared/WatchConnectivityProvider.swift:1-301` and `MacroMark Watch App/Storage/WatchConnectivityProvider.swift:1-301`
+- **What:** The two files are byte-identical (verified by diff). Every method — `sendNote`, `sendFile`, `acknowledgeNote/File`, `updateSettings`, both `didReceive*` handlers, both `didFinish*` handlers, `fetchDailyFile`, `didReceiveMessage`, the `ContinuationTimeout` actor — is duplicated. The file already uses `#if os(iOS)` / `#if os(watchOS)` throughout, so a single source file compiles in both targets. (The watch copy also lives under `Storage/`, misleading — it handles connectivity, not storage.)
+- **Why:** Two copies of 301 lines (602 LOC total) drift silently. Any future fix to the ACK/WAL protocol — exactly the data-loss-sensitive code in §5.1 — must be made twice; a missed edit causes watch/iOS protocol divergence.
+- **Action:** Delete one copy. Add the single file to BOTH targets via Xcode Target Membership (it already conditionally compiles), or move it into MacroMarkKit gated by `#if os(iOS) || os(watchOS)`. Move the watch-side file out of `Storage/` regardless.
 - **Severity:** High
 
-### 9.2 Duplicate date formatting logic (4 copies)
-- **Location:**
-  - `MacroMarkKit/Sources/MacroMarkKit/Storage/iCloudStorageManager.swift:70-92` (`formatDate`)
-  - `MacroMarkKit/Sources/MacroMarkKit/Models/FolderSettings.swift:28-40` (`format(date:)`)
-  - `MacroMark/Settings/FolderSettingsView.swift:91-105` (`currentDateExample`)
-  - `MacroMark/Settings/FolderSettingsView.swift:107-121` (`formatWithSettings`)
-- **What:** The same `Calendar.current.dateComponents` + `replacing("yyyy", ...)` / `replacing("MM", ...)` / `replacing("dd", ...)` logic appears in four methods across three files.
-- **Why:** A format change or bug fix must be replicated in four spots. Violates DRY.
-- **Action:** Use `FolderSettings.format(date:)` as the single source of truth. Remove the duplicate in `iCloudStorageManager` and the two in `FolderSettingsView`.
+### 9.2 Date-format token-replacement logic duplicated 3×
+- **Locations:** `MacroMarkKit/Sources/MacroMarkKit/Models/FolderSettings.swift:28-40` (`format(date:)`); `MacroMark/Settings/FolderSettingsView.swift:91-105` (`currentDateExample`); `MacroMark/Settings/FolderSettingsView.swift:107-121` (`formatWithSettings`)
+- **What:** All three do the same `Calendar.current.dateComponents` + `replacing("yyyy"/"yy"/"MM"/"dd")`. The two view-local copies differ only in fallback string and a `"Notes/"` prefix. `FolderSettings.format` is imported by the view, so the copies are pure reimplementation — and the kit's version falls back to ISO8601 while the view falls back to a hardcoded literal, so the "example" can disagree with the actual filename (also §5.10).
+- **Why:** DRY violation; a format change must be replicated in three spots and they have already diverged.
+- **Action:** Delete `currentDateExample` and `formatWithSettings`; call `settings.format(date: Date())` from the view. Build the `"Notes/"` prefix at the call site.
 - **Severity:** High
 
-### 9.3 Magic UserDefaults key strings scattered across files
-- **Location:** `"captureMode"` in 2 files, `"folderSettings"` in 2 files, `"customSaveBookmark"` in 2 files, `"autoExportEnabled"` in 2 files, `"defaultExportTarget"` in 2 files
-- **What:** Raw string keys for `UserDefaults` and `@AppStorage` are hardcoded with no single constant definition.
-- **Why:** A typo in a key name silently degrades functionality with no compiler checking or autocompletion.
-- **Action:** Define all keys as `enum UserDefaultsKeys: String { ... }` in MacroMarkKit. Use the enum cases in `@AppStorage` and `UserDefaults` calls.
+### 9.3 WAL Codable round-trips duplicated 4× in MacroMarkApp
+- **Location:** `MacroMark/MacroMarkApp.swift:350-380` (`readPendingProcessing`, `writePendingProcessing`, `readPendingAudio`, `writePendingAudio`)
+- **What:** Four functions, each doing the same `[UUID: Codable] ↔ [String: Codable]` JSON round-trip with the same `reduce(into:) { if let id = UUID(uuidString:) ... }` mapping, differing only in key and payload type.
+- **Why:** 30+ lines of copy-paste; the mapping is duplicated verbatim.
+- **Action:** Extract generic `load<V: Codable>(_:forKey:)` / `save(_:forKey:)` helpers parameterized by key.
 - **Severity:** Medium
 
-### 9.4 Magic numeric and file-extension constants
-- **Location:** Multiple files:
-  - `50.0` (audio chunk duration) — `AudioTranscriber.swift:20`
-  - `12000` (sample rate) — `AudioRecorder.swift:31`
-  - `10` (timeout seconds) — `WatchConnectivityProvider.swift:179`
-  - `10` (poll iterations) — `WatchConnectivityProvider.swift:151`
-  - `100` (sleep milliseconds) — `WatchConnectivityProvider.swift:153`, `SystemCaptureView.swift:17`
-  - `1.0` (sleep after record start) — `AudioRecorder.swift:43`
-  - `".m4a"` — `AudioRecorder.swift:27`, `AudioTranscriber.swift:71,77`
-  - `".md"` — `iCloudStorageManager.swift:44,46`, `FolderSettingsView.swift:83,85,87`
-  - `"Notes/"` — `FolderSettingsView.swift:120`
-  - `"com.macromark.lifetime.keychain"` — `EntitlementManager.swift:17`
-  - `200` (min height) — `NoteDetailView.swift:12`
+### 9.4 Magic `UserDefaults` / `@AppStorage` key strings scattered across 6 files
+- **Locations:** `"captureMode"` — `MacroManagerView.swift:11`, `ContentView.swift:10`, `WatchConnectivityProvider.swift:128, 240, 241`; `"folderSettings"` — `FolderSettingsView.swift:7, 13`, `iCloudStorageManager.swift:13`; `"customSaveBookmark"` — `MacroManagerView.swift:12`, `iCloudStorageManager.swift:21, 26, 73, 159`; `"autoExportEnabled"` — `MacroManagerView.swift:14`, `MacroMarkApp.swift:272`; `"defaultExportTarget"` — `MacroManagerView.swift:13`, `MacroMarkApp.swift:273`; plus WAL keys `MacroMark_ProcessedNoteIDs`, `MacroMark_PendingProcessing`, `MacroMark_PendingAudioIn`
+- **What:** 18+ raw-string uses of these keys across 6 files, no shared constants.
+- **Why:** A typo in any key silently breaks a setting or the WAL. No compiler checking or autocompletion.
+- **Action:** A single `enum UserDefaultsKey` in MacroMarkKit, used everywhere.
+- **Severity:** High
+
+### 9.5 Security-scope access duplicated in iCloudStorageManager
+- **Location:** `MacroMarkKit/Sources/MacroMarkKit/Storage/iCloudStorageManager.swift:71-84` (appendText), `:157-170` (readText)
+- **What:** Both methods independently read `customSaveBookmark`, derive `isSecurityScoped`, call `startAccessingSecurityScopedResource()`, and `defer { stopAccessingSecurityScopedResource() }`. Re-derives from UserDefaults on every call rather than caching.
+- **Why:** Two near-identical 14-line scopes; any bookmark-handling change must be made twice.
+- **Action:** Extract `withSecurityScope<T>(_ block:)` that resolves the bookmark once and wraps start/stop.
+- **Severity:** Medium
+
+### 9.6 Default-macros array (23 entries) private to a View
+- **Location:** `MacroMark/Settings/MacroManagerView.swift:220-254` (`defaultMacros`)
+- **What:** The 23 default `Macro` seeds live as a computed property inside `MacroManagerView`, used by `prepopulateIfNeeded` and `restoreDefaults`.
+- **Why:** Business/persistence concern (seed data) coupled to a SwiftUI View; cannot be unit-tested without spinning up the view. AGENTS.md: "Place view logic into view models or similar, so it can be tested."
+- **Action:** Move `defaultMacros` into a `DefaultMacros` type (or static on `Macro`) in MacroMarkKit so kit tests can assert on the count and the duplicate `sortOrder: 1` for "Heading Two"/"Heading To".
+- **Severity:** Medium
+
+### 9.7 Dead / unused symbols (verified by repo-wide grep)
+- **Locations:**
+  - `StoreManager.purchaseState` / `isLoadingProducts` / `PurchaseState` enum — `MacroMarkKit/Sources/MacroMarkKit/Store/StoreManager.swift:5-10, 18-19` — assigned throughout (`:32, 33, 44, 52, 55, 58, 61, 64, 82, 89, 93`) but read by zero consumers; `SubscriptionPaywallView` gates on `products.isEmpty` instead. The `PurchaseState` enum is therefore also dead.
+  - `iCloudStorageManager.isUsingFallbackStorage` — `iCloudStorageManager.swift:8` (set `:39, 42`) — never read by any UI; the doc comment says "Published so UI can observe" but none does.
+  - `EntitlementManager.customMacroCount(_:)` — `EntitlementManager.swift:83-86` — zero callers; callers use `isEntitled` + manual `>= maxFreeMacros` comparisons instead.
+  - `MacroProcessor.invalidateRegexCache()` — `MacroProcessor.swift:16-18` — zero callers (see §5.3 for the resulting correctness bug).
+- **Why:** Dead state increases cognitive load. `purchaseState`/`isLoadingProducts`/`PurchaseState` represent a state machine that provides no user feedback. `isUsingFallbackStorage` means users get no warning when iCloud is unavailable.
+- **Action:** Either wire these to UI (paywall spinner/error, fallback banner) or remove them. The previously-suspected `EntitlementManager.isInTrial`, `canAddCustomMacro`, and `ProcessedNote.idString` are already removed — confirmed.
+- **Severity:** Medium
+
+### 9.8 Files to delete outright
+- `test.swift` (repo root) — untracked scratch file, references `WCSession.sendMessage` with the wrong arity, in no target.
+- `MacroMarkWidget/MacroMarkWidgetControl.swift` — Xcode "Start Timer" ControlWidget template, hardcoded `let isRunning = true`, no-op `perform()`, unregistered in `MacroMarkWidgetBundle`.
+- `MacroMarkWidget/AppIntent.swift` — Xcode "Favorite Emoji" `ConfigurationAppIntent` template, also unregistered.
+- **Severity:** Medium (clean up; ~95 LOC removed)
+
+### 9.9 Oversized files
+- **`MacroMark/MacroMarkApp.swift:498`** — App entry + ModelContainer bootstrap + WatchConnectivity wiring + WAL accessors + reprocess-on-launch + text pipeline + audio pipeline + background-task wrapper + 4 WAL round-trips + 2 ACK helpers + save/export pipeline + scene body. Propose extracting a `NotePipeline`/`NoteProcessor` service (the processing + ACK + export logic) and a `PendingItemsStore` (the WAL accessors + `pendingAudioDirectory`). Leaves the App struct as bootstrap + scene. Severity: Medium.
+- **`MacroMark/Settings/MacroManagerView.swift:326`** — `MacroManagerView` + `AddMacroView` + the 23-entry `defaultMacros`. Extract `AddMacroView` (§8.1) and `defaultMacros` (§9.6). Severity: Medium.
+- **`MacroMark/Shared/WatchConnectivityProvider.swift:301`** (×2) — after §9.1 dedup, consider extracting `ContinuationTimeout` to its own file. Severity: Low.
+
+### 9.10 Magic numeric / file-extension constants
+- **Locations:** `50.0` (audio chunk duration) `AudioTranscriber.swift:20`; `12000` (sample rate) `AudioRecorder.swift:31`; `1000` (preferredTimescale) `AudioTranscriber.swift:92`; `1.0` (recorder spin-up sleep) `AudioRecorder.swift:43`; `100` ms (dictation present delay) `SystemCaptureView.swift:16`; `10` × `100` ms (WC activation polling) `WatchConnectivityProvider.swift:252-255`; `15` s (WC fetch timeout) `:265`; `20` × `0.1` s (iCloud download wait) `iCloudStorageManager.swift:151`; `200` (min height) `NoteDetailView.swift:12`; `".m4a"` `AudioTranscriber.swift:89`, `MacroMarkApp.swift:207`, `LocalStore.swift:97`; `".md"` `iCloudStorageManager.swift:47`; `"Notes/"` `FolderSettingsView.swift:120`; `"com.macromark.lifetime.keychain"` `EntitlementManager.swift:29`
 - **What:** Hardcoded values scattered across files with no named constants.
 - **Why:** Magic numbers obscure intent and must be changed in multiple places.
-- **Action:** Name each with a `private static let` constant describing its purpose.
-- **Severity:** Low
-
-### 9.5 Unused properties
-- **Location:**
-  - `EntitlementManager.isInTrial` — `EntitlementManager.swift:12`
-  - `EntitlementManager.canAddCustomMacro` — `EntitlementManager.swift:79`
-  - `ProcessedNote.idString` — `ProcessedNote.swift:6`
-  - `StoreManager.purchaseState` — `StoreManager.swift:18`
-  - `StoreManager.isLoadingProducts` — `StoreManager.swift:19`
-- **What:** Properties that are set but never read by any consumer code.
-- **Why:** Dead code increases cognitive load. `purchaseState` and `isLoadingProducts` represent a state machine that provides no user feedback.
-- **Action:** Either wire unused properties to UI elements or remove them.
-- **Severity:** Low
-
-### 9.6 Oversized files
-- **`MacroMark/Settings/MacroManagerView.swift:325`** — Houses both `MacroManagerView` (273 lines), `AddMacroView` (43 lines), and the 22-item `defaultMacros` array. Extract `AddMacroView` to its own file; consider moving `defaultMacros` to a `MacroProvider` in MacroMarkKit.
-- **`MacroMark/MacroMarkApp.swift:209`** — App entry point + ModelContainer setup + two large inline closures. Extract the shared note-processing/export pipeline into a dedicated service type.
-- **Severity:** Medium
-
-### 9.7 print() calls outside #if DEBUG
-- **Location:** 19 unprotected `print()` calls in `MacroMarkKit/` (3 files, 11 calls), `MacroMark Watch App/` (2 files, 4 calls), `MacroMark/Engine/` (2 files, 2 calls), `MacroMark/Settings/` (1 file, 1 call). 7 additional calls in `MacroMarkApp.swift` and `WatchConnectivityProvider.swift` are properly behind `#if DEBUG`.
-- **What:** Release builds log internal errors to stdout.
-- **Why:** Noisy in production; file paths in error messages could reveal user-identifiable information.
-- **Action:** Wrap in `#if DEBUG` for app code; use `os_log` for library code.
+- **Action:** Name each with a `private static let` (or centralize file extensions / durable-directory names in MacroMarkKit).
 - **Severity:** Low
 
 ---
 
 ## 10. Cross-cutting recommendations
 
-1. **Adopt a single `EntitlementManager.isEntitled` computed property.** Multiple files check `isSubscribed`, `hasLifetimeUnlock`, and `canAddCustomMacro` with inconsistent combinations (§5.5, §6.1). A single `var isEntitled: Bool` would eliminate drift and make the DEBUG bypass check a single point of change.
+1. **Make the ACK truly end-to-end.** §5.1 + §5.2 are the same root cause: the pipeline treats "saved to SwiftData" as "delivered," but the user's definition of delivered is "in the `.md` file." Introduce an "exported" WAL state distinct from "processed," and only ACK (and only clear the WAL) once the configured export target succeeds — with bounded retry for the iCloud-deferred case. This is the single highest-leverage change for the user's stated #1 concern.
 
-2. **Extract the note-processing pipeline into a dedicated service.** `MacroMarkApp.swift` has ~60 lines of duplicated export logic (§7.2, §9.6). A `NoteProcessorService` type that takes text + macros + timestamp and handles the full pipeline (macro expansion, SwiftData persistence, iCloud/URL export) would halve the size of `MacroMarkApp` and eliminate the divergence between text and audio paths.
+2. **Lock + invalidate the regex cache together.** §3.1 (race) and §5.3 (staleness) are the same cache. Fix both in one change: move the cache behind a lock (or actor), invalidate it from every macro-mutation site, and credit §7.1's perf win.
 
-3. **Move shared code into MacroMarkKit.** `WatchConnectivityProvider` is duplicated across targets (§9.1). `LocalStore`'s `CapturedNote` model could live in MacroMarkKit. Date formatting is duplicated 4 times (§9.2). UserDefaults keys are scattered (§9.3). Consolidating these into the shared SPM package would eliminate the duplication surface and make the library the single source of truth.
+3. **Stop blocking cooperative threads on watchOS.** §3.2 (semaphore) and §3.3 (Thread.sleep on MainActor) are both legacy-sync-over-async patterns. The codebase already has the correct idiom (`ContinuationTimeout` actor + `Task.sleep(for:)`); apply it consistently and delete the `DispatchSemaphore`/`Thread.sleep` uses.
 
-4. **Add timeout guards on all `withCheckedContinuation` uses.** Three separate continuations (§3.3, §3.4, and `LocationManager`) lack timeout mechanisms. A helper like `withTimeout(seconds:operation:)` applied consistently would prevent permanent hangs if a delegate callback never fires.
+4. **Centralize the shared infrastructure in MacroMarkKit.** §9.1 (WatchConnectivityProvider ×2), §9.2 (date format ×3), §9.3 (WAL round-trips ×4), §9.4 (UserDefaults keys ×18), §9.5 (security-scope ×2). A `UserDefaultsKey` enum, a shared `WatchConnectivityProvider`, a generic WAL helper, and a single date formatter would eliminate the largest duplication surfaces and make the library the single source of truth.
 
-5. **Audit DEBUG flag usage in all build configurations.** The `#if DEBUG` paywall bypass (§6.1) is a ticking time bomb for any non-Release distribution. Consider replacing compile-time `#if DEBUG` with a runtime `EntitlementManager.simulateEntitled` flag that can be set via a hidden debug menu or launch argument, making it impossible to leak into distribution builds.
+5. **Adopt `os.Logger` repo-wide.** §6.3 ships IAP errors and file paths to release stdout today. A subsystem-scoped `Logger` (`com.macromark`) with per-module categories is production-safe, level-filtered, and removes the kit/app `#if DEBUG` asymmetry entirely.
+
+6. **Single entitlement surface.** §9.7's dead `customMacroCount(_:)` and the inline `>= maxFreeMacros` checks in `MacroManagerView` should collapse to one `isEntitled`/`canAddCustomMacro` API on `EntitlementManager`, so the gate logic can't drift between the button, the row, and the paywall.
 
 ---
 
 ## 11. What was NOT audited
 
-- `.claude/` and `.build/` directories (Claude internal + SPM build artifacts).
-- Test files under `MacroMarkTests/`, `MacroMarkUITests/`, `MacroMark Watch AppTests/`, and `MacroMarkKit/Tests/` — quick scan only; no deep coverage review.
-- The `.claude/worktrees/fix-all-build-errors` directory (embedded worktree snapshot).
-- StoreKit 2 product configuration in `.storekit` files — file structure scanned; product IDs and pricing not validated against App Store Connect.
-- Algorithmic correctness of the audio chunking / AVAssetExportSession pipeline in `AudioTranscriber.splitAudio()`.
-- Build settings, Xcode project structure, and scheme configuration beyond what's visible in shared schemes.
+- `.git`, `.build`, `.swiftpm`, `MacroMarkKit/.build`, `MacroMarkKit/.swiftpm` (build artifacts).
+- The untracked `test.swift` scratch file at the repo root (flagged for deletion, not audited).
+- Test targets `MacroMarkTests/`, `MacroMarkUITests/`, `MacroMark Watch AppTests/`, `MacroMarkKit/Tests/` — quick scan only; no deep coverage review.
+- StoreKit 2 product configuration in any `.storekit` files — file structure only, not whether each product matches App Store Connect.
+- Algorithmic correctness of the audio chunking / `AVAssetExportSession` pipeline in `AudioTranscriber.splitAudio()` beyond the chunk-failure handling in §5.5.
+- Build settings, Xcode project structure, and scheme configuration beyond what's visible in the shared schemes.
 - Third-party SPM dependency internals (the project uses only Apple system frameworks — no external packages).
-- Localization — the app appears to be English-only with no string catalogs; not assessed.
-- Compiler warnings — build requires Xcode 26 beta (iOS 26.5 deployment target), which was not available in this environment. The concurrency findings in §3 are based on code review rather than compiler diagnostics.
-- The `MacroMarkWidget/` target received light coverage. Its entitlements file was not opened; verify it matches the App Group identifier used by the main app.
-- Performance profiling — no Instruments traces were captured. The performance findings in §7 are based on static code analysis of hot paths.
+- Localization — the app appears English-only with no string catalogs; not assessed.
+- Performance profiling — no Instruments traces captured. §7 findings are static analysis of hot paths, not measurements.
+- The `MacroMarkWidget/` target's entitlements file was not opened; verify it matches the App Group identifier (if any) used by the main app. (The widget bundle's kind string `"Dan.MacroMark.watchkitapp.MacroMarkWidget"` looks wrong — app is "MacroMark", not "watchkitapp" — but this was not deeply investigated.)
 
 ---
 
 ## 12. Verification
 
-Spot-check pattern: open Xcode, command-click the `path:line` reference in this report — it should land on the cited line. Each High-severity finding has an exact line range confirmed by opening the cited file.
+Spot-check pattern: open Xcode, command-click the `path:line` reference in this report — it should land on the cited line. Each Critical / High finding has an exact line range confirmed by opening the cited file during this audit.
 
-- **§3.1** — open `MacroMarkKit/Sources/MacroMarkKit/Engine/MacroProcessor.swift`, line 67. `UIPasteboard.general.string` is read inside a function explicitly documented as "NOT isolated to any actor" (line 11-12). No `MainActor.run` wrapper.
-- **§3.2** — open `MacroMark/MacroMarkApp.swift`, lines 54-55. `let macros = (try? context.fetch(descriptor)) ?? []` fetches `[Macro]` on the main actor, then passes them to `MacroProcessor.process(text:macros:...)` on line 62 inside a non-isolated `Task`.
-- **§3.3** — open `MacroMark/Engine/AudioTranscriber.swift`, lines 27-42. The `recognizer.recognitionTask(with:)` return value at line 29 is discarded; no `onCancel` handler or `withTaskCancellationHandler` wraps the continuation.
-- **§3.4** — open `MacroMark/Shared/WatchConnectivityProvider.swift`, lines 163-175. `sendMessage` with `replyHandler` and `errorHandler` closures resume a `CheckedContinuation` without `@MainActor` isolation.
-- **§5.1** — open `MacroMark Watch App/Storage/LocalStore.swift`, lines 43-46. `syncPendingNotes()` loops over all `pendingNotes` and calls `transferUserInfo()` for each, called from `addNote()` (line 40) and `init()` (line 25).
-- **§5.4** — open `MacroMarkKit/Sources/MacroMarkKit/Store/StoreManager.swift`, line 71. `await transaction.finish()` is called before `EntitlementManager` persists the entitlement; verify by tracing the call order in `handleTransaction`.
-- **§6.1** — open `MacroMarkKit/Sources/MacroMarkKit/Store/EntitlementManager.swift`, lines 22, 48-51. All `#if DEBUG` blocks that bypass StoreKit verification. Confirm no alternative flag gates non-debug distribution builds.
-- **§8.1** — open `MacroMarkWidget/MacroMarkWidgetControl.swift`, lines 29, 45, 73-77. Typo in description, hardcoded `isRunning = true`, no-op `perform()`. Unrelated to dictation functionality.
-- **§9.1** — compare `MacroMark/Shared/WatchConnectivityProvider.swift` (212 lines) and `MacroMark Watch App/Storage/WatchConnectivityProvider.swift` (212 lines). Near-identical content; the only differences are `print` message wording.
-- **§9.2** — open `MacroMarkKit/Sources/MacroMarkKit/Models/FolderSettings.swift:28-40`. The `format(date:)` method contains the canonical date-format logic. Then open `MacroMarkKit/Sources/MacroMarkKit/Storage/iCloudStorageManager.swift:70-92` — the same logic reimplemented under a different method name.
+- **§3.1** — open `MacroMarkKit/Sources/MacroMarkKit/Engine/MacroProcessor.swift`, line `13` (the `nonisolated(unsafe) var regexCache`) and `:37-43` (read + `regexCache[pattern] = compiled` mutation). The `process` doc at `:26-28` states it is non-isolated.
+- **§3.2** — open `MacroMark Watch App/Capture/InstantCaptureView.swift`, lines `57-69`. `Task.detached { performExpiringActivity { ... DispatchSemaphore(value: 0) ... semaphore.wait() } }`, with the signal coming from an inner `Task { await ...processAudioFile(...) }` whose body does `MainActor.run { ... }`.
+- **§3.3** — open `MacroMarkKit/Sources/MacroMarkKit/Storage/iCloudStorageManager.swift`, line `3` (`@MainActor`), `:92` (`ensureDownloaded(fileURL)` call from `appendText`), and `:151-154` (`for _ in 0..<20 { ... Thread.sleep(forTimeInterval: 0.1) }`).
+- **§5.1** — open `MacroMark/MacroMarkApp.swift`, lines `424-433`. `addProcessedNoteID(noteId)` (`:426`), `removePendingAudio/Processing` (`:428`/`:431`), `acknowledgeFileIfDurable`/`acknowledgeNoteIfDurable` (`:429`/`:432`) all execute before the iCloud append at `:442`. The comment at `:435` admits "failures don't undo the ACK."
+- **§5.2** — open `iCloudStorageManager.swift`, lines `111-115`. `cloudCopyExistsButNotDownloaded(url)` branch prints and leaves `writeSucceeded = false`; `appendText` returns `false` at `:128`. The caller at `MacroMarkApp.swift:442` uses the return only to gate `note.isExported`, never to re-queue.
+- **§5.3** — grep the repo for `invalidateRegexCache`. Only the declaration at `MacroProcessor.swift:16` matches; zero call sites. Then open `MacroManagerView.swift:204-216` (`deleteMacros`/`moveMacros`) and `:265-273` (`restoreDefaults`) — neither calls it.
+- **§5.4** — open `MacroManagerView.swift`, lines `265-273`. `for macro in macros { modelContext.delete(macro) }` deletes all macros including custom ones; no `.confirmationDialog` is attached to the button at `:143-145`.
+- **§6.3** — open `MacroMarkKit/Sources/MacroMarkKit/Store/StoreManager.swift`, lines `65` and `94` (`print("Purchase failed: \(error)")` / `"Restore purchases failed: \(error)"`) and `:77` (`print("Unverified transaction received")`). None are inside `#if DEBUG`.
+- **§9.1** — run `diff "MacroMark/Shared/WatchConnectivityProvider.swift" "MacroMark Watch App/Storage/WatchConnectivityProvider.swift"`. Exits 0 (byte-identical, 301 lines each).
+- **§9.4** — grep for `"captureMode"`, `"folderSettings"`, `"customSaveBookmark"`, `"autoExportEnabled"`, `"defaultExportTarget"` — each appears as a raw string literal in 2+ files with no shared constant.
+
+If any finding doesn't reproduce when you visit the line, ping with the specific reference and it will be re-investigated.

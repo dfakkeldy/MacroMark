@@ -1,0 +1,18 @@
+# Xcode / SPM build artifacts
+.build/
+.swiftpm/
+DerivedData/
+build/
+
+# Xcode user state
+*.xcuserstate
+xcuserdata/
+
+# SwiftPM package resolution (keep Package.resolved only if dependencies are pinned; currently no deps)
+# MacroMarkKit/.build/ and MacroMarkKit/.swiftpm/ are covered above
+
+# macOS
+.DS_Store
+
+# Scratch / local-only files
+test.swift
