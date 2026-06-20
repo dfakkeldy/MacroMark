@@ -1,6 +1,6 @@
 # MacroMark
 
-MacroMark is a zero-friction, voice-to-text capture tool designed for personal knowledge management (PKM) power users. Built by Echo Technologies, it provides an unparalleled on-the-go dictation experience for your Apple Watch, syncing seamlessly to plain-text Markdown files on your iPhone via iCloud Drive.
+MacroMark is a zero-friction, voice-to-text capture tool designed for personal knowledge management (PKM) power users. Built by KinNoKi Labs, it provides an unparalleled on-the-go dictation experience for your Apple Watch, syncing seamlessly to plain-text Markdown files on your iPhone via iCloud Drive.
 
 ## Features
 
@@ -13,7 +13,7 @@ MacroMark is a zero-friction, voice-to-text capture tool designed for personal k
 ## Installation
 
 ### Prerequisites
-- Xcode 15+ (Requires targeting iOS 26.0+ and watchOS 10.0+).
+- Xcode 26+ (targets iOS 26.5+ and watchOS 26.5+).
 - Apple Developer Program account (for iCloud Documents capabilities).
 
 ### Setup
