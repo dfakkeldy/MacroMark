@@ -8,7 +8,7 @@
 import SwiftUI
 
 @main
-struct MacroMark_Watch_AppApp: App {
+struct MacroMarkWatchApp: App {
     init() {
         _ = WatchConnectivityProvider.shared
         _ = LocalStore.shared

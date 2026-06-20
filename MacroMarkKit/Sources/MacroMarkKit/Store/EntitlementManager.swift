@@ -13,16 +13,15 @@ public final class EntitlementManager {
 
     public static let maxFreeMacros = 3
 
-    /// Runtime flag for development/testing. Set via launch argument `-MacroMarkSimulateEntitled`.
-    /// Safer than compile-time `#if DEBUG` because it cannot leak into distribution builds.
+    /// Runtime flag for development/testing. Set via launch argument
+    /// `-MacroMarkSimulateEntitled` in the scheme editor (Run → Arguments).
+    /// Safer than compile-time `#if DEBUG` or sandbox-receipt heuristics
+    /// because it cannot leak into distribution builds.
     public private(set) var simulateEntitled: Bool = {
 #if targetEnvironment(simulator)
         return true
 #else
-        let isTestFlight = Bundle.main.appStoreReceiptURL?.lastPathComponent == "sandboxReceipt"
-        let hasIOSProfile = Bundle.main.path(forResource: "embedded", ofType: "mobileprovision") != nil
-        let hasMacProfile = Bundle.main.path(forResource: "embedded", ofType: "provisionprofile") != nil
-        return isTestFlight || hasIOSProfile || hasMacProfile
+        return ProcessInfo.processInfo.arguments.contains("-MacroMarkSimulateEntitled")
 #endif
     }()
 

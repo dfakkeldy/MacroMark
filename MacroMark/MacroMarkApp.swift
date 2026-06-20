@@ -93,14 +93,9 @@ struct MacroMarkApp: App {
         }
         container = resolvedContainer
 
-        // Pre-load StoreKit products and request speech authorization once
+        // Pre-load StoreKit products
         Task {
             await StoreManager.shared.loadProducts()
-            _ = await withCheckedContinuation { continuation in
-                SFSpeechRecognizer.requestAuthorization { status in
-                    continuation.resume(returning: status)
-                }
-            }
         }
 
         setupWatchConnectivity()
