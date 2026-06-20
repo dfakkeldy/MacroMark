@@ -14,5 +14,15 @@ xcuserdata/
 # macOS
 .DS_Store
 
+# Fastlane
+fastlane/report.xml
+fastlane/test_output/
+fastlane/screenshots/
+fastlane/metadata/      # uncomment once metadata is committed: !fastlane/metadata/
+
+# Bundler
+.bundle/
+vendor/bundle/
+
 # Scratch / local-only files
 test.swift

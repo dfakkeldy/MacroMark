@@ -1,0 +1,165 @@
+# frozen_string_literal: true
+
+# ───────────────────────────────────────────────────────────────────────────────
+# Fastfile for MacroMark
+# ───────────────────────────────────────────────────────────────────────────────
+#
+# Usage:
+#   bundle exec fastlane beta           # Build + upload to TestFlight
+#   bundle exec fastlane build          # Build only (CI check)
+#   bundle exec fastlane test           # Run unit + UI tests
+#   bundle exec fastlane release        # Full TestFlight release (optionally submit)
+#   bundle exec fastlane screenshots    # Capture App Store screenshots
+#   bundle exec fastlane refresh_meta   # Download metadata from App Store Connect
+#   bundle exec fastlane match_dev      # Refresh development certificates/profiles
+#   bundle exec fastlane match_appstore # Refresh distribution certificates/profiles
+# ───────────────────────────────────────────────────────────────────────────────
+
+default_platform(:ios)
+
+# ---------------------------------------------------------------------------
+# Shared configuration
+# ---------------------------------------------------------------------------
+
+APP_SCHEME            = "MacroMark"
+PROJECT_PATH          = "MacroMark.xcodeproj"
+
+# ---------------------------------------------------------------------------
+# Before All — ensure `match` is available for signing, but don't fail if
+# unset. Run `fastlane match_dev` or `fastlane match_appstore` first.
+# ---------------------------------------------------------------------------
+
+platform :ios do
+
+  # ── Build-only ────────────────────────────────────────────────────────────
+  desc "Build the app — no upload"
+  lane :build do
+    build_app(
+      project: PROJECT_PATH,
+      scheme: APP_SCHEME,
+      configuration: "Release",
+      skip_archive: false,
+      skip_codesigning: false,
+      clean: false
+    )
+  end
+
+  # ── Test ──────────────────────────────────────────────────────────────────
+  desc "Run unit tests"
+  lane :test do
+    run_tests(
+      project: PROJECT_PATH,
+      scheme: APP_SCHEME,
+      devices: ["iPhone 17 Pro Max"]
+    )
+  end
+
+  # ── TestFlight beta ───────────────────────────────────────────────────────
+  desc "Build and upload a new TestFlight beta"
+  lane :beta do
+    increment_build_number(
+      xcodeproj: PROJECT_PATH
+    )
+
+    build_app(
+      project: PROJECT_PATH,
+      scheme: APP_SCHEME,
+      configuration: "Release",
+      export_method: "app-store",
+      include_symbols: true,
+      include_bitcode: false,
+      clean: false
+    )
+
+    upload_to_testflight(
+      skip_waiting_for_build_processing: false,
+      changelog: "Beta build uploaded via fastlane.",
+      distribute_external: false
+    )
+  end
+
+  # ── Release (TestFlight + optional submission) ────────────────────────────
+  desc "Build, upload to TestFlight, and optionally submit for App Store review"
+  lane :release do
+    increment_build_number(
+      xcodeproj: PROJECT_PATH
+    )
+
+    build_app(
+      project: PROJECT_PATH,
+      scheme: APP_SCHEME,
+      configuration: "Release",
+      export_method: "app-store",
+      include_symbols: true,
+      include_bitcode: false,
+      clean: true
+    )
+
+    upload_to_testflight(
+      skip_waiting_for_build_processing: false,
+      distribute_external: true
+    )
+
+    # Submit for review only when explicitly confirmed via the terminal
+    if UI.confirm("Submit this build for App Store Review?")
+      deliver(
+        submit_for_review: true,
+        automatic_release: false,
+        phased_release: true,
+        force: true
+      )
+    end
+  end
+
+  # ── Screenshots ───────────────────────────────────────────────────────────
+  desc "Capture App Store screenshots with snapshot"
+  lane :screenshots do
+    capture_screenshots(
+      project: PROJECT_PATH,
+      scheme: APP_SCHEME,
+      devices: [
+        "iPhone 17 Pro Max",
+        "iPhone 16e"
+      ],
+      languages: ["en-US"],
+      include_original_screenshots: false,
+      erase_simulator: true,
+      localize_simulator: true,
+      reinstall_app: true,
+      clear_previous_screenshots: true
+    )
+
+    # Optionally download existing App Store metadata so screenshots
+    # are placed alongside the right locale folders.
+    # deliver(overwrite_screenshots: false, ignore_language_directory_validation: true)
+  end
+
+  # ── Metadata ──────────────────────────────────────────────────────────────
+  desc "Download existing App Store metadata for editing locally"
+  lane :refresh_meta do
+    deliver(
+      overwrite_screenshots: false,
+      ignore_language_directory_validation: true,
+      force: true
+    )
+  end
+
+  # ── Code signing (Match) ──────────────────────────────────────────────────
+  desc "Refresh development certificates & provisioning profiles"
+  lane :match_dev do
+    match(
+      type: "development",
+      app_identifier: "Dan.MacroMark",
+      readonly: true
+    )
+  end
+
+  desc "Refresh App Store distribution certificates & provisioning profiles"
+  lane :match_appstore do
+    match(
+      type: "appstore",
+      app_identifier: "Dan.MacroMark",
+      readonly: true
+    )
+  end
+end

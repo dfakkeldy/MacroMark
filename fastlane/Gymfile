@@ -1,0 +1,20 @@
+# frozen_string_literal: true
+
+# Build settings for gym (fastlane's build system wrapper)
+#
+# These apply to all lanes that call `build_app`.
+
+project("MacroMark.xcodeproj")
+scheme("MacroMark")
+
+# Output directory for the .ipa and .dSYM.zip
+output_directory("./build")
+
+# No Bitcode — Apple dropped it
+include_bitcode(false)
+
+# Include symbols for crash symbolication
+include_symbols(true)
+
+# Clean before building release builds
+clean(true)
