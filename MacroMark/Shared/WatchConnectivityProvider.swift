@@ -238,7 +238,7 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
 
     func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String : Any]) {
         if let captureMode = applicationContext["captureMode"] as? String {
-            UserDefaults.standard.set(captureMode, forKey: "captureMode")
+            UserDefaults.standard.set(captureMode, forKey: UserDefaultsKey.captureMode.rawValue)
         }
     }
 
@@ -246,7 +246,7 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
 
     func fetchDailyFile() async -> String {
         guard let session = session else {
-            return UserDefaults.standard.string(forKey: "cachedDailyLog") ?? ""
+            return UserDefaults.standard.string(forKey: UserDefaultsKey.cachedDailyLog.rawValue) ?? ""
         }
 
         for _ in 0..<10 {
@@ -255,7 +255,7 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
         }
 
         guard session.activationState == .activated else {
-            return UserDefaults.standard.string(forKey: "cachedDailyLog") ?? ""
+            return UserDefaults.standard.string(forKey: UserDefaultsKey.cachedDailyLog.rawValue) ?? ""
         }
 
         return await withCheckedContinuation { continuation in
@@ -264,7 +264,7 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
             Task {
                 try? await Task.sleep(for: .seconds(15))
                 if await timeout.complete() {
-                    let cached = UserDefaults.standard.string(forKey: "cachedDailyLog") ?? ""
+                    let cached = UserDefaults.standard.string(forKey: UserDefaultsKey.cachedDailyLog.rawValue) ?? ""
                     continuation.resume(returning: cached)
                 }
             }
@@ -273,14 +273,14 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
                 Task {
                     if await timeout.complete() {
                         let content = reply["content"] as? String ?? ""
-                        UserDefaults.standard.set(content, forKey: "cachedDailyLog")
+                        UserDefaults.standard.set(content, forKey: UserDefaultsKey.cachedDailyLog.rawValue)
                         continuation.resume(returning: content)
                     }
                 }
             }, errorHandler: { error in
                 Task {
                     if await timeout.complete() {
-                        let cached = UserDefaults.standard.string(forKey: "cachedDailyLog") ?? ""
+                        let cached = UserDefaults.standard.string(forKey: UserDefaultsKey.cachedDailyLog.rawValue) ?? ""
                         continuation.resume(returning: cached)
                     }
                 }

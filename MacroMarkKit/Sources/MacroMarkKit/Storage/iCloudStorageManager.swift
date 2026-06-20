@@ -25,7 +25,7 @@ public final class iCloudStorageManager {
     private init() {}
 
     private var folderSettings: FolderSettings {
-        guard let data = UserDefaults.standard.data(forKey: "folderSettings"),
+        guard let data = UserDefaults.standard.data(forKey: UserDefaultsKey.folderSettings.rawValue),
               let settings = try? JSONDecoder().decode(FolderSettings.self, from: data) else {
             return FolderSettings()
         }
@@ -33,12 +33,12 @@ public final class iCloudStorageManager {
     }
 
     private var baseDirectoryURL: URL {
-        if let bookmarkData = UserDefaults.standard.data(forKey: "customSaveBookmark") {
+        if let bookmarkData = UserDefaults.standard.data(forKey: UserDefaultsKey.customSaveBookmark.rawValue) {
             var isStale = false
             if let url = try? URL(resolvingBookmarkData: bookmarkData, options: .withoutUI, relativeTo: nil, bookmarkDataIsStale: &isStale) {
                 if isStale {
                     // Stale bookmark — the user moved the folder. Clear it so we fall back to iCloud.
-                    UserDefaults.standard.removeObject(forKey: "customSaveBookmark")
+                    UserDefaults.standard.removeObject(forKey: UserDefaultsKey.customSaveBookmark.rawValue)
                     // Fall through to iCloud / local fallback below.
                 } else {
                     return url
@@ -85,7 +85,7 @@ public final class iCloudStorageManager {
     @discardableResult
     public func appendText(_ text: String, for date: Date = Date()) async -> AppendResult {
         let baseDir = baseDirectoryURL
-        let isSecurityScoped = UserDefaults.standard.data(forKey: "customSaveBookmark") != nil
+        let isSecurityScoped = UserDefaults.standard.data(forKey: UserDefaultsKey.customSaveBookmark.rawValue) != nil
         let settings = folderSettings
 
         if isSecurityScoped {
@@ -179,7 +179,7 @@ public final class iCloudStorageManager {
 
     public func readText(for date: Date = Date()) -> String? {
         let baseDir = baseDirectoryURL
-        let isSecurityScoped = UserDefaults.standard.data(forKey: "customSaveBookmark") != nil
+        let isSecurityScoped = UserDefaults.standard.data(forKey: UserDefaultsKey.customSaveBookmark.rawValue) != nil
         let settings = folderSettings
 
         if isSecurityScoped {

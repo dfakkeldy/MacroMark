@@ -140,14 +140,14 @@ struct MacroMarkApp: App {
     /// Set of note UUIDs that have been successfully saved. Prevents double-processing
     /// when the watch re-sends a note because it didn't receive our ACK.
     private static func readProcessedNoteIDs() -> Set<UUID> {
-        guard let strings = UserDefaults.standard.stringArray(forKey: "MacroMark_ProcessedNoteIDs") else { return [] }
+        guard let strings = UserDefaults.standard.stringArray(forKey: UserDefaultsKey.processedNoteIDs.rawValue) else { return [] }
         return Set(strings.compactMap { UUID(uuidString: $0) })
     }
 
     private static func addProcessedNoteID(_ id: UUID) {
         var processed = readProcessedNoteIDs()
         processed.insert(id)
-        UserDefaults.standard.set(processed.map(\.uuidString), forKey: "MacroMark_ProcessedNoteIDs")
+        UserDefaults.standard.set(processed.map(\.uuidString), forKey: UserDefaultsKey.processedNoteIDs.rawValue)
     }
 
     private var processedNoteIDs: Set<UUID> { Self.readProcessedNoteIDs() }
@@ -300,8 +300,8 @@ struct MacroMarkApp: App {
             macros = (try? context.fetch(descriptor)) ?? []
 
             // Snapshot settings on main actor to avoid races
-            let autoExport = UserDefaults.standard.bool(forKey: "autoExportEnabled")
-            let rawTarget = UserDefaults.standard.string(forKey: "defaultExportTarget") ?? ExportTarget.iCloud.rawValue
+            let autoExport = UserDefaults.standard.bool(forKey: UserDefaultsKey.autoExportEnabled.rawValue)
+            let rawTarget = UserDefaults.standard.string(forKey: UserDefaultsKey.defaultExportTarget.rawValue) ?? ExportTarget.iCloud.rawValue
 
             // Transcribe audio if needed, otherwise use text directly
             if let audioURL = url {
@@ -380,7 +380,7 @@ struct MacroMarkApp: App {
     }
 
     private static func readPendingProcessing() -> [UUID: PendingNote] {
-        guard let data = UserDefaults.standard.data(forKey: "MacroMark_PendingProcessing"),
+        guard let data = UserDefaults.standard.data(forKey: UserDefaultsKey.pendingProcessing.rawValue),
               let dict = try? JSONDecoder().decode([String: PendingNote].self, from: data)
         else { return [:] }
         return dict.reduce(into: [:]) { partial, entry in
@@ -391,12 +391,12 @@ struct MacroMarkApp: App {
     private static func writePendingProcessing(_ dict: [UUID: PendingNote]) {
         let stringDict = dict.reduce(into: [String: PendingNote]()) { $0[$1.key.uuidString] = $1.value }
         if let data = try? JSONEncoder().encode(stringDict) {
-            UserDefaults.standard.set(data, forKey: "MacroMark_PendingProcessing")
+            UserDefaults.standard.set(data, forKey: UserDefaultsKey.pendingProcessing.rawValue)
         }
     }
 
     private static func readPendingAudio() -> [UUID: PendingAudio] {
-        guard let data = UserDefaults.standard.data(forKey: "MacroMark_PendingAudioIn"),
+        guard let data = UserDefaults.standard.data(forKey: UserDefaultsKey.pendingAudioIn.rawValue),
               let dict = try? JSONDecoder().decode([String: PendingAudio].self, from: data)
         else { return [:] }
         return dict.reduce(into: [:]) { partial, entry in
@@ -407,7 +407,7 @@ struct MacroMarkApp: App {
     private static func writePendingAudio(_ dict: [UUID: PendingAudio]) {
         let stringDict = dict.reduce(into: [String: PendingAudio]()) { $0[$1.key.uuidString] = $1.value }
         if let data = try? JSONEncoder().encode(stringDict) {
-            UserDefaults.standard.set(data, forKey: "MacroMark_PendingAudioIn")
+            UserDefaults.standard.set(data, forKey: UserDefaultsKey.pendingAudioIn.rawValue)
         }
     }
 
@@ -571,7 +571,7 @@ struct MacroMarkApp: App {
 
     // MARK: - Pending-export WAL (retry until the final target confirms)
 
-    private static let pendingExportKey = "MacroMark_PendingExports"
+    private static let pendingExportKey = UserDefaultsKey.pendingExports.rawValue
 
     private var pendingExports: [UUID: PendingExport] { Self.readPendingExports() }
 
@@ -610,8 +610,8 @@ struct MacroMarkApp: App {
         let pending = pendingExports
         guard !pending.isEmpty else { return }
         let context = container.mainContext
-        let autoExport = UserDefaults.standard.bool(forKey: "autoExportEnabled")
-        let rawTarget = UserDefaults.standard.string(forKey: "defaultExportTarget") ?? ExportTarget.iCloud.rawValue
+        let autoExport = UserDefaults.standard.bool(forKey: UserDefaultsKey.autoExportEnabled.rawValue)
+        let rawTarget = UserDefaults.standard.string(forKey: UserDefaultsKey.defaultExportTarget.rawValue) ?? ExportTarget.iCloud.rawValue
 
         for (id, entry) in pending {
             // Skip entries already being retried by a prior tick — prevents the

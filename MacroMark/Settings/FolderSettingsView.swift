@@ -4,13 +4,13 @@ import MacroMarkKit
 struct FolderSettingsView: View {
     @Environment(\.dismiss) private var dismiss
 
-    @AppStorage("folderSettings") private var folderSettingsData: Data?
+    @AppStorage(UserDefaultsKey.folderSettings.rawValue) private var folderSettingsData: Data?
 
     @State private var settings: FolderSettings
 
     init() {
         let current: FolderSettings
-        if let data = UserDefaults.standard.data(forKey: "folderSettings"),
+        if let data = UserDefaults.standard.data(forKey: UserDefaultsKey.folderSettings.rawValue),
            let decoded = try? JSONDecoder().decode(FolderSettings.self, from: data) {
             current = decoded
         } else {
@@ -88,36 +88,17 @@ struct FolderSettingsView: View {
         }
     }
 
+    /// The current date formatted through the selected format string, using the
+    /// canonical `FolderSettings.format(date:)` (the same method used for the
+    /// actual daily-note filename).
     private var currentDateExample: String {
-        let date = Date()
-        let calendar = Calendar.current
-        let components = calendar.dateComponents([.year, .month, .day], from: date)
-        guard let year = components.year, let month = components.month, let day = components.day else {
-            return "2026-06-03"
-        }
-
-        var result = settings.dateFormat
-        result = result.replacing("yyyy", with: String(year))
-        result = result.replacing("yy", with: String(year % 100))
-        result = result.replacing("MM", with: String(format: "%02d", month))
-        result = result.replacing("dd", with: String(format: "%02d", day))
-        return result
+        settings.format(date: Date())
     }
 
+    /// The `"Notes/"`-prefixed path used by the structure-preview example — also
+    /// delegates to the canonical formatter.
     private func formatWithSettings() -> String {
-        let date = Date()
-        let calendar = Calendar.current
-        let components = calendar.dateComponents([.year, .month, .day], from: date)
-        guard let year = components.year, let month = components.month, let day = components.day else {
-            return "Notes"
-        }
-
-        var result = settings.dateFormat
-        result = result.replacing("yyyy", with: String(year))
-        result = result.replacing("yy", with: String(year % 100))
-        result = result.replacing("MM", with: String(format: "%02d", month))
-        result = result.replacing("dd", with: String(format: "%02d", day))
-        return "Notes/\(result)"
+        return "Notes/\(settings.format(date: Date()))"
     }
 
     private func saveSettings() {

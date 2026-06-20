@@ -8,15 +8,16 @@ struct MacroManagerView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Macro.sortOrder, order: .forward) private var macros: [Macro]
 
-    @AppStorage("captureMode") private var captureMode: String = "audio"
-    @AppStorage("customSaveBookmark") private var customSaveBookmark: Data?
-    @AppStorage("defaultExportTarget") private var defaultExportTarget: ExportTarget = .iCloud
-    @AppStorage("autoExportEnabled") private var autoExportEnabled: Bool = false
+    @AppStorage(UserDefaultsKey.captureMode.rawValue) private var captureMode: String = "audio"
+    @AppStorage(UserDefaultsKey.customSaveBookmark.rawValue) private var customSaveBookmark: Data?
+    @AppStorage(UserDefaultsKey.defaultExportTarget.rawValue) private var defaultExportTarget: ExportTarget = .iCloud
+    @AppStorage(UserDefaultsKey.autoExportEnabled.rawValue) private var autoExportEnabled: Bool = false
     @State private var isShowingAddSheet = false
     @State private var showingFolderPicker = false
     @State private var editingMacro: Macro?
     @State private var showingPaywall = false
     @State private var showingFolderSettings = false
+    @State private var showingRestoreConfirmation = false
     @State private var paywallReason: PaywallReason = .addMacro
 
     @Environment(EntitlementManager.self) private var entitlements
@@ -141,7 +142,7 @@ struct MacroManagerView: View {
 
                 Section {
                     Button("Restore Default Macros", role: .destructive) {
-                        restoreDefaults()
+                        showingRestoreConfirmation = true
                     }
                 }
             }
@@ -192,6 +193,12 @@ struct MacroManagerView: View {
                 case .failure(let error):
                     print("Error selecting folder: \(error)")
                 }
+            }
+            .confirmationDialog("Restore defaults?", isPresented: $showingRestoreConfirmation) {
+                Button("Restore Defaults", role: .destructive) { restoreDefaults() }
+                Button("Cancel", role: .cancel) { }
+            } message: {
+                Text("Your custom macros will be kept. Only the built-in defaults will be reset.")
             }
             .onAppear {
                 prepopulateIfNeeded()
@@ -267,7 +274,8 @@ struct MacroManagerView: View {
     }
 
     private func restoreDefaults() {
-        for macro in macros {
+        // Only reset the built-in defaults; user-created custom macros survive.
+        for macro in macros where macro.isDefault {
             modelContext.delete(macro)
         }
         for macro in defaultMacros {
