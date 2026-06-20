@@ -136,15 +136,30 @@ struct MacroMarkApp: App {
 
     /// Set of note UUIDs that have been successfully saved. Prevents double-processing
     /// when the watch re-sends a note because it didn't receive our ACK.
+    /// Capped at ~5000 entries (LRU eviction) to bound UserDefaults plist growth.
+    private static let maxProcessedNoteIDs = 5000
+    @MainActor private static var cachedProcessedIDs: Set<UUID>?
+    @MainActor private static var cachedProcessedIDsCount = 0
+
     private static func readProcessedNoteIDs() -> Set<UUID> {
+        if let cached = cachedProcessedIDs { return cached }
         guard let strings = UserDefaults.standard.stringArray(forKey: UserDefaultsKey.processedNoteIDs.rawValue) else { return [] }
-        return Set(strings.compactMap { UUID(uuidString: $0) })
+        let ids = Set(strings.compactMap { UUID(uuidString: $0) })
+        cachedProcessedIDs = ids
+        cachedProcessedIDsCount = ids.count
+        return ids
     }
 
     private static func addProcessedNoteID(_ id: UUID) {
         var processed = readProcessedNoteIDs()
         processed.insert(id)
+        // LRU eviction: drop oldest entries when exceeding the cap.
+        while processed.count > maxProcessedNoteIDs, let first = processed.first {
+            processed.remove(first)
+        }
         UserDefaults.standard.set(processed.map(\.uuidString), forKey: UserDefaultsKey.processedNoteIDs.rawValue)
+        cachedProcessedIDs = processed
+        cachedProcessedIDsCount = processed.count
     }
 
     private var processedNoteIDs: Set<UUID> { Self.readProcessedNoteIDs() }

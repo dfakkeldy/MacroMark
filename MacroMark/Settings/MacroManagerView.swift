@@ -117,6 +117,12 @@ struct MacroManagerView: View {
                                         .foregroundStyle(.secondary)
                                         .font(.system(.body, design: .monospaced))
                                         .lineLimit(1)
+                                    if !macro.notes.isEmpty {
+                                        Text(macro.notes)
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                            .lineLimit(2)
+                                    }
                                 }
                                 Spacer()
                                 if macro.isDefault {

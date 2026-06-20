@@ -79,11 +79,6 @@ public final class EntitlementManager {
         return isSubscribed || hasLifetimeUnlock
     }
 
-    public func customMacroCount(_ count: Int) -> Bool {
-        if isEntitled { return true }
-        return count < Self.maxFreeMacros
-    }
-
     public var canEditDefaultMacros: Bool {
         isEntitled
     }
@@ -95,6 +90,8 @@ public final class EntitlementManager {
     // MARK: - Keychain (Lifetime Unlock Persistence)
 
     /// Runs keychain operations off the main actor to avoid blocking UI.
+    /// Adds `kSecAttrSynchronizable` so the lifetime flag iCloud-syncs across
+    /// the user's devices as a durable backstop when StoreKit is unavailable.
     private func persistKeychainFlag() async {
         guard let data = "lifetime_unlocked".data(using: .utf8) else { return }
 
@@ -102,6 +99,7 @@ public final class EntitlementManager {
             let deleteQuery: [String: Any] = [
                 kSecClass as String: kSecClassGenericPassword,
                 kSecAttrAccount as String: self.lifetimeKeychainKey,
+                kSecAttrSynchronizable as String: kCFBooleanTrue as Any,
             ]
             SecItemDelete(deleteQuery as CFDictionary)
 
@@ -110,12 +108,39 @@ public final class EntitlementManager {
                 kSecAttrAccount as String: self.lifetimeKeychainKey,
                 kSecValueData as String: data,
                 kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
+                kSecAttrSynchronizable as String: kCFBooleanTrue as Any,
             ]
             SecItemAdd(addQuery as CFDictionary, nil)
         }.value
     }
 
     private func checkKeychainFlag() -> Bool {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrAccount as String: lifetimeKeychainKey,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne,
+            kSecAttrSynchronizable as String: kCFBooleanTrue as Any,
+        ]
+
+        var item: CFTypeRef?
+        let status = SecItemCopyMatching(query as CFDictionary, &item)
+
+        guard status == errSecSuccess,
+              let data = item as? Data,
+              let value = String(data: data, encoding: .utf8),
+              value == "lifetime_unlocked" else {
+            // One-time migration: if we don't find a synchronizable item, check
+            // for a pre-existing non-synchronized item (from before this fix).
+            return checkKeychainFlagWithoutSync()
+        }
+
+        return true
+    }
+
+    /// Fallback query for pre-existing non-synchronized keychain items. If found,
+    /// re-persist it with the synchronizable flag so this migration runs only once.
+    private func checkKeychainFlagWithoutSync() -> Bool {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrAccount as String: lifetimeKeychainKey,
@@ -133,6 +158,8 @@ public final class EntitlementManager {
             return false
         }
 
+        // Migration: persist with synchronizable flag, delete old non-sync item.
+        Task { await persistKeychainFlag() }
         return true
     }
 }

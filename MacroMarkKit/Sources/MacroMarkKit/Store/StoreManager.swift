@@ -3,21 +3,12 @@ import Foundation
 import Observation
 import os
 
-public enum PurchaseState {
-    case notStarted
-    case inProgress
-    case purchased
-    case failed(Error)
-}
-
 @MainActor
 @Observable
 public final class StoreManager {
     public static let shared = StoreManager()
 
     public private(set) var products: [Product] = []
-    public private(set) var purchaseState: PurchaseState = .notStarted
-    public private(set) var isLoadingProducts = false
 
     private var updatesTask: Task<Void, Never>?
 
@@ -30,9 +21,6 @@ public final class StoreManager {
     }
 
     public func loadProducts() async {
-        isLoadingProducts = true
-        defer { isLoadingProducts = false }
-
         do {
             products = try await Product.products(for: ProductIdentifiers.all)
             products.sort { $0.price < $1.price }
@@ -42,27 +30,18 @@ public final class StoreManager {
     }
 
     public func purchase(_ product: Product) async {
-        purchaseState = .inProgress
-
         do {
             let result = try await product.purchase()
 
             switch result {
             case .success(let verificationResult):
                 await handleTransaction(verificationResult)
-                purchaseState = .purchased
-
-            case .userCancelled:
-                purchaseState = .notStarted
-
-            case .pending:
-                purchaseState = .inProgress
-
+            case .userCancelled, .pending:
+                break
             @unknown default:
-                purchaseState = .notStarted
+                break
             }
         } catch {
-            purchaseState = .failed(error)
             Logger.store.error("Purchase failed: \(error.localizedDescription, privacy: .public)")
         }
     }
@@ -80,18 +59,10 @@ public final class StoreManager {
     }
 
     public func restorePurchases() async {
-        purchaseState = .inProgress
-
         do {
             try await AppStore.sync()
-            // After syncing, check whether there are actually restored entitlements
-            // rather than unconditionally showing "purchased".
             await EntitlementManager.shared.refreshEntitlements()
-            purchaseState = EntitlementManager.shared.isEntitled
-                ? .purchased
-                : .notStarted
         } catch {
-            purchaseState = .failed(error)
             Logger.store.error("Restore purchases failed: \(error.localizedDescription, privacy: .public)")
         }
     }

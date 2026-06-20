@@ -3,6 +3,10 @@ import Foundation
 import AVFoundation
 
 final class AudioTranscriber {
+    /// Speech framework has a ~60s request limit; 50s leaves headroom.
+    private static let chunkDurationSeconds: TimeInterval = 50
+    private static let timescale: CMTimeScale = 1000
+
     /// The outcome of a transcription session. When some chunks fail but others
     /// succeed, the partial text is returned with `hadPartialFailure = true` so
     /// the UI can surface a warning. Only when every chunk fails does this throw
@@ -26,7 +30,7 @@ final class AudioTranscriber {
             throw NSError(domain: "AudioTranscriber", code: 2, userInfo: [NSLocalizedDescriptionKey: "Speech recognizer unavailable"])
         }
 
-        let chunkURLs = try await splitAudio(url: fileURL, maxDuration: 50.0)
+        let chunkURLs = try await splitAudio(url: fileURL, maxDuration: Self.chunkDurationSeconds)
         var fullTranscript = ""
         var chunkErrors: [Error] = []
 
@@ -103,7 +107,7 @@ final class AudioTranscriber {
             let chunkURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".m4a")
 
             let endTime = min(startTime + maxDuration, duration)
-            let timeRange = CMTimeRange(start: CMTime(seconds: startTime, preferredTimescale: 1000), end: CMTime(seconds: endTime, preferredTimescale: 1000))
+            let timeRange = CMTimeRange(start: CMTime(seconds: startTime, preferredTimescale: Self.timescale), end: CMTime(seconds: endTime, preferredTimescale: Self.timescale))
             exportSession.timeRange = timeRange
 
             try await exportSession.export(to: chunkURL, as: .m4a)

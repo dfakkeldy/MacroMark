@@ -48,12 +48,13 @@ struct NoteDetailView: View {
     }
     
     private func exportTo(target: ExportTarget) {
-        if let url = ExportManager.url(for: note, to: target) {
-            UIApplication.shared.open(url) { success in
-                if success {
-                    note.isExported = true
-                    note.exportTarget = target.rawValue
-                }
+        guard let url = ExportManager.url(for: note, to: target) else { return }
+        Task {
+            let success = await UIApplication.shared.open(url)
+            if success {
+                note.isExported = true
+                note.exportTarget = target.rawValue
+                try? note.modelContext?.save()
             }
         }
     }
