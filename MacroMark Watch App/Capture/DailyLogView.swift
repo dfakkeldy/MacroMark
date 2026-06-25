@@ -33,11 +33,16 @@ struct DailyLogView: View {
     }
     
     private func loadLog() async {
+        let requestedDate = selectedDate
         isLoading = true
-        var content = await WatchConnectivityProvider.shared.fetchDailyFile(for: selectedDate)
+        var content = await WatchConnectivityProvider.shared.fetchDailyFile(for: requestedDate)
+        guard !Task.isCancelled,
+              DaySelection.contains(requestedDate, inSelectedDay: selectedDate) else {
+            return
+        }
         
         let pending = LocalStore.shared.pendingNotes.filter { note in
-            DaySelection.contains(note.timestamp, inSelectedDay: selectedDate)
+            DaySelection.contains(note.timestamp, inSelectedDay: requestedDate)
         }
         if !pending.isEmpty {
             content += "\n\n**Pending Offline Notes:**\n"

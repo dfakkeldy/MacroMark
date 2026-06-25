@@ -44,7 +44,7 @@ struct FolderSettingsTests {
 
     @Test
     func jsonRoundtrip() async throws {
-        var settings = FolderSettings(structure: .yearlyMonthly, dateFormat: "MM-dd-yyyy")
+        let settings = FolderSettings(structure: .yearlyMonthly, dateFormat: "MM-dd-yyyy")
         let data = try JSONEncoder().encode(settings)
         let decoded = try JSONDecoder().decode(FolderSettings.self, from: data)
 
