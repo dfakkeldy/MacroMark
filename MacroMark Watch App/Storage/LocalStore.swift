@@ -60,11 +60,11 @@ final class LocalStore {
 
     // MARK: - Text Notes
 
-    func addNote(_ text: String) {
+    func addNote(_ text: String, timestamp: Date = Date()) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
 
-        let note = CapturedNote(text: trimmed, timestamp: Date())
+        let note = CapturedNote(text: trimmed, timestamp: timestamp)
         pendingNotes.append(note)
         syncPendingNotes()
     }

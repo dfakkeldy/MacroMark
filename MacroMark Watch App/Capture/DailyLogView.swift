@@ -1,12 +1,17 @@
 import SwiftUI
+import MacroMarkKit
 
 struct DailyLogView: View {
+    @Binding var selectedDate: Date
     @State private var logContent: String?
     @State private var isLoading = true
     
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
+                DatePicker("Date", selection: $selectedDate, displayedComponents: .date)
+                    .labelsHidden()
+
                 if isLoading {
                     ProgressView("Fetching from iPhone...")
                         .padding()
@@ -21,16 +26,19 @@ struct DailyLogView: View {
                 }
             }
         }
-        .navigationTitle("Today's Log")
-        .task {
+        .navigationTitle("Daily Log")
+        .task(id: selectedDate) {
             await loadLog()
         }
     }
     
     private func loadLog() async {
-        var content = await WatchConnectivityProvider.shared.fetchDailyFile()
+        isLoading = true
+        var content = await WatchConnectivityProvider.shared.fetchDailyFile(for: selectedDate)
         
-        let pending = LocalStore.shared.pendingNotes
+        let pending = LocalStore.shared.pendingNotes.filter { note in
+            DaySelection.contains(note.timestamp, inSelectedDay: selectedDate)
+        }
         if !pending.isEmpty {
             content += "\n\n**Pending Offline Notes:**\n"
             for note in pending {
@@ -45,5 +53,5 @@ struct DailyLogView: View {
 }
 
 #Preview {
-    DailyLogView()
+    DailyLogView(selectedDate: .constant(Date()))
 }
