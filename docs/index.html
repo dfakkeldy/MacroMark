@@ -1,0 +1,1210 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MacroMark | Apple Watch capture for Markdown minds</title>
+  <meta name="description" content="MacroMark turns Apple Watch voice capture into clean Markdown daily notes, with spoken macros, resilient sync, and iCloud Drive storage for PKM workflows.">
+  <meta property="og:title" content="MacroMark">
+  <meta property="og:description" content="Apple Watch capture for people whose notes live in Markdown.">
+  <meta property="og:image" content="assets/app-icon.png">
+  <meta property="og:type" content="website">
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #050506;
+      --ink-2: #101013;
+      --line: #2a2a31;
+      --paper: #f8f7f2;
+      --muted: #aaa6a0;
+      --dim: #727079;
+      --blue: #2f8cff;
+      --orange: #ff9a3d;
+      --violet: #a56bff;
+      --green: #72d8a1;
+      --danger: #ff5f63;
+      --max: 1160px;
+      --radius: 8px;
+      --shadow: 0 32px 90px rgba(0, 0, 0, .48);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      background: var(--ink);
+      color: var(--paper);
+      font-family: "Avenir Next", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.5;
+      letter-spacing: 0;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: .18;
+      background-image:
+        linear-gradient(rgba(248, 247, 242, .08) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(248, 247, 242, .06) 1px, transparent 1px);
+      background-size: 36px 36px;
+      mask-image: linear-gradient(to bottom, rgba(0, 0, 0, .9), transparent 72%);
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .skip-link {
+      position: absolute;
+      left: 1rem;
+      top: 1rem;
+      z-index: 30;
+      padding: .75rem 1rem;
+      background: var(--paper);
+      color: var(--ink);
+      border-radius: var(--radius);
+      transform: translateY(-140%);
+    }
+
+    .skip-link:focus {
+      transform: translateY(0);
+      outline: 3px solid var(--blue);
+      outline-offset: 3px;
+    }
+
+    .page-shell {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .site-header {
+      position: absolute;
+      inset: 0 0 auto;
+      z-index: 20;
+    }
+
+    .nav {
+      width: min(100% - 2rem, var(--max));
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 1.25rem 0;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: .65rem;
+      font-weight: 800;
+      font-size: .95rem;
+    }
+
+    .brand img {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      box-shadow: 0 0 0 1px rgba(248, 247, 242, .24);
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: .35rem;
+    }
+
+    .nav-links a {
+      color: var(--muted);
+      font-size: .9rem;
+      padding: .55rem .75rem;
+      border-radius: var(--radius);
+    }
+
+    .nav-links a:hover,
+    .nav-links a:focus-visible {
+      color: var(--paper);
+      background: rgba(248, 247, 242, .08);
+      outline: none;
+    }
+
+    .hero {
+      min-height: 88svh;
+      position: relative;
+      isolation: isolate;
+      display: grid;
+      align-items: center;
+      padding: 7rem 0 4.5rem;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .hero-scene {
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 80% 18%, rgba(47, 140, 255, .20), transparent 22rem),
+        radial-gradient(circle at 64% 82%, rgba(255, 154, 61, .15), transparent 18rem),
+        var(--ink);
+    }
+
+    .hero-scene::after {
+      content: "";
+      position: absolute;
+      inset: auto 0 0;
+      height: 42%;
+      background: linear-gradient(to top, var(--ink), transparent);
+    }
+
+    .signal-rail {
+      position: absolute;
+      width: 46rem;
+      height: .18rem;
+      right: 4%;
+      top: 48%;
+      transform: rotate(-12deg);
+      background: linear-gradient(90deg, transparent, var(--blue), var(--orange), transparent);
+      opacity: .9;
+      box-shadow: 0 0 22px rgba(47, 140, 255, .42);
+    }
+
+    .signal-rail::before,
+    .signal-rail::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      width: .8rem;
+      height: .8rem;
+      border-radius: 999px;
+      background: var(--paper);
+      box-shadow: 0 0 0 5px rgba(47, 140, 255, .2);
+      transform: translateY(-50%);
+      animation: travel 4.8s ease-in-out infinite;
+    }
+
+    .signal-rail::after {
+      animation-delay: 1.6s;
+      background: var(--orange);
+      box-shadow: 0 0 0 5px rgba(255, 154, 61, .2);
+    }
+
+    .watch-mock {
+      position: absolute;
+      right: 34rem;
+      top: 18%;
+      width: 15.5rem;
+      min-height: 19rem;
+      border-radius: 3rem;
+      padding: 1.15rem;
+      background: #0c0c0f;
+      border: 1px solid rgba(248, 247, 242, .18);
+      box-shadow: var(--shadow), inset 0 0 0 8px #16161a;
+      transform: rotate(-6deg);
+    }
+
+    .watch-screen {
+      min-height: 16.5rem;
+      border-radius: 2.1rem;
+      padding: 1.2rem;
+      background: linear-gradient(155deg, #08080a 0%, #17171d 100%);
+      border: 1px solid rgba(248, 247, 242, .12);
+      display: grid;
+      align-content: center;
+      gap: .75rem;
+    }
+
+    .watch-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--muted);
+      font-size: .72rem;
+      text-transform: uppercase;
+      font-weight: 800;
+    }
+
+    .watch-title img {
+      width: 1.8rem;
+      height: 1.8rem;
+      border-radius: 7px;
+    }
+
+    .watch-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: .6rem;
+    }
+
+    .watch-button,
+    .watch-log {
+      border: 1px solid rgba(248, 247, 242, .18);
+      border-radius: 1rem;
+      min-height: 4.6rem;
+      display: grid;
+      place-items: center;
+      font-size: 1.45rem;
+      font-weight: 900;
+      backdrop-filter: blur(18px);
+    }
+
+    .watch-button.microphone {
+      background: color-mix(in srgb, var(--blue) 34%, transparent);
+    }
+
+    .watch-button.keyboard {
+      background: color-mix(in srgb, var(--orange) 30%, transparent);
+    }
+
+    .watch-log {
+      min-height: 3.7rem;
+      background: color-mix(in srgb, var(--violet) 32%, transparent);
+      font-size: .88rem;
+    }
+
+    .listening {
+      display: flex;
+      align-items: end;
+      gap: .18rem;
+      height: 3.8rem;
+      justify-content: center;
+    }
+
+    .listening span {
+      display: block;
+      width: .38rem;
+      border-radius: 999px;
+      background: var(--danger);
+      animation: bars 1.2s ease-in-out infinite;
+    }
+
+    .listening span:nth-child(1) { height: 1.3rem; animation-delay: .0s; }
+    .listening span:nth-child(2) { height: 2.5rem; animation-delay: .12s; }
+    .listening span:nth-child(3) { height: 3.4rem; animation-delay: .24s; }
+    .listening span:nth-child(4) { height: 2rem; animation-delay: .36s; }
+    .listening span:nth-child(5) { height: 2.8rem; animation-delay: .48s; }
+
+    .note-window {
+      position: absolute;
+      right: 5%;
+      top: 21%;
+      width: min(39rem, 46vw);
+      border: 1px solid rgba(248, 247, 242, .2);
+      border-radius: var(--radius);
+      background: rgba(12, 12, 15, .9);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .note-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: .75rem;
+      padding: .85rem 1rem;
+      border-bottom: 1px solid rgba(248, 247, 242, .12);
+      background: rgba(248, 247, 242, .045);
+      color: var(--muted);
+      font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+      font-size: .8rem;
+    }
+
+    .note-dots {
+      display: flex;
+      gap: .35rem;
+    }
+
+    .note-dots span {
+      width: .58rem;
+      height: .58rem;
+      border-radius: 999px;
+      display: block;
+    }
+
+    .dot-red { background: var(--danger); }
+    .dot-orange { background: var(--orange); }
+    .dot-green { background: var(--green); }
+
+    .note-window pre {
+      margin: 0;
+      padding: 1.2rem;
+      color: #e9e5db;
+      font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+      font-size: .9rem;
+      line-height: 1.7;
+      white-space: pre-wrap;
+    }
+
+    .code-blue { color: #8fc1ff; }
+    .code-orange { color: #ffc27c; }
+    .code-violet { color: #c9adff; }
+    .code-muted { color: #87838b; }
+
+    .hero-content {
+      width: min(100% - 2rem, var(--max));
+      margin: 0 auto;
+      position: relative;
+      z-index: 2;
+      padding-top: 1rem;
+    }
+
+    .hero-copy {
+      max-width: 41rem;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: .55rem;
+      color: var(--muted);
+      font-size: .82rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      margin: 0 0 1.4rem;
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 2.6rem;
+      height: .18rem;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--blue), var(--orange), var(--violet));
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    h1 {
+      margin-bottom: 1rem;
+      font-size: 6rem;
+      line-height: .92;
+      font-weight: 900;
+      letter-spacing: 0;
+      max-width: 8ch;
+    }
+
+    .hero-copy > p {
+      color: #d3cec4;
+      font-size: 1.3rem;
+      max-width: 34rem;
+      margin-bottom: 1.65rem;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .8rem;
+      margin-bottom: 2rem;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 3.05rem;
+      padding: .84rem 1.05rem;
+      border-radius: var(--radius);
+      border: 1px solid transparent;
+      font-weight: 850;
+      font-size: .95rem;
+      max-width: 100%;
+    }
+
+    .button.primary {
+      color: var(--ink);
+      background: var(--paper);
+    }
+
+    .button.secondary {
+      color: var(--paper);
+      border-color: rgba(248, 247, 242, .24);
+      background: rgba(248, 247, 242, .06);
+    }
+
+    .button:hover,
+    .button:focus-visible {
+      transform: translateY(-1px);
+      outline: 3px solid rgba(47, 140, 255, .55);
+      outline-offset: 3px;
+    }
+
+    .proof {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .75rem;
+      color: var(--muted);
+      font-size: .9rem;
+    }
+
+    .proof span {
+      display: inline-flex;
+      align-items: center;
+      gap: .4rem;
+      padding: .42rem .55rem;
+      border: 1px solid rgba(248, 247, 242, .14);
+      border-radius: var(--radius);
+      background: rgba(5, 5, 6, .44);
+    }
+
+    .proof span::before {
+      content: "";
+      width: .45rem;
+      height: .45rem;
+      border-radius: 50%;
+      background: var(--green);
+    }
+
+    .section {
+      position: relative;
+      padding: 6rem 0;
+      border-bottom: 1px solid var(--line);
+      background: var(--ink);
+    }
+
+    .section.alt {
+      background: var(--ink-2);
+    }
+
+    .container {
+      width: min(100% - 2rem, var(--max));
+      margin: 0 auto;
+    }
+
+    .section-heading {
+      display: grid;
+      grid-template-columns: 1fr minmax(18rem, 30rem);
+      gap: 2rem;
+      align-items: end;
+      margin-bottom: 3rem;
+    }
+
+    .section-heading h2 {
+      font-size: 3rem;
+      line-height: 1;
+      font-weight: 900;
+      letter-spacing: 0;
+      margin-bottom: 0;
+      max-width: 14ch;
+    }
+
+    .section-heading p {
+      color: var(--muted);
+      font-size: 1.05rem;
+      margin-bottom: .2rem;
+    }
+
+    .workflow {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .flow-step {
+      min-height: 18rem;
+      padding: 1.4rem;
+      border-right: 1px solid var(--line);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background: rgba(248, 247, 242, .025);
+    }
+
+    .flow-step:last-child {
+      border-right: 0;
+    }
+
+    .flow-step strong {
+      font-size: .82rem;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+
+    .flow-step h3 {
+      font-size: 1.45rem;
+      line-height: 1.08;
+      margin: 1rem 0 .75rem;
+    }
+
+    .flow-step p {
+      color: var(--muted);
+      margin-bottom: 0;
+    }
+
+    .flow-icon {
+      width: 3.35rem;
+      height: 3.35rem;
+      display: grid;
+      place-items: center;
+      border-radius: var(--radius);
+      color: var(--ink);
+      font-weight: 950;
+      font-size: 1.2rem;
+    }
+
+    .flow-step:nth-child(1) .flow-icon { background: var(--blue); }
+    .flow-step:nth-child(2) .flow-icon { background: var(--orange); }
+    .flow-step:nth-child(3) .flow-icon { background: var(--violet); }
+    .flow-step:nth-child(4) .flow-icon { background: var(--green); }
+
+    .vault-section {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(20rem, 31rem);
+      gap: 3rem;
+      align-items: center;
+    }
+
+    .vault-visual {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: #0b0b0e;
+      box-shadow: var(--shadow);
+    }
+
+    .vault-visual pre {
+      margin: 0;
+      padding: 1.4rem;
+      font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+      font-size: .95rem;
+      line-height: 1.8;
+      color: #eee8dc;
+      white-space: pre-wrap;
+    }
+
+    .vault-copy h2 {
+      font-size: 3rem;
+      line-height: 1;
+      margin-bottom: 1rem;
+    }
+
+    .vault-copy p {
+      color: var(--muted);
+      font-size: 1.08rem;
+    }
+
+    .check-list {
+      list-style: none;
+      padding: 0;
+      margin: 1.6rem 0 0;
+      display: grid;
+      gap: .75rem;
+    }
+
+    .check-list li {
+      display: grid;
+      grid-template-columns: 1rem 1fr;
+      gap: .75rem;
+      color: #ded9ce;
+    }
+
+    .check-list li::before {
+      content: "";
+      width: .6rem;
+      height: .6rem;
+      border-radius: 50%;
+      margin-top: .48rem;
+      background: var(--orange);
+      box-shadow: 0 0 0 4px rgba(255, 154, 61, .12);
+    }
+
+    .macro-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+    }
+
+    .macro-tile {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 1.1rem;
+      min-height: 13.5rem;
+      background: rgba(248, 247, 242, .025);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .macro-tile span {
+      color: var(--muted);
+      font-size: .82rem;
+      text-transform: uppercase;
+      font-weight: 800;
+    }
+
+    .macro-tile strong {
+      display: block;
+      font-size: 1.45rem;
+      line-height: 1.12;
+      margin: .75rem 0;
+    }
+
+    .macro-output {
+      font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+      color: var(--green);
+      border-top: 1px solid var(--line);
+      padding-top: .9rem;
+      overflow-wrap: anywhere;
+    }
+
+    .platform-band {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .platform-item {
+      padding: 1.35rem;
+      border-right: 1px solid var(--line);
+      min-height: 12rem;
+      background: rgba(248, 247, 242, .025);
+    }
+
+    .platform-item:last-child {
+      border-right: 0;
+    }
+
+    .platform-item h3 {
+      font-size: 1.18rem;
+      margin-bottom: .65rem;
+    }
+
+    .platform-item p {
+      color: var(--muted);
+      margin-bottom: 0;
+    }
+
+    .final-cta {
+      padding: 6rem 0;
+      background:
+        linear-gradient(90deg, rgba(47, 140, 255, .14), transparent 32%),
+        linear-gradient(270deg, rgba(165, 107, 255, .13), transparent 35%),
+        var(--ink);
+    }
+
+    .cta-panel {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 2rem;
+      align-items: center;
+      border: 1px solid rgba(248, 247, 242, .22);
+      border-radius: var(--radius);
+      padding: 2rem;
+      background: rgba(248, 247, 242, .045);
+    }
+
+    .cta-panel h2 {
+      font-size: 2.35rem;
+      line-height: 1.05;
+      margin-bottom: .65rem;
+    }
+
+    .cta-panel p {
+      color: var(--muted);
+      margin-bottom: 0;
+      max-width: 44rem;
+    }
+
+    footer {
+      padding: 2rem 0;
+      color: var(--dim);
+      font-size: .9rem;
+      background: var(--ink);
+    }
+
+    footer .container {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    footer a {
+      color: var(--muted);
+    }
+
+    @keyframes bars {
+      0%, 100% { transform: scaleY(.68); opacity: .68; }
+      50% { transform: scaleY(1); opacity: 1; }
+    }
+
+    @keyframes travel {
+      0% { left: 6%; opacity: 0; }
+      18% { opacity: 1; }
+      78% { opacity: 1; }
+      100% { left: 92%; opacity: 0; }
+    }
+
+    @media (max-width: 1080px) {
+      .watch-mock {
+        right: 25rem;
+        width: 13.5rem;
+      }
+
+      .note-window {
+        width: 32rem;
+      }
+
+      .section-heading,
+      .vault-section {
+        grid-template-columns: 1fr;
+      }
+
+      .workflow,
+      .platform-band {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .flow-step:nth-child(2),
+      .platform-item:nth-child(2) {
+        border-right: 0;
+      }
+
+      .flow-step:nth-child(-n + 2),
+      .platform-item:nth-child(-n + 2) {
+        border-bottom: 1px solid var(--line);
+      }
+    }
+
+    @media (max-width: 800px) {
+      .nav {
+        align-items: flex-start;
+      }
+
+      .nav-links {
+        display: none;
+      }
+
+      .hero {
+        min-height: auto;
+        padding: 6.25rem 0 28rem;
+      }
+
+      .hero-scene {
+        background:
+          radial-gradient(circle at 70% 36%, rgba(47, 140, 255, .18), transparent 16rem),
+          radial-gradient(circle at 24% 82%, rgba(255, 154, 61, .12), transparent 13rem),
+          var(--ink);
+      }
+
+      .watch-mock {
+        left: .7rem;
+        right: auto;
+        top: auto;
+        bottom: 5rem;
+        width: 11.6rem;
+        min-height: 15rem;
+      }
+
+      .watch-screen {
+        min-height: 12.7rem;
+        padding: .9rem;
+      }
+
+      .watch-button {
+        min-height: 3.6rem;
+      }
+
+      .watch-log {
+        min-height: 3rem;
+      }
+
+      .note-window {
+        right: .9rem;
+        top: auto;
+        bottom: 1.8rem;
+        width: min(23rem, 72vw);
+      }
+
+      .note-window pre {
+        font-size: .75rem;
+        max-height: 16rem;
+        overflow: hidden;
+      }
+
+      .signal-rail {
+        width: 24rem;
+        right: -3rem;
+        top: auto;
+        bottom: 15.5rem;
+      }
+
+      h1 {
+        font-size: 4.25rem;
+      }
+
+      .hero-copy > p {
+        font-size: 1.1rem;
+      }
+
+      .section {
+        padding: 4rem 0;
+      }
+
+      .section-heading h2,
+      .vault-copy h2 {
+        font-size: 2.35rem;
+      }
+
+      .macro-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .cta-panel {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .hero {
+        padding-bottom: 31rem;
+      }
+
+      h1 {
+        font-size: 3.35rem;
+      }
+
+      .actions {
+        flex-direction: column;
+      }
+
+      .button {
+        width: 100%;
+      }
+
+      .workflow,
+      .platform-band {
+        grid-template-columns: 1fr;
+      }
+
+      .flow-step,
+      .flow-step:nth-child(2),
+      .platform-item,
+      .platform-item:nth-child(2) {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .flow-step:last-child,
+      .platform-item:last-child {
+        border-bottom: 0;
+      }
+
+      .watch-mock {
+        transform: rotate(-4deg) scale(.92);
+        transform-origin: left bottom;
+      }
+
+      .note-window {
+        width: min(19.6rem, 76vw);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html {
+        scroll-behavior: auto;
+      }
+
+      *,
+      *::before,
+      *::after {
+        animation-duration: .001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .001ms !important;
+        scroll-behavior: auto !important;
+      }
+
+      .button:hover,
+      .button:focus-visible {
+        transform: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <div class="page-shell">
+    <header class="site-header" aria-label="Site navigation">
+      <nav class="nav">
+        <a class="brand" href="#top" aria-label="MacroMark home">
+          <img src="assets/app-icon.png" alt="" width="36" height="36">
+          <span>MacroMark</span>
+        </a>
+        <div class="nav-links" aria-label="Primary">
+          <a href="#workflow">Workflow</a>
+          <a href="#macros">Macros</a>
+          <a href="#platform">Platform</a>
+          <a href="https://github.com/dfakkeldy/MacroMark">GitHub</a>
+        </div>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section class="hero" id="top" aria-labelledby="hero-title">
+        <div class="hero-scene" aria-hidden="true">
+          <div class="signal-rail"></div>
+
+          <div class="watch-mock">
+            <div class="watch-screen">
+              <div class="watch-title">
+                <span>MacroMark</span>
+                <img src="assets/app-icon.png" alt="">
+              </div>
+              <div class="watch-buttons">
+                <div class="watch-button microphone">mic</div>
+                <div class="watch-button keyboard">keys</div>
+              </div>
+              <div class="listening">
+                <span></span><span></span><span></span><span></span><span></span>
+              </div>
+              <div class="watch-log">Today's Log</div>
+            </div>
+          </div>
+
+          <div class="note-window">
+            <div class="note-bar">
+              <div class="note-dots">
+                <span class="dot-red"></span>
+                <span class="dot-orange"></span>
+                <span class="dot-green"></span>
+              </div>
+              <span>2026-06-24.md</span>
+            </div>
+<pre aria-label="Example Markdown daily note"><span class="code-blue">##</span> 8:42 PM - Walk notes
+
+- Capture idea for <span class="code-orange">MacroMark</span> page
+- Add <span class="code-violet">#watch</span> and <span class="code-violet">#pkm</span>
+- Follow up at {time}
+
+<span class="code-muted">Saved from Apple Watch</span></pre>
+          </div>
+        </div>
+
+        <div class="hero-content">
+          <div class="hero-copy">
+            <p class="eyebrow">Apple Watch to Markdown</p>
+            <h1 id="hero-title">MacroMark</h1>
+            <p>Voice capture for people whose notes live in Markdown. Tap your Watch complication, speak, lower your wrist, and let MacroMark append the thought to today's note.</p>
+            <div class="actions" aria-label="Calls to action">
+              <a class="button primary" href="https://github.com/dfakkeldy/MacroMark">View on GitHub</a>
+              <a class="button secondary" href="#workflow">See the capture loop</a>
+            </div>
+            <div class="proof" aria-label="Product highlights">
+              <span>Watch-first capture</span>
+              <span>Plain-text daily notes</span>
+              <span>Spoken Markdown macros</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="workflow" aria-labelledby="workflow-title">
+        <div class="container">
+          <div class="section-heading">
+            <h2 id="workflow-title">A note before the thought cools.</h2>
+            <p>MacroMark is built around the moment when opening a phone would be enough friction to lose the idea. The Watch collects, the phone processes, and your vault receives one clean Markdown entry.</p>
+          </div>
+
+          <div class="workflow">
+            <article class="flow-step">
+              <div>
+                <strong>Complication</strong>
+                <h3>Tap from your watch face.</h3>
+                <p>Deep links open instant capture without a hunt through app screens.</p>
+              </div>
+              <div class="flow-icon">01</div>
+            </article>
+
+            <article class="flow-step">
+              <div>
+                <strong>Capture</strong>
+                <h3>Speak, pause, keep going.</h3>
+                <p>The custom audio path is designed for long, messy thoughts instead of tiny dictated snippets.</p>
+              </div>
+              <div class="flow-icon">02</div>
+            </article>
+
+            <article class="flow-step">
+              <div>
+                <strong>Sync</strong>
+                <h3>Lower your wrist to save.</h3>
+                <p>Recordings are queued durably on the Watch and delivered to iPhone when the connection is ready.</p>
+              </div>
+              <div class="flow-icon">03</div>
+            </article>
+
+            <article class="flow-step">
+              <div>
+                <strong>Append</strong>
+                <h3>Land in today's file.</h3>
+                <p>Processed notes append to a dated Markdown file instead of scattering across throwaway documents.</p>
+              </div>
+              <div class="flow-icon">04</div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section alt" aria-labelledby="vault-title">
+        <div class="container vault-section">
+          <div class="vault-visual">
+<pre aria-label="Example processed Markdown note"><span class="code-blue">#</span> Daily Log
+
+<span class="code-blue">##</span> 2026-06-24 at 8:42 PM
+
+<span class="code-orange">- [ ]</span> Send landing page draft
+<span class="code-orange">- [ ]</span> Test capture from complication
+
+<span class="code-blue">&gt;</span> The good capture tool disappears
+  before the idea does.
+
+<span class="code-muted">^id-6F8B0B9A</span></pre>
+          </div>
+
+          <div class="vault-copy">
+            <h2 id="vault-title">Designed for vaults, not inboxes.</h2>
+            <p>MacroMark saves to plain text in iCloud Drive, with folder and export options for people who already have a system. Obsidian, Logseq, Drafts, Bear, and Day One can fit around the workflow instead of replacing it.</p>
+            <ul class="check-list">
+              <li>Append captures into daily notes named like <code>YYYY-MM-DD.md</code>.</li>
+              <li>Keep accurate origin timestamps from the moment the Watch captured the thought.</li>
+              <li>Use custom save locations and folder structures when your vault has rules.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="macros" aria-labelledby="macros-title">
+        <div class="container">
+          <div class="section-heading">
+            <h2 id="macros-title">Say the shape of the note.</h2>
+            <p>Verbal macros turn natural speech into structure. Use the built-in Markdown triggers or create your own phrases for the way you actually capture.</p>
+          </div>
+
+          <div class="macro-grid">
+            <article class="macro-tile">
+              <div>
+                <span>You say</span>
+                <strong>Heading Two</strong>
+              </div>
+              <div class="macro-output">## </div>
+            </article>
+
+            <article class="macro-tile">
+              <div>
+                <span>You say</span>
+                <strong>Task</strong>
+              </div>
+              <div class="macro-output">- [ ] </div>
+            </article>
+
+            <article class="macro-tile">
+              <div>
+                <span>You say</span>
+                <strong>New Journal Entry</strong>
+              </div>
+              <div class="macro-output">## {date} at {time}</div>
+            </article>
+
+            <article class="macro-tile">
+              <div>
+                <span>You say</span>
+                <strong>Dropoff</strong>
+              </div>
+              <div class="macro-output">{location} - </div>
+            </article>
+
+            <article class="macro-tile">
+              <div>
+                <span>You say</span>
+                <strong>Block ID</strong>
+              </div>
+              <div class="macro-output">^id-{uuid}</div>
+            </article>
+
+            <article class="macro-tile">
+              <div>
+                <span>You say</span>
+                <strong>Not</strong>
+              </div>
+              <div class="macro-output">{backspace}</div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section alt" id="platform" aria-labelledby="platform-title">
+        <div class="container">
+          <div class="section-heading">
+            <h2 id="platform-title">Native where reliability matters.</h2>
+            <p>The app leans into Apple platform primitives instead of hiding your words in a proprietary service.</p>
+          </div>
+
+          <div class="platform-band">
+            <article class="platform-item">
+              <h3>watchOS capture</h3>
+              <p>Instant audio and keyboard modes put the fastest input on your wrist.</p>
+            </article>
+
+            <article class="platform-item">
+              <h3>WatchConnectivity</h3>
+              <p>Transfers are queued so captures can survive the awkward moments between devices.</p>
+            </article>
+
+            <article class="platform-item">
+              <h3>iCloud Drive</h3>
+              <p>Your Markdown files remain readable, movable, and automation-friendly.</p>
+            </article>
+
+            <article class="platform-item">
+              <h3>SwiftUI and SwiftData</h3>
+              <p>Modern Apple frameworks power macro editing, settings, widgets, and the phone inbox.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="final-cta" aria-labelledby="cta-title">
+        <div class="container">
+          <div class="cta-panel">
+            <div>
+              <h2 id="cta-title">Make your Watch a Markdown button.</h2>
+              <p>Build MacroMark from source, add the complication, and start capturing the stray thoughts that usually vanish before the notes app opens.</p>
+            </div>
+            <div class="actions">
+              <a class="button primary" href="https://github.com/dfakkeldy/MacroMark">Get the source</a>
+              <a class="button secondary" href="https://github.com/dfakkeldy/MacroMark/blob/main/docs/SETUP_TASKS.md">Read setup notes</a>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="container">
+        <span>MacroMark by KinNoKi Labs.</span>
+        <span><a href="https://github.com/dfakkeldy/MacroMark">GitHub</a> &middot; <a href="https://github.com/dfakkeldy/MacroMark#readme">README</a></span>
+      </div>
+    </footer>
+  </div>
+</body>
+</html>
