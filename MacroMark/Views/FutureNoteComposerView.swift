@@ -81,17 +81,31 @@ struct FutureNoteComposerView: View {
         case .appended:
             note.isExported = true
             note.exportTarget = ExportTarget.iCloud.rawValue
+            PendingExportStore.removeMatching(processedText: text, timestamp: timestamp)
             try? modelContext.save()
             dismiss()
         case .deferred:
+            queuePendingExport(text: text, timestamp: timestamp)
             didSave = true
-            statusMessage = "Saved to the inbox. iCloud will need another attempt before this appears in the daily file."
+            statusMessage = "Saved to the inbox. iCloud export is queued for automatic retry."
         case .failed:
+            queuePendingExport(text: text, timestamp: timestamp)
             didSave = true
-            statusMessage = "Saved to the inbox, but the daily file export failed."
+            statusMessage = "Saved to the inbox. Daily file export is queued for automatic retry."
         }
 
         isSaving = false
+    }
+
+    private func queuePendingExport(text: String, timestamp: Date) {
+        let entry = PendingExportStore.firstEntry(processedText: text, timestamp: timestamp)
+            ?? PendingExportEntry(
+                processedText: text,
+                timestamp: timestamp,
+                isAudio: false,
+                requiresWatchAcknowledgement: false
+            )
+        PendingExportStore.upsert(entry)
     }
 }
 

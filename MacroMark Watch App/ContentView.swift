@@ -1,4 +1,5 @@
 import SwiftUI
+import MacroMarkKit
 
 enum CaptureMode: Hashable {
     case instant
@@ -7,7 +8,7 @@ enum CaptureMode: Hashable {
 }
 
 struct ContentView: View {
-    @AppStorage("captureMode") private var captureMode: String = "audio"
+    @AppStorage(UserDefaultsKey.captureMode.rawValue) private var captureMode: String = "audio"
     @State private var navigationPath = [CaptureMode]()
     @State private var selectedDate = Date()
 
@@ -22,7 +23,8 @@ struct ContentView: View {
                         Button(action: {
                             navigationPath.append(.instant)
                         }) {
-                            Image(systemName: "mic.fill")
+                            Label("Instant Capture", systemImage: "mic.fill")
+                                .labelStyle(.iconOnly)
                                 .font(.title)
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                         }
@@ -32,7 +34,8 @@ struct ContentView: View {
                         Button(action: {
                             navigationPath.append(.system)
                         }) {
-                            Image(systemName: "keyboard.fill")
+                            Label("Dictation", systemImage: "keyboard.fill")
+                                .labelStyle(.iconOnly)
                                 .font(.title)
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                         }

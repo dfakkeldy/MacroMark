@@ -60,12 +60,25 @@ struct NoteDetailView: View {
     }
     
     private func exportToICloud() {
-        Task {
-            let result = await iCloudStorageManager.shared.appendText(note.text + "\n\n")
-            if result == .appended {
+        Task { @MainActor in
+            let text = note.text
+            let timestamp = note.createdAt
+            let result = await iCloudStorageManager.shared.appendText(text, for: timestamp)
+            switch result {
+            case .appended:
                 note.isExported = true
                 note.exportTarget = ExportTarget.iCloud.rawValue
+                PendingExportStore.removeMatching(processedText: text, timestamp: timestamp)
                 try? note.modelContext?.save()
+            case .deferred, .failed:
+                let entry = PendingExportStore.firstEntry(processedText: text, timestamp: timestamp)
+                    ?? PendingExportEntry(
+                        processedText: text,
+                        timestamp: timestamp,
+                        isAudio: false,
+                        requiresWatchAcknowledgement: false
+                    )
+                PendingExportStore.upsert(entry)
             }
         }
     }

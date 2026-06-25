@@ -28,21 +28,9 @@ private struct PendingAudio: Codable {
     var timestamp: Date
 }
 
-/// A note that has been processed (macros expanded, transcription done) and
-/// saved to SwiftData, but whose export to the final target (iCloud `.md` file
-/// or a third-party app) has not yet been confirmed. Persisted so a `.deferred`
-/// or `.failed` export is retried on subsequent launches / a periodic timer
-/// rather than silently dropped after the watch has been ACK'd.
-private struct PendingExport: Codable {
-    /// The note's UUID — matches the watch-side id and the `processedNoteIDs` set.
-    var noteId: UUID
-    /// The fully-processed text ready to append (post macro expansion).
-    var processedText: String
-    /// The original capture timestamp (used for the daily-note filename + heading).
-    var timestamp: Date
-    /// Whether the originating capture was audio (controls which ACK to send).
-    var isAudio: Bool
-}
+/// Local alias for the shared retry entry used by both watch-originated notes
+/// and iPhone-created future notes.
+private typealias PendingExport = PendingExportEntry
 
 @main
 struct MacroMarkApp: App {
@@ -587,36 +575,14 @@ struct MacroMarkApp: App {
 
     // MARK: - Pending-export WAL (retry until the final target confirms)
 
-    private static let pendingExportKey = UserDefaultsKey.pendingExports.rawValue
-
-    private var pendingExports: [UUID: PendingExport] { Self.readPendingExports() }
+    private var pendingExports: [UUID: PendingExport] { PendingExportStore.read() }
 
     private func addPendingExport(_ entry: PendingExport) {
-        var pending = Self.readPendingExports()
-        pending[entry.noteId] = entry
-        Self.writePendingExports(pending)
+        PendingExportStore.upsert(entry)
     }
 
     private func removePendingExport(id: UUID) {
-        var pending = Self.readPendingExports()
-        pending.removeValue(forKey: id)
-        Self.writePendingExports(pending)
-    }
-
-    private static func readPendingExports() -> [UUID: PendingExport] {
-        guard let data = UserDefaults.standard.data(forKey: pendingExportKey),
-              let dict = try? JSONDecoder().decode([String: PendingExport].self, from: data)
-        else { return [:] }
-        return dict.reduce(into: [:]) { partial, entry in
-            if let id = UUID(uuidString: entry.key) { partial[id] = entry.value }
-        }
-    }
-
-    private static func writePendingExports(_ dict: [UUID: PendingExport]) {
-        let stringDict = dict.reduce(into: [String: PendingExport]()) { $0[$1.key.uuidString] = $1.value }
-        if let data = try? JSONEncoder().encode(stringDict) {
-            UserDefaults.standard.set(data, forKey: pendingExportKey)
-        }
+        PendingExportStore.remove(id: id)
     }
 
     /// Retry every pending export whose final target hasn't confirmed yet.
@@ -650,18 +616,19 @@ struct MacroMarkApp: App {
                 Self.retryingExportIDs.remove(id)
 
                 if outcome == .appended || outcome == .exported {
-                    // Full delivery cleanup — the note has now reached its final
-                    // target, so clear the input WAL, drop the durable audio file
-                    // (if any), mark as processed, and ACK the watch so it frees
-                    // its copy. This is the symmetric counterpart of the success
-                    // arm in `processAndExport`.
-                    Self.addProcessedNoteID(entry.noteId)
-                    if entry.isAudio {
-                        removePendingAudio(id: entry.noteId)
-                        acknowledgeFileIfDurable(id: entry.noteId)
-                    } else {
-                        removePendingProcessing(id: entry.noteId)
-                        acknowledgeNoteIfDurable(id: entry.noteId)
+                    if entry.requiresWatchAcknowledgement {
+                        // Full delivery cleanup for watch-originated notes — the
+                        // note has now reached its final target, so clear the input
+                        // WAL, drop the durable audio file (if any), mark as
+                        // processed, and ACK the watch so it frees its copy.
+                        Self.addProcessedNoteID(entry.noteId)
+                        if entry.isAudio {
+                            removePendingAudio(id: entry.noteId)
+                            acknowledgeFileIfDurable(id: entry.noteId)
+                        } else {
+                            removePendingProcessing(id: entry.noteId)
+                            acknowledgeNoteIfDurable(id: entry.noteId)
+                        }
                     }
                     removePendingExport(id: entry.noteId)
                 }
