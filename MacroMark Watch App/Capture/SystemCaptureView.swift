@@ -1,7 +1,10 @@
 import SwiftUI
 import WatchKit
+import MacroMarkKit
 
 struct SystemCaptureView: View {
+    let targetDate: Date
+
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -33,20 +36,21 @@ struct SystemCaptureView: View {
             // `performExpiringActivity` + `DispatchSemaphore.wait()` risks
             // deadlocking the cooperative pool on watchOS.
             Task {
-                await SystemCaptureView.finishAndSave(text: textResult)
+                let timestamp = DaySelection.timestamp(onSelectedDay: targetDate)
+                await SystemCaptureView.finishAndSave(text: textResult, timestamp: timestamp)
             }
         }
     }
 
-    private static func finishAndSave(text: String) async {
+    private static func finishAndSave(text: String, timestamp: Date) async {
         if !text.isEmpty {
             await MainActor.run {
-                LocalStore.shared.addNote(text)
+                LocalStore.shared.addNote(text, timestamp: timestamp)
             }
         }
     }
 }
 
 #Preview {
-    SystemCaptureView()
+    SystemCaptureView(targetDate: Date())
 }

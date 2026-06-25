@@ -90,7 +90,7 @@ public struct MacroProcessor {
         // Evaluate {clipboard} — must hop to MainActor for UIPasteboard access.
         if processedText.contains("{clipboard}") {
             let clipboardText: String
-#if canImport(UIKit)
+#if os(iOS) || os(tvOS) || os(visionOS)
             clipboardText = await MainActor.run { UIPasteboard.general.string ?? "" }
 #else
             clipboardText = ""
@@ -105,10 +105,10 @@ public struct MacroProcessor {
                 let lat = coords.latitude
                 let lon = coords.longitude
                 let location = CLLocation(latitude: lat, longitude: lon)
-#if os(macOS)
-                // MKReverseGeocodingRequest requires macOS 26+. On earlier macOS,
-                // fall back to lat/lon string.
-                if #available(macOS 26.0, *) {
+#if os(macOS) || os(watchOS)
+                // MKReverseGeocodingRequest requires macOS/watchOS 26+. On
+                // earlier OSes, fall back to a deterministic lat/lon string.
+                if #available(macOS 26.0, watchOS 26.0, *) {
                     locationString = await reverseGeocode(location: location, fallback: "Lat: \(lat), Lon: \(lon)")
                 } else {
                     locationString = "Lat: \(lat), Lon: \(lon)"
@@ -135,7 +135,7 @@ public struct MacroProcessor {
     }
 
     /// Reverse-geocode a location to a human-readable string.
-    @available(macOS 26.0, *)
+    @available(iOS 26.0, watchOS 26.0, macOS 26.0, *)
     private static func reverseGeocode(location: CLLocation, fallback: String) async -> String {
         guard let request = MKReverseGeocodingRequest(location: location) else {
             return fallback

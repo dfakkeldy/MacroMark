@@ -12,6 +12,7 @@
 		CC149BE52FCF750200B7D581 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CC149BE42FCF750200B7D581 /* SwiftUI.framework */; };
 		CC149BF42FCF750500B7D581 /* MacroMarkWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = CC149BE02FCF750200B7D581 /* MacroMarkWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		CC5FC41F2FD100120066D797 /* MacroMarkKit in Frameworks */ = {isa = PBXBuildFile; productRef = CC5FC41E2FD100120066D797 /* MacroMarkKit */; };
+		CC5FC4202FD100120066D797 /* MacroMarkKit in Frameworks */ = {isa = PBXBuildFile; productRef = CC5FC41E2FD100120066D797 /* MacroMarkKit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -174,6 +175,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CC5FC4202FD100120066D797 /* MacroMarkKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

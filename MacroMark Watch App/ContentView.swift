@@ -9,10 +9,14 @@ enum CaptureMode: Hashable {
 struct ContentView: View {
     @AppStorage("captureMode") private var captureMode: String = "audio"
     @State private var navigationPath = [CaptureMode]()
+    @State private var selectedDate = Date()
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
             VStack(spacing: 8) {
+                DatePicker("Date", selection: $selectedDate, displayedComponents: .date)
+                    .labelsHidden()
+
                 GlassEffectContainer(spacing: 8) {
                     HStack(spacing: 8) {
                         Button(action: {
@@ -40,7 +44,7 @@ struct ContentView: View {
                     Button(action: {
                         navigationPath.append(.dailyLog)
                     }) {
-                        Text("Today's Log")
+                        Text("Daily Log")
                             .font(.headline)
                             .frame(maxWidth: .infinity, minHeight: 44)
                     }
@@ -62,11 +66,11 @@ struct ContentView: View {
             .navigationDestination(for: CaptureMode.self) { mode in
                 switch mode {
                 case .instant:
-                    InstantCaptureView()
+                    InstantCaptureView(targetDate: selectedDate)
                 case .system:
-                    SystemCaptureView()
+                    SystemCaptureView(targetDate: selectedDate)
                 case .dailyLog:
-                    DailyLogView()
+                    DailyLogView(selectedDate: $selectedDate)
                 }
             }
         }

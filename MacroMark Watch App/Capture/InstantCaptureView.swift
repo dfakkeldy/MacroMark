@@ -1,6 +1,9 @@
 import SwiftUI
+import MacroMarkKit
 
 struct InstantCaptureView: View {
+    let targetDate: Date
+
     @Environment(\.scenePhase) private var scenePhase
     @State private var recorder = AudioRecorder()
     @Environment(\.dismiss) private var dismiss
@@ -61,7 +64,8 @@ struct InstantCaptureView: View {
         // MainActor hop can deadlock under pool pressure on watchOS, losing the
         // recording before it ever reaches the WAL.
         Task {
-            await InstantCaptureView.processAudioFile(fileURL: fileURL, timestamp: Date())
+            let timestamp = DaySelection.timestamp(onSelectedDay: targetDate)
+            await InstantCaptureView.processAudioFile(fileURL: fileURL, timestamp: timestamp)
         }
     }
 
@@ -77,5 +81,5 @@ struct InstantCaptureView: View {
 }
 
 #Preview {
-    InstantCaptureView()
+    InstantCaptureView(targetDate: Date())
 }

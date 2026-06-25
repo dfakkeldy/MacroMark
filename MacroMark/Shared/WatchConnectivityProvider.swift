@@ -1,9 +1,7 @@
 import Foundation
 @preconcurrency import WatchConnectivity
 import Observation
-#if os(iOS)
 import MacroMarkKit
-#endif
 
 actor ContinuationTimeout {
     var hasCompleted = false
@@ -238,15 +236,22 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
 
     func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String : Any]) {
         if let captureMode = applicationContext["captureMode"] as? String {
-            UserDefaults.standard.set(captureMode, forKey: "captureMode")
+            UserDefaults.standard.set(captureMode, forKey: UserDefaultsKey.captureMode.rawValue)
         }
     }
 
     // MARK: - Daily File Fetch
 
-    func fetchDailyFile() async -> String {
+    private func dailyLogCacheKey(for date: Date) -> String {
+        let day = date.formatted(Date.ISO8601FormatStyle(timeZone: .current).year().month().day().dateSeparator(.dash))
+        return "\(UserDefaultsKey.cachedDailyLog.rawValue)-\(day)"
+    }
+
+    func fetchDailyFile(for date: Date = Date()) async -> String {
+        let cacheKey = dailyLogCacheKey(for: date)
+
         guard let session = session else {
-            return UserDefaults.standard.string(forKey: "cachedDailyLog") ?? ""
+            return UserDefaults.standard.string(forKey: cacheKey) ?? ""
         }
 
         for _ in 0..<10 {
@@ -255,7 +260,7 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
         }
 
         guard session.activationState == .activated else {
-            return UserDefaults.standard.string(forKey: "cachedDailyLog") ?? ""
+            return UserDefaults.standard.string(forKey: cacheKey) ?? ""
         }
 
         return await withCheckedContinuation { continuation in
@@ -264,23 +269,23 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
             Task {
                 try? await Task.sleep(for: .seconds(15))
                 if await timeout.complete() {
-                    let cached = UserDefaults.standard.string(forKey: "cachedDailyLog") ?? ""
+                    let cached = UserDefaults.standard.string(forKey: cacheKey) ?? ""
                     continuation.resume(returning: cached)
                 }
             }
             
-            session.sendMessage(["request": "dailyFile"], replyHandler: { reply in
+            session.sendMessage(["request": "dailyFile", "date": date.timeIntervalSince1970], replyHandler: { reply in
                 Task {
                     if await timeout.complete() {
                         let content = reply["content"] as? String ?? ""
-                        UserDefaults.standard.set(content, forKey: "cachedDailyLog")
+                        UserDefaults.standard.set(content, forKey: cacheKey)
                         continuation.resume(returning: content)
                     }
                 }
             }, errorHandler: { error in
                 Task {
                     if await timeout.complete() {
-                        let cached = UserDefaults.standard.string(forKey: "cachedDailyLog") ?? ""
+                        let cached = UserDefaults.standard.string(forKey: cacheKey) ?? ""
                         continuation.resume(returning: cached)
                     }
                 }
@@ -293,7 +298,9 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
     func session(_ session: WCSession, didReceiveMessage message: [String : Any], replyHandler: @escaping ([String : Any]) -> Void) {
 #if os(iOS)
         if let request = message["request"] as? String, request == "dailyFile" {
-            let content = iCloudStorageManager.shared.readText() ?? ""
+            let timestamp = message["date"] as? TimeInterval ?? Date().timeIntervalSince1970
+            let date = Date(timeIntervalSince1970: timestamp)
+            let content = iCloudStorageManager.shared.readText(for: date) ?? ""
             replyHandler(["content": content])
         }
 #endif
