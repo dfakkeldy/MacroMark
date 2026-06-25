@@ -693,6 +693,51 @@
       margin-bottom: 0;
     }
 
+    .roadmap-band {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: rgba(248, 247, 242, .025);
+    }
+
+    .roadmap-item {
+      padding: 1.25rem;
+      border-right: 1px solid var(--line);
+      min-height: 12.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: .7rem;
+    }
+
+    .roadmap-item:nth-child(4n) {
+      border-right: 0;
+    }
+
+    .roadmap-item:nth-child(-n + 4) {
+      border-bottom: 1px solid var(--line);
+    }
+
+    .roadmap-item strong {
+      color: var(--orange);
+      font-size: .78rem;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+
+    .roadmap-item h3 {
+      font-size: 1.08rem;
+      line-height: 1.2;
+      margin-bottom: 0;
+    }
+
+    .roadmap-item p {
+      color: var(--muted);
+      margin-bottom: 0;
+      font-size: .95rem;
+    }
+
     .final-cta {
       padding: 6rem 0;
       background:
@@ -770,17 +815,20 @@
       }
 
       .workflow,
-      .platform-band {
+      .platform-band,
+      .roadmap-band {
         grid-template-columns: repeat(2, 1fr);
       }
 
       .flow-step:nth-child(2),
-      .platform-item:nth-child(2) {
+      .platform-item:nth-child(2),
+      .roadmap-item:nth-child(2n) {
         border-right: 0;
       }
 
       .flow-step:nth-child(-n + 2),
-      .platform-item:nth-child(-n + 2) {
+      .platform-item:nth-child(-n + 2),
+      .roadmap-item:nth-child(-n + 6) {
         border-bottom: 1px solid var(--line);
       }
     }
@@ -892,20 +940,25 @@
       }
 
       .workflow,
-      .platform-band {
+      .platform-band,
+      .roadmap-band {
         grid-template-columns: 1fr;
       }
 
       .flow-step,
       .flow-step:nth-child(2),
       .platform-item,
-      .platform-item:nth-child(2) {
+      .platform-item:nth-child(2),
+      .roadmap-item,
+      .roadmap-item:nth-child(2n),
+      .roadmap-item:nth-child(4n) {
         border-right: 0;
         border-bottom: 1px solid var(--line);
       }
 
       .flow-step:last-child,
-      .platform-item:last-child {
+      .platform-item:last-child,
+      .roadmap-item:last-child {
         border-bottom: 0;
       }
 
@@ -954,6 +1007,7 @@
           <a href="#workflow">Workflow</a>
           <a href="#macros">Macros</a>
           <a href="#platform">Platform</a>
+          <a href="#roadmap">Roadmap</a>
           <a href="https://github.com/dfakkeldy/MacroMark">GitHub</a>
         </div>
       </nav>
@@ -1007,12 +1061,12 @@
             <p>Voice capture for people whose notes live in Markdown. Tap your Watch complication, speak, lower your wrist, and let MacroMark append the thought to today's note.</p>
             <div class="actions" aria-label="Calls to action">
               <a class="button primary" href="https://github.com/dfakkeldy/MacroMark">View on GitHub</a>
-              <a class="button secondary" href="#workflow">See the capture loop</a>
+              <a class="button secondary" href="#roadmap">See the v1.0 roadmap</a>
             </div>
             <div class="proof" aria-label="Product highlights">
               <span>Watch-first capture</span>
               <span>Plain-text daily notes</span>
-              <span>Spoken Markdown macros</span>
+              <span>Browse notes by date</span>
             </div>
           </div>
         </div>
@@ -1086,6 +1140,7 @@
             <p>MacroMark saves to plain text in iCloud Drive, with folder and export options for people who already have a system. Obsidian, Logseq, Drafts, Bear, and Day One can fit around the workflow instead of replacing it.</p>
             <ul class="check-list">
               <li>Append captures into daily notes named like <code>YYYY-MM-DD.md</code>.</li>
+              <li>Review captures by date so yesterday's thought is findable today.</li>
               <li>Keep accurate origin timestamps from the moment the Watch captured the thought.</li>
               <li>Use custom save locations and folder structures when your vault has rules.</li>
             </ul>
@@ -1167,12 +1222,12 @@
 
             <article class="platform-item">
               <h3>WatchConnectivity</h3>
-              <p>Transfers are queued so captures can survive the awkward moments between devices.</p>
+              <p>Transfers stay queued until the receiving side can process and export them safely.</p>
             </article>
 
             <article class="platform-item">
               <h3>iCloud Drive</h3>
-              <p>Your Markdown files remain readable, movable, and automation-friendly.</p>
+              <p>Your Markdown files remain readable, movable, automation-friendly, and reviewable by date.</p>
             </article>
 
             <article class="platform-item">
@@ -1183,16 +1238,75 @@
         </div>
       </section>
 
+      <section class="section" id="roadmap" aria-labelledby="roadmap-title">
+        <div class="container">
+          <div class="section-heading">
+            <h2 id="roadmap-title">v1.0 is about trust.</h2>
+            <p>The launch roadmap turns competitor-review pain into product requirements: no silent loss, visible sync, date-based review, setup proof, safer transcription, and fair Pro gating.</p>
+          </div>
+
+          <div class="roadmap-band">
+            <article class="roadmap-item">
+              <strong>01</strong>
+              <h3>Reliability core</h3>
+              <p>ACK only after durable processing and export success or safe retry state.</p>
+            </article>
+
+            <article class="roadmap-item">
+              <strong>02</strong>
+              <h3>Status and recovery</h3>
+              <p>Show pending, processing, exported, deferred, failed, and retry paths.</p>
+            </article>
+
+            <article class="roadmap-item">
+              <strong>03</strong>
+              <h3>Review by date</h3>
+              <p>Pick a date and inspect the captures for that daily note.</p>
+            </article>
+
+            <article class="roadmap-item">
+              <strong>04</strong>
+              <h3>App Intents</h3>
+              <p>Start capture, append text, and open daily logs from system surfaces.</p>
+            </article>
+
+            <article class="roadmap-item">
+              <strong>05</strong>
+              <h3>Setup proof</h3>
+              <p>Show the active destination, write a test note, and report last export.</p>
+            </article>
+
+            <article class="roadmap-item">
+              <strong>06</strong>
+              <h3>Daily-note shape</h3>
+              <p>Configure timestamps, separators, headings, tags, and safe appends.</p>
+            </article>
+
+            <article class="roadmap-item">
+              <strong>07</strong>
+              <h3>Transcription integrity</h3>
+              <p>Mark partial transcripts and prevent speech or location replay hangs.</p>
+            </article>
+
+            <article class="roadmap-item">
+              <strong>08</strong>
+              <h3>Launch readiness</h3>
+              <p>Finish StoreKit, TestFlight, privacy, screenshots, and App Store metadata.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
       <section class="final-cta" aria-labelledby="cta-title">
         <div class="container">
           <div class="cta-panel">
             <div>
               <h2 id="cta-title">Make your Watch a Markdown button.</h2>
-              <p>Build MacroMark from source, add the complication, and start capturing the stray thoughts that usually vanish before the notes app opens.</p>
+              <p>Build MacroMark from source, add the complication, and follow the v1.0 roadmap toward a reliable Watch-to-Markdown launch.</p>
             </div>
             <div class="actions">
               <a class="button primary" href="https://github.com/dfakkeldy/MacroMark">Get the source</a>
-              <a class="button secondary" href="https://github.com/dfakkeldy/MacroMark/blob/main/docs/SETUP_TASKS.md">Read setup notes</a>
+              <a class="button secondary" href="https://github.com/dfakkeldy/MacroMark/blob/main/docs/V1_ROADMAP.md">Read the roadmap</a>
             </div>
           </div>
         </div>
@@ -1202,7 +1316,7 @@
     <footer>
       <div class="container">
         <span>MacroMark by KinNoKi Labs.</span>
-        <span><a href="https://github.com/dfakkeldy/MacroMark">GitHub</a> &middot; <a href="https://github.com/dfakkeldy/MacroMark#readme">README</a></span>
+        <span><a href="https://github.com/dfakkeldy/MacroMark">GitHub</a> &middot; <a href="https://github.com/dfakkeldy/MacroMark#readme">README</a> &middot; <a href="https://github.com/dfakkeldy/MacroMark/blob/main/docs/V1_ROADMAP.md">Roadmap</a></span>
       </div>
     </footer>
   </div>
