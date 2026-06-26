@@ -98,18 +98,9 @@ public final class iCloudStorageManager {
     @discardableResult
     public func appendText(_ text: String, for date: Date = Date()) async -> AppendResult {
         let baseDir = baseDirectoryURL
-        let isSecurityScoped = UserDefaults.standard.data(forKey: UserDefaultsKey.customSaveBookmark.rawValue) != nil
         let settings = folderSettings
-
-        if isSecurityScoped {
-            _ = baseDir.startAccessingSecurityScopedResource()
-        }
-
-        defer {
-            if isSecurityScoped {
-                baseDir.stopAccessingSecurityScopedResource()
-            }
-        }
+        let scoped = beginSecurityScope(baseDir)
+        defer { endSecurityScope(baseDir, scoped: scoped) }
 
         let fileURL = self.fileURL(for: date, settings: settings, base: baseDir)
 
@@ -173,6 +164,20 @@ public final class iCloudStorageManager {
         FileManager.default.fileExists(atPath: cloudPlaceholderURL(for: url).path)
     }
 
+    /// Start accessing the security-scoped resource for a custom save location (a
+    /// no-op for the default iCloud container). Returns whether a scope was
+    /// acquired; pass it to `endSecurityScope` in a `defer`. Shared by the read
+    /// and write paths so the bookmark check + start/stop isn't duplicated.
+    nonisolated private func beginSecurityScope(_ base: URL) -> Bool {
+        let scoped = UserDefaults.standard.data(forKey: UserDefaultsKey.customSaveBookmark.rawValue) != nil
+        if scoped { _ = base.startAccessingSecurityScopedResource() }
+        return scoped
+    }
+
+    nonisolated private func endSecurityScope(_ base: URL, scoped: Bool) {
+        if scoped { base.stopAccessingSecurityScopedResource() }
+    }
+
     /// If the file exists in iCloud but isn't materialized locally, trigger a
     /// download and wait briefly for it so an append doesn't overwrite it.
     /// Uses cooperative `Task.sleep` so it never blocks the MainActor.
@@ -192,18 +197,9 @@ public final class iCloudStorageManager {
 
     nonisolated public func readText(for date: Date = Date()) -> String? {
         let baseDir = resolvedBaseDirectory().url
-        let isSecurityScoped = UserDefaults.standard.data(forKey: UserDefaultsKey.customSaveBookmark.rawValue) != nil
         let settings = folderSettings
-
-        if isSecurityScoped {
-            _ = baseDir.startAccessingSecurityScopedResource()
-        }
-
-        defer {
-            if isSecurityScoped {
-                baseDir.stopAccessingSecurityScopedResource()
-            }
-        }
+        let scoped = beginSecurityScope(baseDir)
+        defer { endSecurityScope(baseDir, scoped: scoped) }
 
         let fileURL = self.fileURL(for: date, settings: settings, base: baseDir)
 
