@@ -50,8 +50,12 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
     }
     
     nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        // Read the Sendable status on the delegate thread; never capture the
+        // non-Sendable `manager` in the main-actor closure (that would let a
+        // task-isolated reference race against later nonisolated uses).
+        let status = manager.authorizationStatus
         Task { @MainActor in
-            if manager.authorizationStatus != .notDetermined {
+            if status != .notDetermined {
                 authContinuation?.resume()
                 authContinuation = nil
             }
