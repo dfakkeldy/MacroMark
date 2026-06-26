@@ -102,8 +102,9 @@ struct MacroMarkApp: App {
 
         setupWatchConnectivity()
 
-        // Reprocess any notes that were in-flight when the app was last terminated
-        reprocessPendingItems(container: container)
+        // In-flight notes from a prior launch are reprocessed off the launch path
+        // in the root view's `.task` (see `reprocessAndRetry`), not synchronously
+        // here — keeping `init` off the main-thread WAL read.
     }
 
     // MARK: - Watch Connectivity

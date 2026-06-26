@@ -24,7 +24,15 @@ struct SystemCaptureView: View {
 
     private func presentDictation() {
         WKExtension.shared().visibleInterfaceController?.presentTextInputController(withSuggestions: nil, allowedInputMode: .plain) { result in
-            guard let results = result as? [String], let textResult = results.first, !textResult.isEmpty else {
+            // `result` is `[Any]?`; take the first element directly. A non-String
+            // pick (e.g. an emoji) must not be silently dropped by an `as? [String]`
+            // cast that would yield nil.
+            guard let first = result?.first else {
+                dismiss()
+                return
+            }
+            let textResult = (first as? String) ?? String(describing: first)
+            guard !textResult.isEmpty else {
                 dismiss()
                 return
             }

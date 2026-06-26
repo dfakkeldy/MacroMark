@@ -18,9 +18,22 @@ final class AudioTranscriber {
     }
 
     static func transcribe(fileURL: URL) async throws -> TranscriptionResult {
-        let status = await withCheckedContinuation { continuation in
+        // Race the authorization callback against a timeout so a callback that
+        // never fires (reported on restricted / first-launch devices) can't hang
+        // the transcription Task forever and re-hang WAL replay on next launch.
+        let status: SFSpeechRecognizerAuthorizationStatus = await withCheckedContinuation { continuation in
+            let timeout = ContinuationTimeout()
+            let timeoutTask = Task {
+                try? await Task.sleep(for: .seconds(5))
+                if await timeout.complete() { continuation.resume(returning: .notDetermined) }
+            }
             SFSpeechRecognizer.requestAuthorization { status in
-                continuation.resume(returning: status)
+                Task {
+                    if await timeout.complete() {
+                        timeoutTask.cancel()
+                        continuation.resume(returning: status)
+                    }
+                }
             }
         }
 
