@@ -2,26 +2,14 @@ import SwiftUI
 import SwiftData
 import MacroMarkKit
 
-enum InboxDateFilter {
-    static func notes(_ notes: [ProcessedNote], on selectedDate: Date, calendar: Calendar = .current) -> [ProcessedNote] {
-        notes.filter { DaySelection.contains($0.createdAt, inSelectedDay: selectedDate, calendar: calendar) }
-    }
-}
-
 struct InboxView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query(sort: \ProcessedNote.createdAt, order: .reverse) private var notes: [ProcessedNote]
     @State private var selectedDate = Date()
     @State private var showingFutureComposer = false
-
-    private var filteredNotes: [ProcessedNote] {
-        InboxDateFilter.notes(notes, on: selectedDate)
-    }
 
     private var isFutureDay: Bool {
         DaySelection.isFutureDay(selectedDate)
     }
-    
+
     var body: some View {
         NavigationStack {
             List {
@@ -29,40 +17,7 @@ struct InboxView: View {
                     DatePicker("Day", selection: $selectedDate, displayedComponents: .date)
                 }
 
-                if filteredNotes.isEmpty {
-                    ContentUnavailableView(
-                        isFutureDay ? "No Future Notes" : "No Notes",
-                        systemImage: isFutureDay ? "calendar.badge.plus" : "tray",
-                        description: Text(isFutureDay ? "Create a note for this day when you want to plan ahead." : "Notes recorded for this day will appear here.")
-                    )
-                } else {
-                    ForEach(filteredNotes) { note in
-                        NavigationLink(destination: NoteDetailView(note: note)) {
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text(note.text)
-                                    .lineLimit(3)
-                                    .font(.body)
-                                
-                                HStack {
-                                    Text(note.createdAt.formatted(date: .abbreviated, time: .shortened))
-                                    Spacer()
-                                    if note.transcriptionPartial {
-                                        Label("Incomplete", systemImage: "exclamationmark.triangle.fill")
-                                            .foregroundStyle(.yellow)
-                                    }
-                                    if note.isExported {
-                                        Label(note.exportTarget ?? "Exported", systemImage: "checkmark.circle.fill")
-                                            .foregroundStyle(.green)
-                                    }
-                                }
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            }
-                            .padding(.vertical, 4)
-                        }
-                    }
-                    .onDelete(perform: deleteNotes)
-                }
+                DayNotesSection(selectedDate: selectedDate, isFutureDay: isFutureDay)
             }
             .navigationTitle(selectedDate.formatted(date: .abbreviated, time: .omitted))
             .toolbar {
@@ -74,10 +29,8 @@ struct InboxView: View {
                     }
                 }
 
-                if !filteredNotes.isEmpty {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        EditButton()
-                    }
+                ToolbarItem(placement: .topBarTrailing) {
+                    EditButton()
                 }
             }
             .sheet(isPresented: $showingFutureComposer) {
@@ -85,10 +38,67 @@ struct InboxView: View {
             }
         }
     }
-    
+}
+
+/// The notes for the selected day. Owns a day-scoped `@Query` so SwiftData filters
+/// in the store — the inbox fetches only the selected day's notes instead of every
+/// `ProcessedNote` ever captured and then filtering the full set in memory.
+private struct DayNotesSection: View {
+    @Environment(\.modelContext) private var modelContext
+    @Query private var notes: [ProcessedNote]
+    private let isFutureDay: Bool
+
+    init(selectedDate: Date, isFutureDay: Bool) {
+        self.isFutureDay = isFutureDay
+        let interval = DaySelection.dayInterval(for: selectedDate)
+        let start = interval.start
+        let end = interval.end
+        _notes = Query(
+            filter: #Predicate<ProcessedNote> { $0.createdAt >= start && $0.createdAt < end },
+            sort: \.createdAt,
+            order: .reverse
+        )
+    }
+
+    var body: some View {
+        if notes.isEmpty {
+            ContentUnavailableView(
+                isFutureDay ? "No Future Notes" : "No Notes",
+                systemImage: isFutureDay ? "calendar.badge.plus" : "tray",
+                description: Text(isFutureDay ? "Create a note for this day when you want to plan ahead." : "Notes recorded for this day will appear here.")
+            )
+        } else {
+            ForEach(notes) { note in
+                NavigationLink(destination: NoteDetailView(note: note)) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(note.text)
+                            .lineLimit(3)
+                            .font(.body)
+
+                        HStack {
+                            Text(note.createdAt.formatted(date: .abbreviated, time: .shortened))
+                            Spacer()
+                            if note.transcriptionPartial {
+                                Label("Incomplete", systemImage: "exclamationmark.triangle.fill")
+                                    .foregroundStyle(.yellow)
+                            }
+                            if note.isExported {
+                                Label(note.exportTarget ?? "Exported", systemImage: "checkmark.circle.fill")
+                                    .foregroundStyle(.green)
+                            }
+                        }
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+            .onDelete(perform: deleteNotes)
+        }
+    }
+
     private func deleteNotes(offsets: IndexSet) {
-        let notesToDelete = offsets.map { filteredNotes[$0] }
-        for note in notesToDelete {
+        for note in offsets.map({ notes[$0] }) {
             modelContext.delete(note)
         }
         try? modelContext.save()
