@@ -19,9 +19,21 @@ public struct MacroProcessor {
         regexCache.withLock { $0.removeAll() }
     }
 
+    /// Sentinels (Unicode private-use scalars) that wrap every macro replacement so
+    /// the wrapping-tag cleanup can act ONLY on markers a macro inserted, never on
+    /// `*`/`_`/`~` the user dictated (e.g. "3 * 4 * 5"). Stripped before returning.
+    private static let macroOpen = "\u{E000}"
+    private static let macroClose = "\u{E001}"
+
     /// Pre-compiled wrapping-tag cleanup regex (constant pattern, cached once).
+    /// Matches a sentinel-wrapped marker run, spaces, content, spaces, then the same
+    /// sentinel-wrapped marker run — so only macro-inserted emphasis collapses
+    /// ("⟨**⟩ word ⟨**⟩" → "**word**"). User-typed markers carry no sentinels.
     private static let wrapCleanupRegex: NSRegularExpression? = {
-        try? NSRegularExpression(pattern: #"([\*\_\~]+)\s+(.+?)\s+\1"#, options: [])
+        try? NSRegularExpression(
+            pattern: "\u{E000}([\\*\\_\\~]+)\u{E001}\\s+(.+?)\\s+\u{E000}\\1\u{E001}",
+            options: []
+        )
     }()
 
     /// Process text through macro expansion and dynamic variable replacement.
@@ -49,12 +61,17 @@ public struct MacroProcessor {
                 }
             }
 
+            // Wrap the replacement in sentinels so the wrapping-tag cleanup can tell
+            // macro-inserted markers apart from ones the user dictated.
+            let template = Self.macroOpen
+                + NSRegularExpression.escapedTemplate(for: macro.replacement)
+                + Self.macroClose
             let range = NSRange(processedText.startIndex..., in: processedText)
             processedText = regex.stringByReplacingMatches(
                 in: processedText,
                 options: [],
                 range: range,
-                withTemplate: NSRegularExpression.escapedTemplate(for: macro.replacement)
+                withTemplate: template
             )
         }
 
@@ -120,7 +137,10 @@ public struct MacroProcessor {
             processedText = processedText.replacing("{location}", with: locationString)
         }
 
-        // 3. Wrapping tag cleanup
+        // 3. Wrapping tag cleanup — collapse "⟨**⟩ word ⟨**⟩" to "**word**", but ONLY
+        // for macro-inserted (sentinel-wrapped) markers, never for `*`/`_`/`~` the
+        // user dictated. Then strip every sentinel so non-emphasis macro insertions
+        // (e.g. "# ") and the surrounding text come out clean.
         if let regex = wrapCleanupRegex {
             let range = NSRange(processedText.startIndex..., in: processedText)
             processedText = regex.stringByReplacingMatches(
@@ -130,6 +150,9 @@ public struct MacroProcessor {
                 withTemplate: "$1$2$1"
             )
         }
+        processedText = processedText
+            .replacing(Self.macroOpen, with: "")
+            .replacing(Self.macroClose, with: "")
 
         return processedText
     }
