@@ -64,6 +64,20 @@ struct FolderSettingsTests {
         #expect(decoded.structure == .yearlyMonthly)
         #expect(decoded.dateFormat == "MM-dd-yyyy")
     }
+
+    @Test
+    func formatZeroPadsSingleDigitMonthAndDay() throws {
+        // §5.10: yy/MM/dd must be zero-padded (the old code rendered single-digit
+        // values unpadded). Uses Calendar.current on both sides to stay
+        // timezone-independent.
+        let cal = Calendar.current
+        let date = try #require(cal.date(from: DateComponents(year: 2005, month: 3, day: 7, hour: 12)))
+        let yy = String(format: "%02d", (cal.dateComponents([.year], from: date).year ?? 0) % 100)
+        #expect(FolderSettings(dateFormat: "yy").format(date: date) == yy)
+        #expect(FolderSettings(dateFormat: "MM").format(date: date).count == 2)
+        #expect(FolderSettings(dateFormat: "dd").format(date: date).count == 2)
+        #expect(FolderSettings(dateFormat: "yyyy").format(date: date).count == 4)
+    }
 }
 
 struct ProductIdentifiersTests {

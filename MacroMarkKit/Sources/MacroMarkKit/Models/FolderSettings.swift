@@ -24,7 +24,14 @@ public struct FolderSettings: Codable, Equatable {
     }
 
     /// Format a date using this settings' date format string.
-    /// Supports `yyyy`, `yy`, `MM`, and `dd` tokens.
+    ///
+    /// Supports exactly four tokens — `yyyy` (4-digit year), `yy` (2-digit year),
+    /// `MM` (zero-padded month), `dd` (zero-padded day) — substituted in that order
+    /// so `yyyy` is never partially matched by `yy`. This is a deliberately small
+    /// token set, NOT a full ICU/`DateFormatter` pattern: there is no way to embed
+    /// literal `yyyy`/`MM`/`dd` text, and other pattern symbols pass through verbatim.
+    /// (We avoid `DateFormatter` per the project's modern-API rule, and
+    /// `Date.FormatStyle` can't consume a runtime pattern string.)
     public func format(date: Date) -> String {
         let calendar = Calendar.current
         let components = calendar.dateComponents([.year, .month, .day], from: date)
@@ -32,8 +39,8 @@ public struct FolderSettings: Codable, Equatable {
             return date.formatted(Date.ISO8601FormatStyle(timeZone: .current).year().month().day().dateSeparator(.dash))
         }
         var result = dateFormat
-        result = result.replacing("yyyy", with: String(year))
-        result = result.replacing("yy", with: String(year % 100))
+        result = result.replacing("yyyy", with: String(format: "%04d", year))
+        result = result.replacing("yy", with: String(format: "%02d", year % 100))
         result = result.replacing("MM", with: String(format: "%02d", month))
         result = result.replacing("dd", with: String(format: "%02d", day))
         return result
