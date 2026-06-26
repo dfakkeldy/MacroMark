@@ -59,23 +59,32 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
         session?.activate()
     }
 
-    // MARK: - WCSessionDelegate (all methods already @MainActor via class annotation)
+    // MARK: - WCSessionDelegate
+    //
+    // WCSession invokes these delegate callbacks on its own background queue, NOT
+    // the main actor. They MUST be `nonisolated`: a MainActor-isolated delegate
+    // method called off-main traps at runtime under Swift 6 (the executor check
+    // fires `dispatch_assert_queue_fail`). Each method snapshots the Sendable
+    // values it needs and hops to the main actor only for work that touches
+    // MainActor state (LocalStore, the received-handlers, the pending buffers).
 
-    func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
+    nonisolated func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
 #if DEBUG
         print("WCSession activation completed: \(activationState.rawValue), error: \(String(describing: error))")
 #endif
 #if os(watchOS)
         if activationState == .activated {
-            LocalStore.shared.syncPendingNotes()
-            LocalStore.shared.syncPendingAudio()
+            Task { @MainActor in
+                LocalStore.shared.syncPendingNotes()
+                LocalStore.shared.syncPendingAudio()
+            }
         }
 #endif
     }
 
 #if os(iOS)
-    func sessionDidBecomeInactive(_ session: WCSession) { }
-    func sessionDidDeactivate(_ session: WCSession) {
+    nonisolated func sessionDidBecomeInactive(_ session: WCSession) { }
+    nonisolated func sessionDidDeactivate(_ session: WCSession) {
         session.activate()
     }
 #endif
@@ -133,15 +142,15 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
 
     // MARK: - Receiving
 
-    func session(_ session: WCSession, didReceiveUserInfo userInfo: [String : Any] = [:]) {
+    nonisolated func session(_ session: WCSession, didReceiveUserInfo userInfo: [String : Any] = [:]) {
         // --- Watch side: handle acknowledgements from phone ---
 #if os(watchOS)
         if let ackId = userInfo["ack"] as? String, let id = UUID(uuidString: ackId) {
-            LocalStore.shared.removeNote(withId: id)
+            Task { @MainActor in LocalStore.shared.removeNote(withId: id) }
             return
         }
         if let ackId = userInfo["ackFile"] as? String, let id = UUID(uuidString: ackId) {
-            LocalStore.shared.removeAudio(withId: id)
+            Task { @MainActor in LocalStore.shared.removeAudio(withId: id) }
             return
         }
 #endif
@@ -152,16 +161,19 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
             let id = UUID(uuidString: idString) ?? UUID()
             let timestampInterval = userInfo["timestamp"] as? TimeInterval ?? Date().timeIntervalSince1970
             let timestamp = Date(timeIntervalSince1970: timestampInterval)
-            if let handler = onNoteReceived {
-                handler(id, text, timestamp)
-            } else {
-                // Handler not set yet — buffer for replay when set
-                pendingReceivedNotes.append((id, text, timestamp))
+            // Snapshot the Sendable values above, then touch MainActor state on-actor.
+            Task { @MainActor in
+                if let handler = onNoteReceived {
+                    handler(id, text, timestamp)
+                } else {
+                    // Handler not set yet — buffer for replay when set
+                    pendingReceivedNotes.append((id, text, timestamp))
+                }
             }
         }
     }
 
-    func session(_ session: WCSession, didReceive file: WCSessionFile) {
+    nonisolated func session(_ session: WCSession, didReceive file: WCSessionFile) {
         let tempURL = file.fileURL
         let destURL = FileManager.default.temporaryDirectory.appendingPathComponent(tempURL.lastPathComponent)
 
@@ -174,16 +186,21 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
             if FileManager.default.fileExists(atPath: destURL.path) {
                 try FileManager.default.removeItem(at: destURL)
             }
+            // The copy MUST run synchronously here: WCSession deletes the inbox file
+            // as soon as this delegate method returns, so deferring it into a Task
+            // would lose the audio. Only the MainActor handoff below is deferred.
             try FileManager.default.copyItem(at: tempURL, to: destURL)
 
 #if os(iOS)
 #if DEBUG
             print("Received audio file from watch")
 #endif
-            if let handler = onFileReceived {
-                handler(id, destURL, timestamp)
-            } else {
-                pendingReceivedFiles.append((id, destURL, timestamp))
+            Task { @MainActor in
+                if let handler = onFileReceived {
+                    handler(id, destURL, timestamp)
+                } else {
+                    pendingReceivedFiles.append((id, destURL, timestamp))
+                }
             }
 #endif
         } catch {
@@ -195,7 +212,7 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
 
     // MARK: - Transfer Completion
 
-    func session(_ session: WCSession, didFinish userInfoTransfer: WCSessionUserInfoTransfer, error: Error?) {
+    nonisolated func session(_ session: WCSession, didFinish userInfoTransfer: WCSessionUserInfoTransfer, error: Error?) {
 #if os(watchOS)
         if let error = error {
 #if DEBUG
@@ -205,8 +222,10 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
             // queuedNoteIDs still contains the id and syncPendingNotes would skip it.
             if let idString = userInfoTransfer.userInfo["id"] as? String,
                let id = UUID(uuidString: idString) {
-                LocalStore.shared.markNoteUnqueued(id)
-                LocalStore.shared.syncPendingNotes()
+                Task { @MainActor in
+                    LocalStore.shared.markNoteUnqueued(id)
+                    LocalStore.shared.syncPendingNotes()
+                }
             }
         }
         // Success case: note is NOT removed here. We wait for the phone's ACK
@@ -214,7 +233,7 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
 #endif
     }
 
-    func session(_ session: WCSession, didFinish fileTransfer: WCSessionFileTransfer, error: Error?) {
+    nonisolated func session(_ session: WCSession, didFinish fileTransfer: WCSessionFileTransfer, error: Error?) {
 #if os(watchOS)
         if let error = error {
 #if DEBUG
@@ -224,7 +243,9 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
             // stays in LocalStore's durable audio dir until the phone ACKs it.
             if let idString = fileTransfer.file.metadata?["id"] as? String,
                let id = UUID(uuidString: idString) {
-                LocalStore.shared.markAudioUnqueued(id)
+                Task { @MainActor in
+                    LocalStore.shared.markAudioUnqueued(id)
+                }
             }
         }
         // Success case: audio is NOT removed here. We wait for the phone's ACK
@@ -234,7 +255,8 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
 
     // MARK: - Settings Sync
 
-    func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String : Any]) {
+    nonisolated func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String : Any]) {
+        // Only touches UserDefaults (thread-safe), so no main-actor hop is needed.
         if let captureMode = applicationContext["captureMode"] as? String {
             UserDefaults.standard.set(captureMode, forKey: UserDefaultsKey.captureMode.rawValue)
         }
@@ -295,11 +317,14 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
 
     // MARK: - Message Handler
 
-    func session(_ session: WCSession, didReceiveMessage message: [String : Any], replyHandler: @escaping ([String : Any]) -> Void) {
+    nonisolated func session(_ session: WCSession, didReceiveMessage message: [String : Any], replyHandler: @escaping ([String : Any]) -> Void) {
 #if os(iOS)
         if let request = message["request"] as? String, request == "dailyFile" {
             let timestamp = message["date"] as? TimeInterval ?? Date().timeIntervalSince1970
             let date = Date(timeIntervalSince1970: timestamp)
+            // readText is nonisolated, so we read and reply synchronously in this
+            // delegate's own isolation region — no need to send the non-Sendable
+            // replyHandler across an actor boundary.
             let content = iCloudStorageManager.shared.readText(for: date) ?? ""
             replyHandler(["content": content])
         }

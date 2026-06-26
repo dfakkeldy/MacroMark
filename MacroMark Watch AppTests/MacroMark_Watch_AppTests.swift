@@ -6,6 +6,7 @@
 //
 
 import Testing
+import Foundation
 @testable import MacroMark_Watch_App
 
 struct MacroMark_Watch_AppTests {

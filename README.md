@@ -31,6 +31,7 @@ The full roadmap is in [docs/V1_ROADMAP.md](docs/V1_ROADMAP.md). It turns the co
 
 ### Prerequisites
 - Xcode 26+ (targets iOS 26.5+ and watchOS 26.5+).
+- Builds in **Swift 6 language mode** (Swift 6.2 toolchain) with strict concurrency.
 - Apple Developer Program account (for iCloud Documents capabilities).
 
 ### Setup

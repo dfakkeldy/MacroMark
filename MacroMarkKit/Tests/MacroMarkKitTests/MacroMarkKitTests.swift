@@ -87,7 +87,7 @@ struct MacroProcessorTests {
 
     @Test
     func macroTriggerReplacement() async throws {
-        let macros = [Macro(trigger: "Hello", replacement: "Bonjour")]
+        let macros = [MacroRule(trigger: "Hello", replacement: "Bonjour")]
         let result = await MacroProcessor.process(text: "Hello world", macros: macros)
         #expect(result == "Bonjour world")
     }
@@ -97,7 +97,7 @@ struct MacroProcessorTests {
         // Verifies the fix: {newline} inserts exactly one newline, not two.
         // (The two spaces after the dash come from the macro's trailing space
         // plus the original word separator — unrelated to {newline}.)
-        let macros = [Macro(trigger: "Bullet", replacement: "{newline}- ")]
+        let macros = [MacroRule(trigger: "Bullet", replacement: "{newline}- ")]
         let result = await MacroProcessor.process(text: "Bullet item", macros: macros)
         #expect(!result.contains("\n\n"))
         #expect(result.hasPrefix("\n"))
@@ -110,12 +110,12 @@ struct MacroProcessorTests {
     @Test
     func regexCacheIsConcurrencySafe() async throws {
         let text = "Bold world Bold again"
-        // Build the macro array inside each task so nothing non-Sendable is
-        // captured across the task-group boundary (Macro is a @Model class).
+        // MacroRule is a Sendable value type, so it can be constructed and captured
+        // directly inside the task-group closures (unlike the SwiftData @Model `Macro`).
         await withTaskGroup(of: String.self) { group in
             for _ in 0..<200 {
                 group.addTask {
-                    let macros = [Macro(trigger: "Bold", replacement: "**")]
+                    let macros = [MacroRule(trigger: "Bold", replacement: "**")]
                     return await MacroProcessor.process(text: text, macros: macros)
                 }
             }
@@ -134,7 +134,7 @@ struct MacroProcessorTests {
     /// the OLD trigger's compiled regex cached and still firing.
     @Test
     func invalidateRegexCacheDropsStaleEntries() async throws {
-        let oldTrigger = [Macro(trigger: "Bold", replacement: "**")]
+        let oldTrigger = [MacroRule(trigger: "Bold", replacement: "**")]
         // Populate the cache with the "Bold" pattern.
         let warmup = await MacroProcessor.process(text: "Bold x", macros: oldTrigger)
         #expect(warmup == "** x")
@@ -142,7 +142,7 @@ struct MacroProcessorTests {
         // Invalidate, then process with a renamed trigger. "Bold" must no longer
         // match; "Strong" must.
         MacroProcessor.invalidateRegexCache()
-        let newTrigger = [Macro(trigger: "Strong", replacement: "**")]
+        let newTrigger = [MacroRule(trigger: "Strong", replacement: "**")]
         let result = await MacroProcessor.process(text: "Bold test Strong", macros: newTrigger)
         #expect(result == "Bold test **")
     }

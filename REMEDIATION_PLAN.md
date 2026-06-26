@@ -10,6 +10,10 @@ Conventions:
 
 ---
 
+> **Swift 6.2 migration status (2026-06-25):** P0.3 (§3.1 regex-cache race) and P0.5 (§3.2 watch semaphore deadlock) were verified already complete in the code, as was P1.1 (§3.3 `Thread.sleep` on MainActor). The Swift 6 language-mode migration additionally fixed a **critical `WatchConnectivityProvider` launch crash** (`@MainActor` WCSession delegate invoked off-main), introduced a `Sendable` `MacroRule` so `MacroProcessor` no longer takes SwiftData models off-actor, and hardened `LocationManager` / `AudioTranscriber`. The P0 data-loss items **P0.1 (§5.1) and P0.2 (§5.2) remain open.** See `CODE_AUDIT.md` → "Swift 6.2 Migration Update".
+
+---
+
 ## P0 — Data-loss & crash (do first)
 
 These are the user's stated #1 concern (note data loss) plus the crash-class race.

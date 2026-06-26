@@ -20,9 +20,10 @@ The watchOS app is responsible for the raw capture of user dictation. It bypasse
 Because users often capture notes away from their phones, the sync mechanism must be robust.
 
 ### Components
-- **`WatchConnectivityProvider`**: A shared singleton wrapping `WCSession`. 
+- **`WatchConnectivityProvider`**: A shared `@MainActor` singleton wrapping `WCSession`. 
   - On the Watch, it uses `transferUserInfo` to enqueue notes, ensuring the payload includes the exact origin timestamp generated at the moment of dictation. It listens to the `didFinish` delegate callback to confirm the iPhone received the payload before deleting the note from `LocalStore`.
   - On iOS, it receives the `userInfo` payload in the background and triggers the processing pipeline with the correct timestamp.
+  - **Isolation (Swift 6):** `WCSession` invokes its delegate callbacks on a background queue, so every `WCSessionDelegate` method is `nonisolated` and hops to the main actor (`Task { @MainActor in … }`) only for state access. Leaving them `@MainActor` traps at launch under Swift 6 language mode — the runtime executor check fires when WCSession calls them off-main. The incoming-file copy is done synchronously inside the callback, before WCSession reclaims its inbox file.
 
 ## 3. iOS Target (Process & Store)
 
@@ -30,8 +31,8 @@ The iPhone acts as the processing hub and storage engine.
 
 ### Components
 - **`Macro` (SwiftData Model)**: Stores the user's custom text replacements (e.g., "Heading One" -> "# ").
-- **`MacroProcessor`**: A stateless engine that takes raw transcribed text and:
-  1. Applies user-defined macros using case-insensitive Regex.
+- **`MacroProcessor`**: A stateless, `nonisolated` engine that runs off the main actor. It takes raw transcribed text plus a `[MacroRule]` — a `Sendable` value snapshot of each macro's trigger/replacement, taken from the SwiftData `Macro` models on the main actor — so no SwiftData model crosses an isolation boundary. It:
+  1. Applies user-defined macros using case-insensitive Regex (compiled patterns are cached behind an `OSAllocatedUnfairLock` for thread-safe reuse across concurrent calls).
   2. Evaluates dynamic variables (`{date}`, `{time}`, `{newline}`, `{location}` using MapKit reverse geocoding).
   3. Cleans up formatting artifacts (e.g., removing spaces inside Markdown wrapping tags like `* bold *`).
 - **`iCloudStorageManager`**: Resolves the app's ubiquitous iCloud Documents container. It formats the current date to locate `YYYY-MM-DD.md` and uses `NSFileCoordinator` and `FileHandle` to safely append the processed string to the end of the file.

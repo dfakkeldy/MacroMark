@@ -1,4 +1,5 @@
 import Foundation
+import os
 @preconcurrency import Speech
 import AVFoundation
 
@@ -38,11 +39,19 @@ final class AudioTranscriber {
             let request = SFSpeechURLRecognitionRequest(url: url)
 
             do {
-                nonisolated(unsafe) var speechTask: SFSpeechRecognitionTask?
+                // The recognition task is created inside the continuation but must
+                // be cancellable from the @Sendable `onCancel` handler, which runs in
+                // a different isolation domain. An unfair lock gives the assign and
+                // cancel mutual exclusion, replacing `nonisolated(unsafe)`, which only
+                // silenced the diagnostic without removing the underlying race.
+                // (`SFSpeechRecognitionTask` is itself non-Sendable; the lock provides
+                // the synchronization, and `@preconcurrency import Speech` accepts the
+                // boxed non-Sendable value. `cancel()` is documented thread-safe.)
+                let speechTaskBox = OSAllocatedUnfairLock<SFSpeechRecognitionTask?>(initialState: nil)
                 let chunkText: String = try await withTaskCancellationHandler {
                     try await withCheckedThrowingContinuation { continuation in
                         var isResumed = false
-                        speechTask = recognizer.recognitionTask(with: request) { result, error in
+                        let task = recognizer.recognitionTask(with: request) { result, error in
                             if isResumed { return }
                             if let error = error {
                                 isResumed = true
@@ -54,9 +63,10 @@ final class AudioTranscriber {
                                 continuation.resume(returning: result.bestTranscription.formattedString)
                             }
                         }
+                        speechTaskBox.withLock { $0 = task }
                     }
                 } onCancel: {
-                    speechTask?.cancel()
+                    speechTaskBox.withLock { $0?.cancel() }
                 }
 
                 if !fullTranscript.isEmpty && !chunkText.isEmpty {
