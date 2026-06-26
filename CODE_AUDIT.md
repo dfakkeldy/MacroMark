@@ -10,16 +10,36 @@ Build ground truth: both the `MacroMark` (iOS) and `MacroMark Watch App` schemes
 
 ---
 
+## Swift 6.2 Migration Update — 2026-06-25
+
+The project was migrated to **Swift 6 language mode**: `SWIFT_VERSION = 6.0` on all 7 Xcode targets and `swiftLanguageModes: [.v6]` in `MacroMarkKit/Package.swift`. Default actor isolation (`SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`) was extended to the two Swift Testing unit-test targets; the widget and the two XCUITest targets are intentionally left nonisolated (WidgetKit's closure-based `TimelineProvider` and `XCTestCase`'s lifecycle overrides are `nonisolated` and conflict with default MainActor isolation). The watch app scheme's Test action was wired to its test target so the watch durability tests can run.
+
+**Verified:** iOS app, watch app, widget, and `MacroMarkKit` all build clean (0 warnings); `MacroMarkKit` (17 tests), iOS unit (6), and watch unit (2 durability) tests pass on simulators.
+
+**§3.1 / §3.2 / §3.3 were re-verified as already resolved in the code** — this report's 2026-06-20 snapshot is stale on them: §3.1 now uses `OSAllocatedUnfairLock`, §3.2 calls `Task { await processAudioFile(...) }` directly, and §3.3 uses `await Task.sleep(for:)`.
+
+**New issues the migration surfaced and fixed (none were caught by the prior Swift-5-mode build):**
+
+- **[Critical] `WatchConnectivityProvider` crashed at app launch under Swift 6.** The class is `@MainActor`, but `WCSession` delivers `WCSessionDelegate` callbacks on its own background queue. Swift 6's runtime executor check (`_checkExpectedExecutor`) turned this previously-silent hazard into a `SIGTRAP` on WCSession activation — the app crashed at launch, and was already mutating `LocalStore` queue state off-actor. **Fix:** all 9 delegate methods are now `nonisolated`, hopping to the main actor only for state access; the received-audio file copy stays synchronous so WCSession's inbox file isn't lost (`MacroMark/Shared/WatchConnectivityProvider.swift`, symlinked into the watch target).
+- **[High] `MacroProcessor.process` took SwiftData `@Model` `Macro` objects off-actor.** Introduced a `Sendable` value snapshot `MacroRule` (`MacroMarkKit/Sources/MacroMarkKit/Models/MacroRule.swift`); callers snapshot `[Macro] → [MacroRule]` on the main actor. Also decouples the macro engine from SwiftData.
+- **[Medium] `LocationManager` delegate captured a non-Sendable `CLLocationManager` in a `@MainActor` closure** (`LocationManager.swift:52`). Fixed by reading the Sendable `authorizationStatus` before the hop.
+- **[Medium] `AudioTranscriber` used `nonisolated(unsafe)` for the cancellable speech task.** Replaced with an `OSAllocatedUnfairLock`.
+- **[Low] `iCloudStorageManager` read path (`readText`, `shared`, `folderSettings`, base-dir resolution) made `nonisolated`** so the WC reply handler reads without sending the non-Sendable reply closure across an actor boundary. The write/append/defer (§5.2) path and `isUsingFallbackStorage` publishing are unchanged.
+
+The open data-loss criticals **§5.1 (ACK before iCloud append confirmed) and §5.2 (un-materialized placeholder drop) remain unaddressed** — out of scope for this migration.
+
+---
+
 ## 1. Executive summary
 
 Top items to address, in priority order. Data-loss in the note-sync pipeline is the user's stated #1 concern and dominates this list.
 
 1. **[Critical] ACK is sent before the iCloud append is confirmed** — §5.1 — `MacroMark/MacroMarkApp.swift:424-433`. A note that saves to SwiftData but fails the iCloud append is ACK'd, removed from the WAL, and deleted from the watch — yet never reaches the daily-note file.
 2. **[Critical] iCloud append silently drops notes when the day's file is an un-materialized placeholder** — §5.2 — `MacroMarkKit/Sources/MacroMarkKit/Storage/iCloudStorageManager.swift:111-115`. Combined with §5.1, a note captured right after a device wake is permanently absent from the `.md` output with no retry.
-3. **[Critical] Data race on the MacroProcessor regex cache** — §3.1 — `MacroMarkKit/Sources/MacroMarkKit/Engine/MacroProcessor.swift:13,37-43`. `nonisolated(unsafe)` dictionary mutated from concurrent `process()` calls; the "benign" comment is wrong — Dictionary mutation is a crash-class data race.
+3. **[Critical · ✅ RESOLVED] Data race on the MacroProcessor regex cache** — §3.1 — `MacroMarkKit/Sources/MacroMarkKit/Engine/MacroProcessor.swift:13,37-43`. `nonisolated(unsafe)` dictionary mutated from concurrent `process()` calls; the "benign" comment is wrong — Dictionary mutation is a crash-class data race.
 4. **[High] Stale compiled regex is never invalidated when macros are edited** — §5.3 — `MacroProcessor.invalidateRegexCache()` exists but is called nowhere; editing a trigger leaves the old pattern replacing text.
-5. **[High] watchOS semaphore+main-actor pattern can deadlock and lose the recording** — §3.2 — `MacroMark Watch App/Capture/InstantCaptureView.swift:57-69` (and `SystemCaptureView.swift:31-43`). Blocking a cooperative-pool thread on `DispatchSemaphore.wait()` waiting for a MainActor hop.
-6. **[High] Blocking `Thread.sleep` on the @MainActor during iCloud download wait** — §3.3 — `iCloudStorageManager.swift:151-154`. Up to 2s UI freeze whenever the daily file isn't local.
+5. **[High · ✅ RESOLVED] watchOS semaphore+main-actor pattern can deadlock and lose the recording** — §3.2 — `MacroMark Watch App/Capture/InstantCaptureView.swift:57-69` (and `SystemCaptureView.swift:31-43`). Blocking a cooperative-pool thread on `DispatchSemaphore.wait()` waiting for a MainActor hop.
+6. **[High · ✅ RESOLVED] Blocking `Thread.sleep` on the @MainActor during iCloud download wait** — §3.3 — `iCloudStorageManager.swift:151-154`. Up to 2s UI freeze whenever the daily file isn't local.
 7. **[High] `WatchConnectivityProvider` is byte-for-byte duplicated across the iOS and watch targets** — §9.1 — 301 lines × 2; the ACK/WAL protocol this code implements must not drift.
 8. **[High] Unguarded `print()` calls ship IAP errors and file paths to release logs** — §6.3 — 9 calls in `MacroMarkKit` (incl. `StoreManager` IAP failures), 7 in the watch app, 4 in the iOS app.
 9. **[High] `restoreDefaults` silently deletes the user's custom macros** — §5.4 — `MacroMark/Settings/MacroManagerView.swift:265-273`. No confirmation; deletes everything before re-inserting defaults.
@@ -47,6 +67,9 @@ These deliver outsized value relative to effort and have no architectural ripple
 ## 3. Concurrency
 
 ### 3.1 Data race on the MacroProcessor regex cache
+
+> ✅ **Resolved (verified 2026-06-25):** the cache is now `OSAllocatedUnfairLock<[String: NSRegularExpression]>` with all access via `withLock`. The description below records the prior state.
+
 - **Location:** `MacroMarkKit/Sources/MacroMarkKit/Engine/MacroProcessor.swift:13` (declared), `:37-43` (read+written), `:16-18` (`invalidateRegexCache` writes it)
 - **What:** `regexCache` is `private static nonisolated(unsafe) var regexCache: [String: NSRegularExpression]`. The doc comment claims races are "benign — worst case is compiling the same regex twice." That is incorrect: `regexCache[pattern] = compiled` at line 42 mutates a Swift `Dictionary`, and `process(text:macros:...)` is explicitly documented as non-isolated ("callers should invoke it from the global cooperative pool"). `MacroMarkApp.startBackgroundTaskAndProcess` calls it from a `Task { @MainActor in ... await MacroProcessor.process(...) }`, so it runs off-actor. Two notes processed concurrently → concurrent Dictionary read/write.
 - **Why:** Swift `Dictionary` is not thread-safe; concurrent mutation is undefined behavior and a known source of `EXC_BAD_ACCESS` / heap corruption. `nonisolated(unsafe)` only silences the compiler; it does not make the access safe. A crash here aborts the note pipeline mid-transcription.
@@ -54,6 +77,9 @@ These deliver outsized value relative to effort and have no architectural ripple
 - **Severity:** Critical
 
 ### 3.2 DispatchSemaphore.wait() over cooperative-pool work (deadlock risk) on watchOS
+
+> ✅ **Resolved (verified 2026-06-25):** both capture views call `Task { await processAudioFile(...) }` directly — no `DispatchSemaphore`, no `Task.detached`. The description below records the prior state.
+
 - **Location:** `MacroMark Watch App/Capture/InstantCaptureView.swift:57-69`; identical pattern at `MacroMark Watch App/Capture/SystemCaptureView.swift:31-43`
 - **What:** `Task.detached { ProcessInfo.processInfo.performExpiringActivity(...) { expired in ... let semaphore = DispatchSemaphore(value: 0); Task { await InstantCaptureView.processAudioFile(...); semaphore.signal() }; semaphore.wait() } }`. A cooperative-pool thread is parked on `semaphore.wait()` waiting for an inner `Task` whose body calls `MainActor.run { LocalStore.shared.enqueueAudio(...) }`.
 - **Why:** Blocking a cooperative thread waiting for other cooperative work (here, a MainActor hop) is the classic Swift Concurrency deadlock anti-pattern. Under cooperative-pool pressure on watchOS (tight thread budget) the inner `Task` never schedules and the wait never returns — the audio file is never enqueued into `LocalStore`, so it is never transferred and the recording is lost before it even reaches the WAL. The wrapped work is trivial and needs neither `performExpiringActivity` nor the semaphore.
@@ -61,6 +87,9 @@ These deliver outsized value relative to effort and have no architectural ripple
 - **Severity:** High
 
 ### 3.3 Blocking Thread.sleep on the @MainActor during iCloud download wait
+
+> ✅ **Resolved (verified 2026-06-25):** `appendText`/`ensureDownloaded` are `async` and use `await Task.sleep(for:)` instead of `Thread.sleep`. The description below records the prior state.
+
 - **Location:** `MacroMarkKit/Sources/MacroMarkKit/Storage/iCloudStorageManager.swift:143-155` (the `ensureDownloaded` loop), reached from `appendText(_:for:)` at `:92` — `iCloudStorageManager` is `@MainActor` (line 3)
 - **What:** `ensureDownloaded` spins `for _ in 0..<20 { ... Thread.sleep(forTimeInterval: 0.1) }` — up to 2 seconds of synchronous blocking. `appendText` is `@MainActor` and is called from `MacroMarkApp.processAndExport` (already on MainActor) and from `NoteDetailView.exportToICloud` (user tap).
 - **Why:** Up to a 2-second main-thread freeze whenever the daily file is an iCloud placeholder (common right after a device wake). On iOS this is a frozen UI / watchdog-kill risk; the user perceives the app as hung right after capturing a note.

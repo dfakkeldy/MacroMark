@@ -147,4 +147,6 @@ If the Xcode MCP is configured, prefer its tools over generic alternatives when 
 
 ## Attribution
 
-This agent guide is adapted from Paul Hudson's AGENTS.md template and the Echo repository's agent guidance, customized for MacroMark's capture pipeline, Swift 6.2 conventions, and project-specific tooling.
+This agent guide is adapted from Paul Hudson's AGENTS.md template (`https://github.com/twostraws/SwiftAgents/blob/main/AGENTS.md`) and the Echo repository's agent guidance, customized for MacroMark's capture pipeline, Swift 6.2 conventions, and project-specific tooling.
+
+Re-synced against the upstream SwiftAgents template on 2026-06-25: every upstream rule (the Role, Core, Swift, SwiftUI, SwiftData, Project structure, PR, and Xcode MCP sections) is reflected here, alongside MacroMark-specific additions (Source Map, Reliability Rules, and Build/Test gates). No upstream rules were dropped in the customization.
