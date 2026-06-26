@@ -20,11 +20,10 @@ struct PendingAudio: Identifiable, Codable {
 final class LocalStore {
     static let shared = LocalStore()
 
-    var pendingNotes: [CapturedNote] = [] {
-        didSet {
-            save()
-        }
-    }
+    /// Pending text notes awaiting transfer. Every mutation site (`addNote`,
+    /// `syncPendingNotes`, `removeNote`) calls `save()` explicitly, so there is no
+    /// `didSet { save() }` — that re-encoded both arrays on every single write.
+    var pendingNotes: [CapturedNote] = []
 
     /// Audio notes awaiting transfer. Persisted to disk + UserDefaults so they
     /// survive cold launch and are retried until the phone ACKs them.
