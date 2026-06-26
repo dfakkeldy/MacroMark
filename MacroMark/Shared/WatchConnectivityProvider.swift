@@ -77,10 +77,47 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
             Task { @MainActor in
                 LocalStore.shared.syncPendingNotes()
                 LocalStore.shared.syncPendingAudio()
+                reconcileStaleQueuedNotes()
             }
         }
 #endif
     }
+
+#if os(watchOS)
+    /// When the phone becomes reachable, retry pending transfers and reconcile any
+    /// "lost ACK" zombie notes.
+    nonisolated func sessionReachabilityDidChange(_ session: WCSession) {
+        guard session.isReachable else { return }
+        Task { @MainActor in
+            LocalStore.shared.syncPendingNotes()
+            LocalStore.shared.syncPendingAudio()
+            reconcileStaleQueuedNotes()
+        }
+    }
+
+    /// Reconcile "lost ACK" zombies (§5.9): ask the phone which of the watch's
+    /// long-pending transferred notes it has durably processed, and remove only the
+    /// IDs it confirms. Conservative — a note the phone hasn't processed is never removed.
+    @MainActor
+    func reconcileStaleQueuedNotes() {
+        guard let session, session.activationState == .activated, session.isReachable else { return }
+        let stale = LocalStore.shared.staleQueuedIDs()
+        guard !stale.isEmpty else { return }
+        let staleSet = Set(stale)
+        session.sendMessage(["query": "processedIDs", "ids": stale.map(\.uuidString)], replyHandler: { reply in
+            guard let processed = reply["processed"] as? [String] else { return }
+            Task { @MainActor in
+                for idString in processed {
+                    // Only remove IDs we actually asked about (defense-in-depth: never
+                    // act on an ID the phone echoes back that wasn't in our request).
+                    guard let id = UUID(uuidString: idString), staleSet.contains(id) else { continue }
+                    LocalStore.shared.removeNote(withId: id)
+                    LocalStore.shared.removeAudio(withId: id)
+                }
+            }
+        }, errorHandler: { _ in })
+    }
+#endif
 
 #if os(iOS)
     nonisolated func sessionDidBecomeInactive(_ session: WCSession) { }
@@ -323,6 +360,17 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
 
     nonisolated func session(_ session: WCSession, didReceiveMessage message: [String : Any], replyHandler: @escaping ([String : Any]) -> Void) {
 #if os(iOS)
+        // Zombie-note reconciliation (§5.9): the watch asks which of its long-pending
+        // transferred notes the phone has durably processed; reply with the subset in
+        // the persisted `processedNoteIDs` set. The watch removes only those — a lost
+        // ACK can't strand a note forever, and a not-yet-processed note is never
+        // falsely deleted.
+        if let query = message["query"] as? String, query == "processedIDs",
+           let ids = message["ids"] as? [String] {
+            let processed = Set(UserDefaults.standard.stringArray(forKey: UserDefaultsKey.processedNoteIDs.rawValue) ?? [])
+            replyHandler(["processed": ids.filter { processed.contains($0) }])
+            return
+        }
         if let request = message["request"] as? String, request == "dailyFile" {
             let timestamp = message["date"] as? TimeInterval ?? Date().timeIntervalSince1970
             let date = Date(timeIntervalSince1970: timestamp)

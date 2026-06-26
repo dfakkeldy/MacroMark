@@ -137,7 +137,7 @@ struct MacroMarkApp: App {
 
     /// Set of note UUIDs that have been successfully saved. Prevents double-processing
     /// when the watch re-sends a note because it didn't receive our ACK.
-    /// Capped at ~5000 entries (LRU eviction) to bound UserDefaults plist growth.
+    /// Capped at ~5000 entries to bound UserDefaults plist growth.
     private static let maxProcessedNoteIDs = 5000
     @MainActor private static var cachedProcessedIDs: Set<UUID>?
     @MainActor private static var cachedProcessedIDsCount = 0
@@ -154,9 +154,12 @@ struct MacroMarkApp: App {
     private static func addProcessedNoteID(_ id: UUID) {
         var processed = readProcessedNoteIDs()
         processed.insert(id)
-        // LRU eviction: drop oldest entries when exceeding the cap.
-        while processed.count > maxProcessedNoteIDs, let first = processed.first {
-            processed.remove(first)
+        // Bound the set past the cap. This is a Set, so eviction isn't strictly
+        // oldest-first; an evicted-but-already-delivered id only means the watch
+        // keeps a stale copy a little longer (the §5.9 reconciliation re-confirms
+        // later) — it can never cause a delivered note to be deleted.
+        while processed.count > maxProcessedNoteIDs, let evict = processed.first {
+            processed.remove(evict)
         }
         UserDefaults.standard.set(processed.map(\.uuidString), forKey: UserDefaultsKey.processedNoteIDs.rawValue)
         cachedProcessedIDs = processed
@@ -248,7 +251,7 @@ struct MacroMarkApp: App {
 
         // Move the audio into durable storage and record it in the WAL BEFORE
         // processing, so a crash mid-transcription doesn't lose the recording.
-        let destURL = Self.pendingAudioDirectory.appendingPathComponent("\(id.uuidString).m4a")
+        let destURL = Self.pendingAudioDirectory.appendingPathComponent("\(id.uuidString).\(StorageFormat.audioFileExtension)")
         do {
             if FileManager.default.fileExists(atPath: destURL.path) {
                 try FileManager.default.removeItem(at: destURL)

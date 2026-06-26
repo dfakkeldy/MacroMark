@@ -94,7 +94,7 @@ final class LocalStore {
     /// Move a freshly recorded audio file into durable storage and queue it for
     /// transfer. The file survives app termination and is retried until ACK'd.
     func enqueueAudio(from sourceURL: URL, id: UUID, timestamp: Date) {
-        let destURL = audioDirectory.appendingPathComponent("\(id.uuidString).m4a")
+        let destURL = audioDirectory.appendingPathComponent("\(id.uuidString).\(StorageFormat.audioFileExtension)")
 
         do {
             if FileManager.default.fileExists(atPath: destURL.path) {
@@ -144,6 +144,19 @@ final class LocalStore {
     func markAudioUnqueued(_ id: UUID) {
         queuedAudioIDs.remove(id)
         syncPendingAudio()
+    }
+
+    // MARK: - Reconciliation (lost-ACK zombies, §5.9)
+
+    /// Transferred (queued) note + audio IDs older than the grace period — candidate
+    /// "lost ACK" zombies to reconcile with the phone before removing. Only IDs the
+    /// watch already handed to the phone (in the queued sets) and pending longer than
+    /// the grace period qualify; the phone confirms which are actually processed.
+    func staleQueuedIDs(olderThan grace: TimeInterval = 24 * 60 * 60, now: Date = Date()) -> [UUID] {
+        let cutoff = now.addingTimeInterval(-grace)
+        let notes = pendingNotes.filter { queuedNoteIDs.contains($0.id) && $0.timestamp < cutoff }.map(\.id)
+        let audio = pendingAudio.filter { queuedAudioIDs.contains($0.id) && $0.timestamp < cutoff }.map(\.id)
+        return notes + audio
     }
 
     // MARK: - Persistence
