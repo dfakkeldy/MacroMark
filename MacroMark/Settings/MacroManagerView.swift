@@ -8,7 +8,7 @@ struct MacroManagerView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Macro.sortOrder, order: .forward) private var macros: [Macro]
 
-    @AppStorage(UserDefaultsKey.captureMode.rawValue) private var captureMode: String = "audio"
+    @AppStorage(UserDefaultsKey.captureMode.rawValue) private var captureMode: String = CaptureMode.audio.rawValue
     @AppStorage(UserDefaultsKey.customSaveBookmark.rawValue) private var customSaveBookmark: Data?
     @AppStorage(UserDefaultsKey.defaultExportTarget.rawValue) private var defaultExportTarget: ExportTarget = .iCloud
     @AppStorage(UserDefaultsKey.autoExportEnabled.rawValue) private var autoExportEnabled: Bool = false
@@ -38,8 +38,8 @@ struct MacroManagerView: View {
                 // MARK: Settings
                 Section("Settings") {
                     Picker("Watch Double Tap Action", selection: $captureMode) {
-                        Text("Instant (Audio)").tag("audio")
-                        Text("Standard (Dictation)").tag("system")
+                        Text("Instant (Audio)").tag(CaptureMode.audio.rawValue)
+                        Text("Standard (Dictation)").tag(CaptureMode.system.rawValue)
                     }
                     .onChange(of: captureMode) { _, newValue in
                         WatchConnectivityProvider.shared.updateSettings(captureMode: newValue)
@@ -48,6 +48,11 @@ struct MacroManagerView: View {
 
                 // MARK: Storage Location
                 Section("iCloud Storage Location") {
+                    if iCloudStorageManager.shared.isUsingFallbackStorage {
+                        Label("iCloud unavailable — notes are saving to this device", systemImage: "exclamationmark.icloud")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
                     Button(customSaveBookmark == nil ? "Choose Save Location..." : "Change Save Location...") {
                         showingFolderPicker = true
                     }
@@ -234,47 +239,11 @@ struct MacroManagerView: View {
         MacroProcessor.invalidateRegexCache()
     }
 
-    // MARK: - Default Macros (Fixed: single newlines)
-
-    private var defaultMacros: [Macro] {
-        return [
-            // Markdown Headings
-            Macro(trigger: "Heading One", replacement: "# ", isDefault: true, sortOrder: 0),
-            Macro(trigger: "Heading Two", replacement: "## ", isDefault: true, sortOrder: 1),
-            Macro(trigger: "Heading To", replacement: "## ", notes: "Dictation often mishears 'Heading Two' as 'Heading To'.", isDefault: true, sortOrder: 1),
-            Macro(trigger: "Heading Three", replacement: "### ", isDefault: true, sortOrder: 2),
-            Macro(trigger: "Heading Four", replacement: "#### ", isDefault: true, sortOrder: 3),
-            Macro(trigger: "Heading Five", replacement: "##### ", isDefault: true, sortOrder: 4),
-            Macro(trigger: "Heading Six", replacement: "###### ", isDefault: true, sortOrder: 5),
-
-            // Markdown Formatting
-            Macro(trigger: "Bold", replacement: "**", isDefault: true, sortOrder: 6),
-            Macro(trigger: "Italic", replacement: "_", isDefault: true, sortOrder: 7),
-            Macro(trigger: "Strikethrough", replacement: "~~", isDefault: true, sortOrder: 8),
-            Macro(trigger: "Code Block", replacement: "```", isDefault: true, sortOrder: 9),
-            Macro(trigger: "Inline Code", replacement: "`", isDefault: true, sortOrder: 10),
-            Macro(trigger: "Quote", replacement: "> ", isDefault: true, sortOrder: 11),
-
-            // Markdown Lists
-            Macro(trigger: "Bullet", replacement: "- ", isDefault: true, sortOrder: 12),
-            Macro(trigger: "Numbered", replacement: "1. ", isDefault: true, sortOrder: 13),
-            Macro(trigger: "Task", replacement: "- [ ] ", isDefault: true, sortOrder: 14),
-
-            // Clever Macros
-            Macro(trigger: "Timestamp", replacement: "{time} - ", notes: "Inserts the current time.", isDefault: true, sortOrder: 15),
-            Macro(trigger: "New Journal Entry", replacement: "## {date} at {time}", notes: "Creates a new daily journal entry heading.", isDefault: true, sortOrder: 16),
-            Macro(trigger: "Horizontal Rule", replacement: "---", isDefault: true, sortOrder: 17),
-            Macro(trigger: "Paste", replacement: "{clipboard}", notes: "Pastes whatever is currently on your clipboard.", isDefault: true, sortOrder: 18),
-            Macro(trigger: "Dropoff", replacement: "{location} - ", notes: "Inserts your current street address.", isDefault: true, sortOrder: 19),
-            Macro(trigger: "Smile", replacement: "😀", isDefault: true, sortOrder: 20),
-            Macro(trigger: "Block ID", replacement: "^id-{uuid}", notes: "Generates a unique identifier for block references.", isDefault: true, sortOrder: 21),
-            Macro(trigger: "Not", replacement: "{backspace}", notes: "Deletes the character before it. Say 'new line' then 'not' to end a hashtag without leaving a newline. ⚠️ 'Not' is a common word — rename this trigger if it fires accidentally.", isDefault: true, sortOrder: 22)
-        ]
-    }
+    // MARK: - Default Macros
 
     private func prepopulateIfNeeded() {
         if macros.isEmpty {
-            for macro in defaultMacros {
+            for macro in DefaultMacros.all() {
                 modelContext.insert(macro)
             }
             try? modelContext.save()
@@ -286,7 +255,7 @@ struct MacroManagerView: View {
         for macro in macros where macro.isDefault {
             modelContext.delete(macro)
         }
-        for macro in defaultMacros {
+        for macro in DefaultMacros.all() {
             modelContext.insert(macro)
         }
         try? modelContext.save()

@@ -1,14 +1,22 @@
 import SwiftUI
+import MacroMarkKit
 
-enum CaptureMode: Hashable {
+private enum Layout {
+    static let captureRowHeight: CGFloat = 70
+    static let dailyLogMinHeight: CGFloat = 44
+}
+
+/// Where the watch navigates to. Distinct from `MacroMarkKit.CaptureMode`
+/// (audio/system), which is the user's stored default capture mode.
+enum CaptureDestination: Hashable {
     case instant
     case system
     case dailyLog
 }
 
 struct ContentView: View {
-    @AppStorage("captureMode") private var captureMode: String = "audio"
-    @State private var navigationPath = [CaptureMode]()
+    @AppStorage(UserDefaultsKey.captureMode.rawValue) private var captureMode: String = CaptureMode.audio.rawValue
+    @State private var navigationPath = [CaptureDestination]()
     @State private var selectedDate = Date()
 
     var body: some View {
@@ -39,14 +47,14 @@ struct ContentView: View {
                         .buttonStyle(.plain)
                         .glassEffect(.regular.tint(.orange).interactive(), in: .rect(cornerRadius: 16))
                     }
-                    .frame(height: 70)
+                    .frame(height: Layout.captureRowHeight)
 
                     Button(action: {
                         navigationPath.append(.dailyLog)
                     }) {
                         Text("Daily Log")
                             .font(.headline)
-                            .frame(maxWidth: .infinity, minHeight: 44)
+                            .frame(maxWidth: .infinity, minHeight: Layout.dailyLogMinHeight)
                     }
                     .buttonStyle(.plain)
                     .glassEffect(.regular.tint(.purple).interactive(), in: .rect(cornerRadius: 16))
@@ -63,7 +71,7 @@ struct ContentView: View {
                 .buttonStyle(.plain)
                 .handGestureShortcut(.primaryAction)
             }
-            .navigationDestination(for: CaptureMode.self) { mode in
+            .navigationDestination(for: CaptureDestination.self) { mode in
                 switch mode {
                 case .instant:
                     InstantCaptureView(targetDate: selectedDate)
@@ -88,12 +96,10 @@ struct ContentView: View {
     }
 
     private func navigateToDefaultCapture() {
-        switch captureMode {
-        case "audio":
-            navigationPath.append(.instant)
-        case "system":
+        switch CaptureMode(rawValue: captureMode) {
+        case .system:
             navigationPath.append(.system)
-        default:
+        default: // .audio or unrecognized
             navigationPath.append(.instant)
         }
     }

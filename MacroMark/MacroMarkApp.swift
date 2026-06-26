@@ -304,6 +304,19 @@ struct MacroMarkApp: App {
 #endif
 
         Task { @MainActor in
+            // Single cleanup path for every exit: clear the in-flight guard and end
+            // the background task. The OS-expiration handler above already ends it
+            // if it fired, leaving bgTask == .invalid so we never double-end.
+            defer {
+                Self.inFlightIDs.remove(noteId)
+#if canImport(UIKit)
+                if bgTask != .invalid {
+                    UIApplication.shared.endBackgroundTask(bgTask)
+                    bgTask = .invalid
+                }
+#endif
+            }
+
             let processedText: String
             let macros: [Macro]
 
@@ -329,26 +342,12 @@ struct MacroMarkApp: App {
 #endif
                     // Keep the audio file AND the WAL entry so it can be retried on
                     // the next launch. Do NOT delete and do NOT ACK — losing the
-                    // recording is worse than a deferred retry.
-                    Self.inFlightIDs.remove(noteId)
-#if canImport(UIKit)
-                    if bgTask != .invalid {
-                        UIApplication.shared.endBackgroundTask(bgTask)
-                        bgTask = .invalid
-                    }
-#endif
+                    // recording is worse than a deferred retry. (Cleanup via defer.)
                     return
                 }
             } else if let directText = text {
                 processedText = directText
             } else {
-                Self.inFlightIDs.remove(noteId)
-#if canImport(UIKit)
-                if bgTask != .invalid {
-                    UIApplication.shared.endBackgroundTask(bgTask)
-                    bgTask = .invalid
-                }
-#endif
                 return
             }
 
@@ -366,15 +365,6 @@ struct MacroMarkApp: App {
             // Save and export — ACK is sent inside processAndExport only after the
             // export target actually succeeds (§5.1).
             await processAndExport(noteId: noteId, text: result, isAudio: isAudio, timestamp: timestamp, autoExport: autoExport, rawTarget: rawTarget, context: context, transcriptionPartial: transcriptionPartial)
-
-            Self.inFlightIDs.remove(noteId)
-
-#if canImport(UIKit)
-            if bgTask != .invalid {
-                UIApplication.shared.endBackgroundTask(bgTask)
-                bgTask = .invalid
-            }
-#endif
         }
     }
 
@@ -398,36 +388,38 @@ struct MacroMarkApp: App {
         Self.writePendingAudio(pending)
     }
 
-    private static func readPendingProcessing() -> [UUID: PendingNote] {
-        guard let data = UserDefaults.standard.data(forKey: UserDefaultsKey.pendingProcessing.rawValue),
-              let dict = try? JSONDecoder().decode([String: PendingNote].self, from: data)
+    /// Generic load/save for the UUID-keyed write-ahead logs (JSON in UserDefaults,
+    /// keyed by UUID string). Replaces the per-WAL round-trip duplication.
+    private static func loadWAL<V: Codable>(forKey key: String) -> [UUID: V] {
+        guard let data = UserDefaults.standard.data(forKey: key),
+              let dict = try? JSONDecoder().decode([String: V].self, from: data)
         else { return [:] }
         return dict.reduce(into: [:]) { partial, entry in
             if let id = UUID(uuidString: entry.key) { partial[id] = entry.value }
         }
+    }
+
+    private static func saveWAL<V: Codable>(_ dict: [UUID: V], forKey key: String) {
+        let stringDict = dict.reduce(into: [String: V]()) { $0[$1.key.uuidString] = $1.value }
+        if let data = try? JSONEncoder().encode(stringDict) {
+            UserDefaults.standard.set(data, forKey: key)
+        }
+    }
+
+    private static func readPendingProcessing() -> [UUID: PendingNote] {
+        loadWAL(forKey: UserDefaultsKey.pendingProcessing.rawValue)
     }
 
     private static func writePendingProcessing(_ dict: [UUID: PendingNote]) {
-        let stringDict = dict.reduce(into: [String: PendingNote]()) { $0[$1.key.uuidString] = $1.value }
-        if let data = try? JSONEncoder().encode(stringDict) {
-            UserDefaults.standard.set(data, forKey: UserDefaultsKey.pendingProcessing.rawValue)
-        }
+        saveWAL(dict, forKey: UserDefaultsKey.pendingProcessing.rawValue)
     }
 
     private static func readPendingAudio() -> [UUID: PendingAudio] {
-        guard let data = UserDefaults.standard.data(forKey: UserDefaultsKey.pendingAudioIn.rawValue),
-              let dict = try? JSONDecoder().decode([String: PendingAudio].self, from: data)
-        else { return [:] }
-        return dict.reduce(into: [:]) { partial, entry in
-            if let id = UUID(uuidString: entry.key) { partial[id] = entry.value }
-        }
+        loadWAL(forKey: UserDefaultsKey.pendingAudioIn.rawValue)
     }
 
     private static func writePendingAudio(_ dict: [UUID: PendingAudio]) {
-        let stringDict = dict.reduce(into: [String: PendingAudio]()) { $0[$1.key.uuidString] = $1.value }
-        if let data = try? JSONEncoder().encode(stringDict) {
-            UserDefaults.standard.set(data, forKey: UserDefaultsKey.pendingAudioIn.rawValue)
-        }
+        saveWAL(dict, forKey: UserDefaultsKey.pendingAudioIn.rawValue)
     }
 
     // MARK: - ACK helpers (suppressed on the volatile in-memory store)
@@ -608,19 +600,11 @@ struct MacroMarkApp: App {
     }
 
     private static func readPendingExports() -> [UUID: PendingExport] {
-        guard let data = UserDefaults.standard.data(forKey: pendingExportKey),
-              let dict = try? JSONDecoder().decode([String: PendingExport].self, from: data)
-        else { return [:] }
-        return dict.reduce(into: [:]) { partial, entry in
-            if let id = UUID(uuidString: entry.key) { partial[id] = entry.value }
-        }
+        loadWAL(forKey: pendingExportKey)
     }
 
     private static func writePendingExports(_ dict: [UUID: PendingExport]) {
-        let stringDict = dict.reduce(into: [String: PendingExport]()) { $0[$1.key.uuidString] = $1.value }
-        if let data = try? JSONEncoder().encode(stringDict) {
-            UserDefaults.standard.set(data, forKey: pendingExportKey)
-        }
+        saveWAL(dict, forKey: pendingExportKey)
     }
 
     /// Retry every pending export whose final target hasn't confirmed yet.

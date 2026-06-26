@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import MacroMarkKit
 
 struct CapturedNote: Identifiable, Codable {
     var id: UUID = UUID()
@@ -36,10 +37,10 @@ final class LocalStore {
     /// Track audio IDs already handed to the connectivity provider for transfer.
     private var queuedAudioIDs: Set<UUID> = []
 
-    private let defaultsKey = "MacroMark_PendingNotes"
-    private let queuedKey = "MacroMark_QueuedNoteIDs"
-    private let pendingAudioKey = "MacroMark_PendingAudio"
-    private let queuedAudioKey = "MacroMark_QueuedAudioIDs"
+    private let defaultsKey = UserDefaultsKey.pendingNotes.rawValue
+    private let queuedKey = UserDefaultsKey.queuedNoteIDs.rawValue
+    private let pendingAudioKey = UserDefaultsKey.pendingAudio.rawValue
+    private let queuedAudioKey = UserDefaultsKey.queuedAudioIDs.rawValue
 
     /// Durable on-disk location for queued audio (NOT the system temp dir, which
     /// the OS can purge). Audio bytes live here until the phone confirms receipt.

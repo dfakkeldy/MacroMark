@@ -10,7 +10,28 @@ Conventions:
 
 ---
 
-> **Swift 6.2 migration status (2026-06-25):** P0.3 (§3.1 regex-cache race) and P0.5 (§3.2 watch semaphore deadlock) were verified already complete in the code, as was P1.1 (§3.3 `Thread.sleep` on MainActor). The Swift 6 language-mode migration additionally fixed a **critical `WatchConnectivityProvider` launch crash** (`@MainActor` WCSession delegate invoked off-main), introduced a `Sendable` `MacroRule` so `MacroProcessor` no longer takes SwiftData models off-actor, and hardened `LocationManager` / `AudioTranscriber`. The P0 data-loss items **P0.1 (§5.1) and P0.2 (§5.2) remain open.** See `CODE_AUDIT.md` → "Swift 6.2 Migration Update".
+## Current status — reconciled 2026-06-26
+
+**The 2026-06-20 plan below is a stale snapshot.** A full reconciliation of all 39 items against the current code found the large majority already implemented; subsequent PRs closed almost all of the rest. **Every P0 (data-loss & crash) and P1 (high-severity) item is resolved** — in particular §5.1/§5.2 (ACK-before-export, un-materialized-placeholder drop) are handled by the `PendingExport` write-ahead log + `retryDeferredExports` retry layer that postdates this snapshot, so the data-loss pipeline is closed. _(This supersedes the earlier note that claimed §5.1/§5.2 were still open — they are not.)_
+
+**Of the 39 items: 21 were already resolved when the reconciliation ran; the PRs below resolved the rest, leaving 4 open.**
+
+- **Swift 6.2 migration (PR #4):** Swift 6 language mode; fixed a **critical WCSession launch crash** (`@MainActor` delegate invoked off-main on WCSession's queue); `Sendable` `MacroRule` snapshot; `LocationManager` / `AudioTranscriber` hardening.
+- **Batch A (PR #5):** P2.8 §3.4/3.5 (continuation timeouts), P2.9 §4.3 (watch text-input emoji drop), P2.5 §5.11 (`didSet` double-save), P2.10 §7.2 (launch reprocess), P3.1 §3.6 (timeout-task cancel), P3.5 §7.4 (inbox `@Query`).
+- **P2.2 (PR #6):** §5.7 — wrap-cleanup no longer corrupts dictated `*`/`_`/`~`.
+- **Cleanup batch (this PR):** P1.4 §9.4 (watch keys), P2.14 §9.3 (generic WAL helpers), P2.15 §9.5 (security-scope helper), P2.16 §9.6 (`DefaultMacros` in the kit + duplicate-`sortOrder` fix), P2.17 §9.7 (fallback banner), P3.3 §4.1 (`bgTask` `defer` hoist), P3.6 §8.3 (layout constants), P3.7 §8.4 (`CaptureMode` adoption).
+- **Obsolete:** P1.3 §9.1 — `WatchConnectivityProvider` is a **symlink**, not a duplicated file; it cannot drift.
+
+### Genuinely remaining (all P2/P3 — none are data-loss)
+
+| Item | What's left | Effort |
+|---|---|--------|
+| **P2.4 §5.9** | Watch ACK-lost zombie notes — a grace-period `sendMessage("isProcessed?")` reconciliation + a phone-side responder | M |
+| **P2.5 §5.10** | `FolderSettings.format` date tokens are unescapable (sequential `replacing`) — adopt `Date.FormatStyle`/quoting, or document the limit. (The §5.11 `didSet` half is done.) | S |
+| **P2.11 §7.3** | Cache the resolved `baseDirectoryURL` so the ubiquity-container/bookmark lookup runs once, not per append/read. (The side-effect-on-read half is fixed.) | M |
+| **P3.9 §9.10** | Name the remaining magic literals (sleep durations, sample rate, `.m4a`/`.md`/`"Notes/"`). (The frame literals are done in P3.6.) | M |
+
+The per-severity tables below are the original 2026-06-20 snapshot, kept for reference — **trust this section for current status.**
 
 ---
 

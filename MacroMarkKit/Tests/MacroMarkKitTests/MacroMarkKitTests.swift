@@ -22,6 +22,19 @@ struct MacroModelTests {
         #expect(macro.isDefault == false)
         #expect(macro.sortOrder == 0)
     }
+
+    @Test
+    func defaultMacrosAreWellFormed() {
+        let defaults = DefaultMacros.all()
+        #expect(defaults.count == 24)
+        // Unique, sequential sort orders (the old in-view seed had a duplicate `1`).
+        #expect(Set(defaults.map(\.sortOrder)).count == defaults.count)
+        #expect(defaults.map(\.sortOrder).sorted() == Array(0..<defaults.count))
+        // Unique, non-empty triggers; all flagged as defaults.
+        #expect(Set(defaults.map(\.trigger)).count == defaults.count)
+        #expect(defaults.allSatisfy { !$0.trigger.isEmpty })
+        #expect(defaults.allSatisfy { $0.isDefault })
+    }
 }
 
 struct FolderSettingsTests {

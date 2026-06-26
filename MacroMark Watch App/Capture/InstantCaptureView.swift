@@ -2,6 +2,7 @@ import SwiftUI
 import MacroMarkKit
 
 struct InstantCaptureView: View {
+    private static let waveformSize: CGFloat = 80
     let targetDate: Date
 
     @Environment(\.scenePhase) private var scenePhase
@@ -13,7 +14,7 @@ struct InstantCaptureView: View {
             Image(systemName: recorder.isRecording ? "waveform.circle.fill" : "waveform.circle")
                 .resizable()
                 .scaledToFit()
-                .frame(width: 80, height: 80)
+                .frame(width: Self.waveformSize, height: Self.waveformSize)
                 .foregroundStyle(recorder.isRecording ? .red : .gray)
                 .symbolEffect(.pulse, options: .repeating, isActive: recorder.isRecording)
                 

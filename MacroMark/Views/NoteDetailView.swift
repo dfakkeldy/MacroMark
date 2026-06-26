@@ -3,6 +3,7 @@ import SwiftData
 import MacroMarkKit
 
 struct NoteDetailView: View {
+    private static let editorMinHeight: CGFloat = 200
     @Bindable var note: ProcessedNote
     
     var body: some View {
@@ -15,7 +16,7 @@ struct NoteDetailView: View {
             }
             Section {
                 TextEditor(text: $note.text)
-                    .frame(minHeight: 200)
+                    .frame(minHeight: Self.editorMinHeight)
                     .font(.body)
             } header: {
                 Text(note.createdAt.formatted(date: .abbreviated, time: .shortened))
