@@ -26,7 +26,7 @@ The project was migrated to **Swift 6 language mode**: `SWIFT_VERSION = 6.0` on 
 - **[Medium] `AudioTranscriber` used `nonisolated(unsafe)` for the cancellable speech task.** Replaced with an `OSAllocatedUnfairLock`.
 - **[Low] `iCloudStorageManager` read path (`readText`, `shared`, `folderSettings`, base-dir resolution) made `nonisolated`** so the WC reply handler reads without sending the non-Sendable reply closure across an actor boundary. The write/append/defer (§5.2) path and `isUsingFallbackStorage` publishing are unchanged.
 
-The open data-loss criticals **§5.1 (ACK before iCloud append confirmed) and §5.2 (un-materialized placeholder drop) remain unaddressed** — out of scope for this migration.
+**Update (2026-06-26 reconciliation):** §5.1 and §5.2 were subsequently found **already resolved** in the code — the `PendingExport` write-ahead log + `retryDeferredExports` retry layer (`MacroMarkApp.swift`) gate the ACK and WAL-clearing on the export result, and `appendText` returns `.deferred` for un-materialized placeholders, so the data-loss pipeline is closed. A full reconciliation of all 39 remediation items lives in `REMEDIATION_PLAN.md` → "Current status — reconciled 2026-06-26"; only P2.4, P2.5 §5.10, P2.11, and P3.9 remain (all P2/P3, none data-loss).
 
 ---
 
@@ -34,8 +34,8 @@ The open data-loss criticals **§5.1 (ACK before iCloud append confirmed) and §
 
 Top items to address, in priority order. Data-loss in the note-sync pipeline is the user's stated #1 concern and dominates this list.
 
-1. **[Critical] ACK is sent before the iCloud append is confirmed** — §5.1 — `MacroMark/MacroMarkApp.swift:424-433`. A note that saves to SwiftData but fails the iCloud append is ACK'd, removed from the WAL, and deleted from the watch — yet never reaches the daily-note file.
-2. **[Critical] iCloud append silently drops notes when the day's file is an un-materialized placeholder** — §5.2 — `MacroMarkKit/Sources/MacroMarkKit/Storage/iCloudStorageManager.swift:111-115`. Combined with §5.1, a note captured right after a device wake is permanently absent from the `.md` output with no retry.
+1. **[Critical · ✅ RESOLVED] ACK is sent before the iCloud append is confirmed** — §5.1 — `MacroMark/MacroMarkApp.swift:424-433`. A note that saves to SwiftData but fails the iCloud append is ACK'd, removed from the WAL, and deleted from the watch — yet never reaches the daily-note file.
+2. **[Critical · ✅ RESOLVED] iCloud append silently drops notes when the day's file is an un-materialized placeholder** — §5.2 — `MacroMarkKit/Sources/MacroMarkKit/Storage/iCloudStorageManager.swift:111-115`. Combined with §5.1, a note captured right after a device wake is permanently absent from the `.md` output with no retry.
 3. **[Critical · ✅ RESOLVED] Data race on the MacroProcessor regex cache** — §3.1 — `MacroMarkKit/Sources/MacroMarkKit/Engine/MacroProcessor.swift:13,37-43`. `nonisolated(unsafe)` dictionary mutated from concurrent `process()` calls; the "benign" comment is wrong — Dictionary mutation is a crash-class data race.
 4. **[High] Stale compiled regex is never invalidated when macros are edited** — §5.3 — `MacroProcessor.invalidateRegexCache()` exists but is called nowhere; editing a trigger leaves the old pattern replacing text.
 5. **[High · ✅ RESOLVED] watchOS semaphore+main-actor pattern can deadlock and lose the recording** — §3.2 — `MacroMark Watch App/Capture/InstantCaptureView.swift:57-69` (and `SystemCaptureView.swift:31-43`). Blocking a cooperative-pool thread on `DispatchSemaphore.wait()` waiting for a MainActor hop.
