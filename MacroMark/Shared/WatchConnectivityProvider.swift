@@ -287,18 +287,21 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
 
         return await withCheckedContinuation { continuation in
             let timeout = ContinuationTimeout()
-            
-            Task {
+
+            // Capture the racer so the reply/error path can cancel the 15s sleep
+            // once it wins, instead of leaving it pending until it fires harmlessly.
+            let timeoutTask = Task {
                 try? await Task.sleep(for: .seconds(15))
                 if await timeout.complete() {
                     let cached = UserDefaults.standard.string(forKey: cacheKey) ?? ""
                     continuation.resume(returning: cached)
                 }
             }
-            
+
             session.sendMessage(["request": "dailyFile", "date": date.timeIntervalSince1970], replyHandler: { reply in
                 Task {
                     if await timeout.complete() {
+                        timeoutTask.cancel()
                         let content = reply["content"] as? String ?? ""
                         UserDefaults.standard.set(content, forKey: cacheKey)
                         continuation.resume(returning: content)
@@ -307,6 +310,7 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
             }, errorHandler: { error in
                 Task {
                     if await timeout.complete() {
+                        timeoutTask.cancel()
                         let cached = UserDefaults.standard.string(forKey: cacheKey) ?? ""
                         continuation.resume(returning: cached)
                     }
