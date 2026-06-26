@@ -32,11 +32,32 @@ public final class iCloudStorageManager {
         return settings
     }
 
+    /// Cache of the resolved base directory, keyed on the custom-save-location
+    /// bookmark data so it self-invalidates when the user sets, changes, or clears
+    /// a custom folder. Static + lock-guarded because `resolvedBaseDirectory()` is
+    /// nonisolated and runs on both the read and write paths. Process-lifetime: if
+    /// iCloud is toggled mid-session a stale entry can persist, but the write then
+    /// fails into the retry WAL and a fresh process re-resolves it — no data loss.
+    private struct ResolvedBase { let url: URL; let fallback: Bool?; let bookmark: Data? }
+    nonisolated private static let baseCache = OSAllocatedUnfairLock<ResolvedBase?>(initialState: nil)
+
     /// Resolve the base directory without touching main-actor state. Returns the
     /// URL plus the value the write path should publish to `isUsingFallbackStorage`
     /// (`nil` means "leave the flag unchanged", as when a custom save location is
-    /// in use). Being `nonisolated` lets the read path run off the main actor.
+    /// in use). Cached so the slow ubiquity-container lookup doesn't run per call.
     nonisolated private func resolvedBaseDirectory() -> (url: URL, fallback: Bool?) {
+        let currentBookmark = UserDefaults.standard.data(forKey: UserDefaultsKey.customSaveBookmark.rawValue)
+        if let cached = Self.baseCache.withLock({ $0 }), cached.bookmark == currentBookmark {
+            return (cached.url, cached.fallback)
+        }
+        let resolved = computeBaseDirectory()
+        Self.baseCache.withLock { $0 = ResolvedBase(url: resolved.url, fallback: resolved.fallback, bookmark: currentBookmark) }
+        return resolved
+    }
+
+    /// The slow path: resolve the security-scoped bookmark + the iCloud ubiquity
+    /// container from scratch. Only called on a `resolvedBaseDirectory()` cache miss.
+    nonisolated private func computeBaseDirectory() -> (url: URL, fallback: Bool?) {
         if let bookmarkData = UserDefaults.standard.data(forKey: UserDefaultsKey.customSaveBookmark.rawValue) {
             var isStale = false
             if let url = try? URL(resolvingBookmarkData: bookmarkData, options: .withoutUI, relativeTo: nil, bookmarkDataIsStale: &isStale) {
@@ -72,7 +93,7 @@ public final class iCloudStorageManager {
     }
 
     nonisolated private func fileURL(for date: Date, settings: FolderSettings, base: URL) -> URL {
-        let filename = settings.format(date: date) + ".md"
+        let filename = settings.format(date: date) + "." + StorageFormat.dailyNoteExtension
 
         switch settings.structure {
         case .flat:

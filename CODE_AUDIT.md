@@ -26,7 +26,7 @@ The project was migrated to **Swift 6 language mode**: `SWIFT_VERSION = 6.0` on 
 - **[Medium] `AudioTranscriber` used `nonisolated(unsafe)` for the cancellable speech task.** Replaced with an `OSAllocatedUnfairLock`.
 - **[Low] `iCloudStorageManager` read path (`readText`, `shared`, `folderSettings`, base-dir resolution) made `nonisolated`** so the WC reply handler reads without sending the non-Sendable reply closure across an actor boundary. The write/append/defer (§5.2) path and `isUsingFallbackStorage` publishing are unchanged.
 
-**Update (2026-06-26 reconciliation):** §5.1 and §5.2 were subsequently found **already resolved** in the code — the `PendingExport` write-ahead log + `retryDeferredExports` retry layer (`MacroMarkApp.swift`) gate the ACK and WAL-clearing on the export result, and `appendText` returns `.deferred` for un-materialized placeholders, so the data-loss pipeline is closed. A full reconciliation of all 39 remediation items lives in `REMEDIATION_PLAN.md` → "Current status — reconciled 2026-06-26"; only P2.4, P2.5 §5.10, P2.11, and P3.9 remain (all P2/P3, none data-loss).
+**Update (2026-06-26 reconciliation):** §5.1 and §5.2 were subsequently found **already resolved** in the code — the `PendingExport` write-ahead log + `retryDeferredExports` retry layer (`MacroMarkApp.swift`) gate the ACK and WAL-clearing on the export result, and `appendText` returns `.deferred` for un-materialized placeholders, so the data-loss pipeline is closed. A full reconciliation of all 39 remediation items lives in `REMEDIATION_PLAN.md` → "Current status — reconciled 2026-06-26"; **all 39 are now resolved or obsolete** (the last four — P2.4 §5.9, P2.5 §5.10, P2.11 §7.3, P3.9 §9.10 — landed in the final P2/P3 batch).
 
 ---
 

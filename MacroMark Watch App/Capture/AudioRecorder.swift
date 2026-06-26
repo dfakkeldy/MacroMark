@@ -2,10 +2,14 @@ import Foundation
 @preconcurrency import AVFoundation
 import Observation
 import WatchKit
+import MacroMarkKit
 
 @MainActor
 @Observable
 final class AudioRecorder {
+    /// AAC sample rate for watch voice notes — speech-band, keeps files small.
+    private static let sampleRate = 12_000
+
     var isRecording = false
     var recordingURL: URL?
 
@@ -26,11 +30,11 @@ final class AudioRecorder {
             try session.setActive(true)
 
             let documentPath = FileManager.default.temporaryDirectory
-            let url = documentPath.appendingPathComponent("\(UUID().uuidString).m4a")
+            let url = documentPath.appendingPathComponent("\(UUID().uuidString).\(StorageFormat.audioFileExtension)")
 
             let settings: [String: Any] = [
                 AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
-                AVSampleRateKey: 12000,
+                AVSampleRateKey: Self.sampleRate,
                 AVNumberOfChannelsKey: 1,
                 AVEncoderAudioQualityKey: AVAudioQuality.high
             ]
