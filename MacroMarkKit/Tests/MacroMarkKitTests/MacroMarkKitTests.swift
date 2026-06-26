@@ -146,6 +146,24 @@ struct MacroProcessorTests {
         let result = await MacroProcessor.process(text: "Bold test Strong", macros: newTrigger)
         #expect(result == "Bold test **")
     }
+
+    /// §5.7: the wrapping-tag cleanup must tidy markers a MACRO inserted —
+    /// "make this ** word **" → "make this **word**".
+    @Test
+    func macroInsertedMarkersAreTidied() async {
+        let macros = [MacroRule(trigger: "bold", replacement: "**")]
+        let result = await MacroProcessor.process(text: "make this bold word bold", macros: macros)
+        #expect(result == "make this **word**")
+    }
+
+    /// §5.7 regression: but it must NEVER collapse `*`/`_`/`~` the user dictated,
+    /// even when spaced like Markdown emphasis (which the old global cleanup did).
+    @Test
+    func dictatedSymbolsArePreserved() async {
+        #expect(await MacroProcessor.process(text: "3 * 4 * 5", macros: []) == "3 * 4 * 5")
+        #expect(await MacroProcessor.process(text: "a _ b _ c", macros: []) == "a _ b _ c")
+        #expect(await MacroProcessor.process(text: "x ~ y ~ z", macros: []) == "x ~ y ~ z")
+    }
 }
 
 struct AppendResultTests {

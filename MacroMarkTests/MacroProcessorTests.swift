@@ -40,12 +40,14 @@ struct MacroProcessorTests {
         #expect(output.contains("\nNext line"))
     }
     
-    @Test("Test wrapping tag cleanup")
-    func testWrappingTagCleanup() async {
+    @Test("User-dictated emphasis markers are left untouched")
+    func testDictatedMarkersNotMangled() async {
+        // §5.7: no macro inserted these markers, so the wrap-cleanup must not collapse
+        // them — even though they are spaced like Markdown emphasis.
         let macros: [MacroRule] = []
         let input = "This is * bold text * and ** strong text ** and _ italic _"
         let output = await MacroProcessor.process(text: input, macros: macros)
-        
-        #expect(output == "This is *bold text* and **strong text** and _italic_")
+
+        #expect(output == input)
     }
 }
