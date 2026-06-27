@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Building MacroMark | Devlog</title>
+  <meta name="description" content="A weekly build log for MacroMark, generated from the real commit history.">
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <style>
+    :root { color-scheme: dark; --bg: #050506; --panel: #101013; --text: #f8f7f2; --muted: #aaa6a0; --line: #2a2a31; --link: #7db5ff; }
+    body { margin: 0; background: var(--bg); color: var(--text); font-family: Avenir Next, Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif; line-height: 1.55; }
+    a { color: var(--link); }
+    header, main, footer { width: min(100% - 2rem, 880px); margin: 0 auto; }
+    header { padding: 1.25rem 0; display: flex; justify-content: space-between; gap: 1rem; align-items: center; }
+    nav { display: flex; gap: 1rem; flex-wrap: wrap; }
+    nav a { color: var(--muted); text-decoration: none; }
+    .hero { padding: 4rem 0 2rem; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    h1 { font-size: clamp(2.4rem, 8vw, 5rem); line-height: .95; margin: 0 0 1rem; }
+    .lede, .week-meta, footer { color: var(--muted); }
+    .devlog-timeline { padding: 2rem 0 4rem; }
+    .week-entry { border-bottom: 1px solid var(--line); padding: 1.5rem 0; }
+    .week-entry h2 { margin: .25rem 0 1rem; }
+    .week-entry h3 { margin-top: 1.25rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>MacroMark</strong>
+    <nav aria-label="Devlog navigation">
+      <a href="index.html">Home</a>
+      <a href="https://github.com/dfakkeldy/MacroMark">GitHub</a>
+    </nav>
+  </header>
+  <main>
+    <section class="hero">
+      <p class="week-meta">Build in public</p>
+      <h1>Building MacroMark</h1>
+      <p class="lede">A weekly digest generated from the commits behind the Apple Watch capture tool for Markdown daily notes.</p>
+    </section>
+    <div class="devlog-timeline">
+            <!-- AUTO-DEVLOG:START -->
+            <article class="week-entry automated-devlog">
+                <p class="week-meta">Automated · Jun 15-21, 2026 · 10 commits</p>
+                <h2>Weekly build digest</h2>
+                <h3>Fixed</h3>
+                <ul>
+                    <li>P3 — CaptureMode enum and fetchLimit guard <a href="https://github.com/dfakkeldy/MacroMark/commit/efac8be" target="_blank" rel="noopener noreferrer">efac8be</a></li>
+                    <li>P2 medium-cleanup — export badge, dedup cap, keychain sync, dead symbols, notes UI, magic constants <a href="https://github.com/dfakkeldy/MacroMark/commit/f938207" target="_blank" rel="noopener noreferrer">f938207</a></li>
+                    <li>#if DEBUG gating on all remaining prints + partial transcription surfacing <a href="https://github.com/dfakkeldy/MacroMark/commit/14fe941" target="_blank" rel="noopener noreferrer">14fe941</a></li>
+                    <li>P2/P3 cleanup — stale files, naming, entitlements, file organization <a href="https://github.com/dfakkeldy/MacroMark/commit/b6e090f" target="_blank" rel="noopener noreferrer">b6e090f</a></li>
+                    <li>P1 UserDefaults centralization, date format dedup, restoreDefaults safety <a href="https://github.com/dfakkeldy/MacroMark/commit/80f955f" target="_blank" rel="noopener noreferrer">80f955f</a></li>
+                    <li>P0 data-loss, crash, and concurrency fixes <a href="https://github.com/dfakkeldy/MacroMark/commit/dc6b674" target="_blank" rel="noopener noreferrer">dc6b674</a></li>
+                </ul>
+                <h3>Build, docs, and housekeeping</h3>
+                <ul>
+                    <li>Remove stale widget template files <a href="https://github.com/dfakkeldy/MacroMark/commit/48ec6a0" target="_blank" rel="noopener noreferrer">48ec6a0</a></li>
+                    <li>Add fastlane CI/CD configuration <a href="https://github.com/dfakkeldy/MacroMark/commit/16d24c9" target="_blank" rel="noopener noreferrer">16d24c9</a></li>
+                    <li>Correct README publisher/tooling + add Kickstart population package <a href="https://github.com/dfakkeldy/MacroMark/commit/c80ede3" target="_blank" rel="noopener noreferrer">c80ede3</a></li>
+                    <li>Fresh code audit, remediation plan, and implementation plan <a href="https://github.com/dfakkeldy/MacroMark/commit/13fb5ef" target="_blank" rel="noopener noreferrer">13fb5ef</a></li>
+                </ul>
+            </article>
+            <!-- AUTO-DEVLOG:END -->
+
+      <article class="week-entry">
+        <p class="week-meta">Start</p>
+        <h2>The build record begins</h2>
+        <p>Automated weekly updates will appear above this note after each Monday run.</p>
+      </article>
+    </div>
+  </main>
+  <footer>
+    <p>MacroMark is open source. The generated digest links back to the commits it summarizes.</p>
+  </footer>
+</body>
+</html>
