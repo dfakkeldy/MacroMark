@@ -1,0 +1,187 @@
+name: Release Trains
+
+on:
+  schedule:
+    # America/Halifax nightly at 02:00 local time.
+    - cron: "0 5 * * *" # ADT, UTC-03:00
+    - cron: "0 6 * * *" # AST, UTC-04:00
+    # America/Halifax weekly at 03:15 local time on Mondays.
+    - cron: "15 6 * * 1" # ADT, UTC-03:00
+    - cron: "15 7 * * 1" # AST, UTC-04:00
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: Release train to build.
+        required: true
+        default: nightly
+        type: choice
+        options:
+          - nightly
+          - weekly
+
+permissions:
+  contents: read
+
+jobs:
+  resolve:
+    name: Resolve release train
+    runs-on: ubuntu-latest
+    outputs:
+      branch: ${{ steps.resolve.outputs.branch }}
+      channel: ${{ steps.resolve.outputs.channel }}
+      reason: ${{ steps.resolve.outputs.reason }}
+      should_run: ${{ steps.resolve.outputs.should_run }}
+
+    steps:
+      - name: Resolve channel and branch
+        id: resolve
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_SCHEDULE: ${{ github.event.schedule || '' }}
+          REQUESTED_CHANNEL: ${{ github.event.inputs.channel || '' }}
+        run: |
+          set -euo pipefail
+
+          channel=""
+          reason=""
+          should_run="true"
+
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            channel="$REQUESTED_CHANNEL"
+            reason="Manual ${channel} train"
+          else
+            offset="$(TZ=America/Halifax date +%z)"
+
+            case "${EVENT_SCHEDULE}:${offset}" in
+              "0 5 * * *:-0300")
+                channel="nightly"
+                reason="Active ADT nightly train"
+                ;;
+              "0 6 * * *:-0400")
+                channel="nightly"
+                reason="Active AST nightly train"
+                ;;
+              "15 6 * * 1:-0300")
+                channel="weekly"
+                reason="Active ADT weekly train"
+                ;;
+              "15 7 * * 1:-0400")
+                channel="weekly"
+                reason="Active AST weekly train"
+                ;;
+              *)
+                channel="inactive"
+                reason="Inactive DST companion schedule ${EVENT_SCHEDULE} at ${offset}"
+                should_run="false"
+                ;;
+            esac
+          fi
+
+          {
+            echo "channel=$channel"
+            echo "branch=$channel"
+            echo "reason=$reason"
+            echo "should_run=$should_run"
+          } >> "$GITHUB_OUTPUT"
+
+  ship:
+    name: Build and ship ${{ needs.resolve.outputs.channel }}
+    needs: resolve
+    if: needs.resolve.outputs.should_run == 'true'
+    runs-on: macos-26
+    timeout-minutes: 90
+    concurrency:
+      group: release-trains-${{ needs.resolve.outputs.channel }}
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout train branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve.outputs.branch }}
+
+      - name: Select Xcode 26
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "^26.0.0"
+
+      - name: Capture toolchain fingerprint
+        id: toolchain
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          xcodebuild -version | shasum | awk '{ print "xcode_hash="$1 }' >> "$GITHUB_OUTPUT"
+
+      - name: Cache SwiftPM and DerivedData
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/org.swift.swiftpm
+            ~/Library/org.swift.swiftpm
+            ~/Library/Developer/Xcode/DerivedData
+            .build
+            MacroMarkKit/.build
+          key: ${{ runner.os }}-${{ runner.arch }}-xcode-${{ steps.toolchain.outputs.xcode_hash }}-spm-${{ hashFiles('**/Package.resolved', '**/Package.swift') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-xcode-${{ steps.toolchain.outputs.xcode_hash }}-spm-
+
+      - name: Resolve Swift packages
+        run: |
+          set -euo pipefail
+          xcodebuild -resolvePackageDependencies \
+            -project MacroMark.xcodeproj \
+            -scheme "MacroMark"
+
+      - name: Build iOS app for testing
+        run: |
+          set -euo pipefail
+          xcodebuild build-for-testing \
+            -project MacroMark.xcodeproj \
+            -scheme "MacroMark" \
+            -configuration Debug \
+            -destination "generic/platform=iOS Simulator" \
+            -derivedDataPath DerivedData \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Build watchOS app
+        run: |
+          set -euo pipefail
+          xcodebuild build \
+            -project MacroMark.xcodeproj \
+            -scheme "MacroMark Watch App" \
+            -configuration Debug \
+            -destination "generic/platform=watchOS" \
+            -derivedDataPath DerivedData \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Run MacroMarkKit tests
+        run: |
+          set -euo pipefail
+          swift test --package-path MacroMarkKit
+
+      - name: Set up Ruby and Fastlane
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      - name: Upload to TestFlight when release secrets are present
+        env:
+          APP_STORE_CONNECT_API_KEY_JSON: ${{ secrets.APP_STORE_CONNECT_API_KEY_JSON }}
+          MATCH_GIT_SSH_KEY: ${{ secrets.MATCH_GIT_SSH_KEY }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "$APP_STORE_CONNECT_API_KEY_JSON" ] || [ -z "$MATCH_PASSWORD" ] || [ -z "$MATCH_GIT_SSH_KEY" ]; then
+            echo "::notice title=Compile-only release train::APP_STORE_CONNECT_API_KEY_JSON, MATCH_PASSWORD, and MATCH_GIT_SSH_KEY are required for TestFlight upload. The compile gate passed; upload was skipped."
+            exit 0
+          fi
+
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$MATCH_GIT_SSH_KEY" > ~/.ssh/match_git_ssh_key
+          chmod 600 ~/.ssh/match_git_ssh_key
+          eval "$(ssh-agent -s)"
+          ssh-add ~/.ssh/match_git_ssh_key
+
+          bundle exec fastlane beta channel:${{ needs.resolve.outputs.channel }}
