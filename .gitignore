@@ -19,6 +19,8 @@ __pycache__/
 *.pyc
 
 # Fastlane
+fastlane/app_store_connect_api_key.json
+fastlane/api_key.json
 fastlane/report.xml
 fastlane/test_output/
 fastlane/screenshots/

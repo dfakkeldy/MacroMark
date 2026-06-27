@@ -126,7 +126,10 @@ You are a Senior iOS Engineer specializing in SwiftUI, SwiftData, watchOS, Widge
 
 ## PR Instructions
 
-- No special promotion ladder is documented for MacroMark. Use the active branch and the user's requested base branch; do not invent `nightly` or `weekly` workflow rules.
+- MacroMark uses the standard promotion ladder `feature/* -> nightly -> weekly -> main`.
+- Feature work branches from `nightly`; PRs target `nightly` unless the user explicitly asks for a hotfix or another base.
+- `weekly` is promoted only from `nightly`, and `main` is promoted only from `weekly`.
+- Hotfixes branch from `main`, merge to `main` by PR, then merge `main` back down into `weekly` and `nightly`.
 - Never push directly to protected branches unless explicitly asked.
 - If drafting commit messages, use Conventional Commits when practical.
 - Mention documentation updates when a change affects architecture, setup, release behavior, data durability, user-visible workflows, or the README feature description.
