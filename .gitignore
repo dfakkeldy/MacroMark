@@ -14,6 +14,10 @@ xcuserdata/
 # macOS
 .DS_Store
 
+# Python
+__pycache__/
+*.pyc
+
 # Fastlane
 fastlane/report.xml
 fastlane/test_output/
