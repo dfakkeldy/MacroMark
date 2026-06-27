@@ -18,9 +18,9 @@ This directory contains the `fastlane` configuration for automating screenshots,
 
 ### 1. App Store Optimization (ASO) Metadata
 You can manage your App Store metadata locally. We recommend using the `app-store-aso` AI skill to generate optimized metadata:
-- **Title**: MacroMark: Zero-Friction Notes
-- **Subtitle**: Append voice memos to Markdown with accurate timestamps
-- **Keywords**: pkm,markdown,voice,dictation,obsidian,logseq,apple watch,capture,liquid glass
+- **Title**: MacroMark
+- **Subtitle**: Voice Capture for Markdown
+- **Keywords**: notes,dictation,watch,obsidian,logseq,daily,journal,memo,transcribe,vault,shortcut,inbox,quick
 
 Put these generated strings into `fastlane/metadata/en-US/` and run:
 ```bash
