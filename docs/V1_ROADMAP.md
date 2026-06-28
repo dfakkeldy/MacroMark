@@ -18,16 +18,18 @@ Implemented in the overnight v1 branch:
 - Daily-note formatting controls for timestamp style, separators, and optional headings.
 - Destination setup proof with active destination, test note, and last successful export details.
 - Bounded speech authorization, chunk transcription, and location waits, with visible partial-transcription warnings.
-- Launch privacy artifacts: privacy manifest, privacy policy page, terms page, and local fastlane metadata.
+- Stale Watch ACK reconciliation for queued notes/audio after lost acknowledgements.
+- Launch privacy artifacts: app and Watch privacy manifests, privacy policy page, terms page, homepage privacy/support anchors, and local fastlane metadata.
 
 Verified so far:
 - Package tests and generic iOS/watchOS builds passed in Tasks 1-6 as recorded in `.superpowers/sdd/task-*-report.md`.
-- Task 8 text checks cover the privacy manifest and metadata files without running Xcode builds.
+- Task 7 watch build and watch tests passed after a simulator boot retry.
+- Task 8 text checks cover the privacy manifests and metadata files without running Xcode builds.
 
 Still manual or pending before App Store submission:
-- Task 7 watch ACK reconciliation and paired-device zombie cleanup are not reflected here until that task commits.
 - StoreKit annual/lifetime product loading, purchase, and restore need local StoreKit verification.
 - Screenshots, TestFlight upload, App Store Connect privacy answers, and a paired iPhone/Apple Watch smoke test remain release gates.
+- GitHub Pages must deploy the updated privacy/support anchors before uploading App Store metadata.
 
 ## v1.0 Positioning
 

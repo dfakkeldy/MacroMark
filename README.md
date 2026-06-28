@@ -31,7 +31,7 @@ The full roadmap is in [docs/V1_ROADMAP.md](docs/V1_ROADMAP.md). It turns the co
 7. Transcription integrity.
 8. Launch monetization and App Store readiness.
 
-Status notes: StoreKit products, screenshots, TestFlight upload, and paired iPhone/Watch smoke testing still need release verification before v1.0 can be submitted. The repository now includes launch metadata, privacy pages, and a privacy manifest, but App Store Connect privacy answers must still be checked against the final build.
+Status notes: StoreKit products, screenshots, TestFlight upload, and paired iPhone/Watch smoke testing still need release verification before v1.0 can be submitted. The repository now includes launch metadata, privacy pages, and app/watch privacy manifests, but App Store Connect privacy answers and the live GitHub Pages privacy/support URLs must still be checked against the final build.
 
 ## Installation
 
