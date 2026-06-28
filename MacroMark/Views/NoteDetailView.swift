@@ -52,8 +52,13 @@ struct NoteDetailView: View {
         Task {
             let success = await UIApplication.shared.open(url)
             if success {
+                let exportDate = Date.now
                 note.isExported = true
                 note.exportTarget = target.rawValue
+                note.exportStatus = .exported
+                note.exportStatusMessage = "Saved to \(target.rawValue)."
+                note.lastExportAttemptAt = exportDate
+                note.lastExportedAt = exportDate
                 try? note.modelContext?.save()
             }
         }
@@ -65,6 +70,17 @@ struct NoteDetailView: View {
             if result == .appended {
                 note.isExported = true
                 note.exportTarget = ExportTarget.iCloud.rawValue
+                note.exportStatus = .exported
+                note.exportStatusMessage = "Saved to \(ExportTarget.iCloud.rawValue)."
+                note.lastExportAttemptAt = .now
+                note.lastExportedAt = .now
+                try? note.modelContext?.save()
+            } else {
+                note.exportStatus = result == .deferred ? .deferred : .failed
+                note.exportStatusMessage = result == .deferred
+                    ? "Waiting for iCloud to materialize the daily file."
+                    : "The daily file export failed."
+                note.lastExportAttemptAt = .now
                 try? note.modelContext?.save()
             }
         }

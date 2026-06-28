@@ -161,3 +161,25 @@ struct AppendResultTests {
         #expect(cases.filter { $0 == .appended }.count == 1)
     }
 }
+
+struct ExportStatusTests {
+
+    @Test
+    func exportedStatusFollowsLegacyFlag() async throws {
+        let note = ProcessedNote(text: "done", isExported: true)
+        #expect(note.exportStatus == .exported)
+    }
+
+    @Test
+    func statusRoundTripsThroughRawValue() async throws {
+        let note = ProcessedNote(
+            text: "waiting",
+            exportStatus: .deferred,
+            exportStatusMessage: "Waiting for iCloud."
+        )
+        #expect(note.exportStatusRaw == "deferred")
+        #expect(note.exportStatus == .deferred)
+        #expect(note.exportStatus.needsAttention)
+        #expect(note.exportStatusMessage == "Waiting for iCloud.")
+    }
+}

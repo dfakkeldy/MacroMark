@@ -462,7 +462,13 @@ struct MacroMarkApp: App {
         context: ModelContext,
         transcriptionPartial: Bool = false
     ) async {
-        let note = ProcessedNote(text: text, createdAt: timestamp, transcriptionPartial: transcriptionPartial)
+        let note = ProcessedNote(
+            text: text,
+            createdAt: timestamp,
+            transcriptionPartial: transcriptionPartial,
+            exportStatus: .processing,
+            exportStatusMessage: "Processing capture."
+        )
         context.insert(note)
 
         // Save to SwiftData (the durable source of truth for the note content).
@@ -508,6 +514,7 @@ struct MacroMarkApp: App {
             // keeps the raw input until the final target actually confirms
             // delivery. A re-send from the watch (lost ACK) is harmless — the
             // in-flight guard and the input WAL prevent duplicate processing.
+            markExportPending(note: note, outcome: exportResult, context: context)
             addPendingExport(
                 PendingExport(noteId: noteId, processedText: text, timestamp: timestamp, isAudio: isAudio)
             )
@@ -534,14 +541,9 @@ struct MacroMarkApp: App {
         rawTarget: String,
         context: ModelContext
     ) async -> ExportOutcome {
+        note.lastExportAttemptAt = .now
         guard let target = ExportTarget(rawValue: rawTarget) else {
-            // No valid target — fall back to iCloud; if that also has no target,
-            // treat as deferred so the note isn't lost.
-            let result = await iCloudStorageManager.shared.appendText(text, for: timestamp)
-            if result == .appended {
-                markExported(note: note, target: .iCloud, context: context)
-            }
-            return mapAppendResult(result)
+            return .noTarget
         }
 
         if target == .iCloud {
@@ -563,6 +565,7 @@ struct MacroMarkApp: App {
         }
         // Non-iCloud target with auto-export disabled: nothing to do. Treat as
         // exported (the user opted out of auto-export; the note is in the Inbox).
+        markExported(note: note, target: target, context: context)
         return .exported
     }
 
@@ -579,11 +582,39 @@ struct MacroMarkApp: App {
     private func markExported(note: ProcessedNote, target: ExportTarget, context: ModelContext) {
         note.isExported = true
         note.exportTarget = target.rawValue
+        note.exportStatus = .exported
+        note.exportStatusMessage = "Saved to \(target.rawValue)."
+        note.lastExportedAt = .now
         do {
             try context.save()
         } catch {
 #if DEBUG
             print("MacroMark: failed to persist export flag: \(error)")
+#endif
+        }
+    }
+
+    @MainActor
+    private func markExportPending(note: ProcessedNote, outcome: ExportOutcome, context: ModelContext) {
+        note.lastExportAttemptAt = .now
+        switch outcome {
+        case .deferred:
+            note.exportStatus = .deferred
+            note.exportStatusMessage = "Waiting for iCloud or the selected destination to become available."
+        case .failed:
+            note.exportStatus = .failed
+            note.exportStatusMessage = "The export failed. The original capture is still queued for retry."
+        case .noTarget:
+            note.exportStatus = .noTarget
+            note.exportStatusMessage = "Saved in the inbox because no export target was available."
+        case .appended, .exported:
+            return
+        }
+        do {
+            try context.save()
+        } catch {
+#if DEBUG
+            print("MacroMark: failed to persist export status: \(error)")
 #endif
         }
     }
@@ -653,6 +684,9 @@ struct MacroMarkApp: App {
                 Self.retryingExportIDs.remove(id)
 
                 if outcome == .appended || outcome == .exported {
+                    if let storedNote = Self.fetchStoredNote(in: context, matching: entry) {
+                        markExported(note: storedNote, target: ExportTarget(rawValue: rawTarget) ?? .iCloud, context: context)
+                    }
                     // Full delivery cleanup — the note has now reached its final
                     // target, so clear the input WAL, drop the durable audio file
                     // (if any), mark as processed, and ACK the watch so it frees
@@ -667,6 +701,8 @@ struct MacroMarkApp: App {
                         acknowledgeNoteIfDurable(id: entry.noteId)
                     }
                     removePendingExport(id: entry.noteId)
+                } else if let storedNote = Self.fetchStoredNote(in: context, matching: entry) {
+                    markExportPending(note: storedNote, outcome: outcome, context: context)
                 }
             }
         }
