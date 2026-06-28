@@ -1,14 +1,20 @@
 # frozen_string_literal: true
 
+require "fileutils"
+require "json"
+
 # ───────────────────────────────────────────────────────────────────────────────
 # Fastfile for MacroMark
 # ───────────────────────────────────────────────────────────────────────────────
 #
 # Usage:
+#   bundle exec fastlane release_train channel:nightly # Internal TestFlight
+#   bundle exec fastlane release_train channel:weekly  # External TestFlight
+#   bundle exec fastlane release_train channel:appstore # App Store Review
 #   bundle exec fastlane beta           # Build + upload to TestFlight
 #   bundle exec fastlane build          # Build only (CI check)
 #   bundle exec fastlane test           # Run unit + UI tests
-#   bundle exec fastlane release        # Full TestFlight release (optionally submit)
+#   bundle exec fastlane release        # Full App Store release
 #   bundle exec fastlane screenshots    # Capture App Store screenshots
 #   bundle exec fastlane refresh_meta   # Download metadata from App Store Connect
 #   bundle exec fastlane match_dev      # Refresh development certificates/profiles
@@ -36,9 +42,68 @@ def ci_app_store_connect_api_key
   key_json = ENV["APP_STORE_CONNECT_API_KEY_JSON"].to_s
   return nil if key_json.empty?
 
-  key_path = File.join(Dir.pwd, "fastlane", "app_store_connect_api_key.json")
+  key_path = File.expand_path("app_store_connect_api_key.json", __dir__)
+  FileUtils.mkdir_p(File.dirname(key_path))
   File.write(key_path, key_json)
   app_store_connect_api_key(key_filepath: key_path)
+end
+
+def local_app_store_connect_api_key
+  key_path = File.expand_path("api_key.json", __dir__)
+  return nil unless File.exist?(key_path)
+
+  key_data = JSON.parse(File.read(key_path))
+  app_store_connect_api_key(
+    key_id: key_data["key_id"],
+    issuer_id: key_data["issuer_id"],
+    key_content: key_data["key"],
+    in_house: key_data["in_house"]
+  )
+end
+
+def load_app_store_connect_api_key
+  api_key = ci_app_store_connect_api_key || local_app_store_connect_api_key
+  UI.important("No App Store Connect API key found. Set APP_STORE_CONNECT_API_KEY_JSON or create fastlane/api_key.json.") if api_key.nil?
+  api_key
+end
+
+def release_train_channel(options)
+  channel = options[:channel].to_s.strip
+  channel = ENV["RELEASE_CHANNEL"].to_s.strip if channel.empty?
+  channel = "nightly" if channel.empty?
+  channel = "appstore" if channel == "main"
+
+  unless %w[nightly weekly appstore].include?(channel)
+    UI.user_error!("Unknown release train '#{channel}'. Expected nightly, weekly, or appstore.")
+  end
+
+  channel
+end
+
+def testflight_external_groups
+  groups = ENV["TESTFLIGHT_EXTERNAL_GROUPS"].to_s
+    .split(",")
+    .map(&:strip)
+    .reject(&:empty?)
+
+  if groups.empty?
+    UI.user_error!("Weekly external TestFlight requires TESTFLIGHT_EXTERNAL_GROUPS, for example 'External Testers'.")
+  end
+
+  groups
+end
+
+def testflight_internal_groups
+  groups = ENV.fetch("TESTFLIGHT_INTERNAL_GROUPS", "Nightly")
+    .split(",")
+    .map(&:strip)
+    .reject(&:empty?)
+
+  groups
+end
+
+def app_store_automatic_release?
+  %w[1 true yes].include?(ENV["APP_STORE_AUTOMATIC_RELEASE"].to_s.downcase)
 end
 
 # ---------------------------------------------------------------------------
@@ -47,6 +112,13 @@ end
 # ---------------------------------------------------------------------------
 
 platform :ios do
+  before_all do
+    @api_key = load_app_store_connect_api_key
+  end
+
+  def require_api_key!
+    UI.user_error!("This lane needs App Store Connect access. Set APP_STORE_CONNECT_API_KEY_JSON in CI or create fastlane/api_key.json locally.") if @api_key.nil?
+  end
 
   # ── Build-only ────────────────────────────────────────────────────────────
   desc "Build the app — no upload"
@@ -71,22 +143,19 @@ platform :ios do
     )
   end
 
-  # ── TestFlight beta ───────────────────────────────────────────────────────
-  desc "Build and upload a new TestFlight beta"
-  lane :beta do |options|
-    channel = options[:channel].to_s.empty? ? "manual" : options[:channel].to_s
-    api_key = ci_app_store_connect_api_key
-
+  private_lane :prepare_app_store_signing do
     match(
       type: "appstore",
       app_identifier: SIGNING_IDENTIFIERS,
       readonly: true,
-      api_key: api_key
+      api_key: @api_key
     )
+  end
 
+  private_lane :build_release_archive do |options|
     next_build_number = latest_testflight_build_number(
       app_identifier: APP_IDENTIFIER,
-      api_key: api_key,
+      api_key: @api_key,
       initial_build_number: 0
     ) + 1
 
@@ -102,48 +171,87 @@ platform :ios do
       export_method: "app-store",
       include_symbols: true,
       include_bitcode: false,
-      clean: false
-    )
-
-    upload_to_testflight(
-      api_key: api_key,
-      skip_waiting_for_build_processing: false,
-      changelog: "MacroMark #{channel} build uploaded via fastlane.",
-      distribute_external: false
+      clean: options[:clean]
     )
   end
 
-  # ── Release (TestFlight + optional submission) ────────────────────────────
-  desc "Build, upload to TestFlight, and optionally submit for App Store review"
-  lane :release do
-    increment_build_number(
-      xcodeproj: PROJECT_PATH
-    )
+  private_lane :upload_testflight_train do |options|
+    channel = options[:channel]
+    external = options[:external]
 
-    build_app(
-      project: PROJECT_PATH,
-      scheme: APP_SCHEME,
-      configuration: "Release",
-      export_method: "app-store",
-      include_symbols: true,
-      include_bitcode: false,
-      clean: true
-    )
-
-    upload_to_testflight(
+    upload_options = {
+      api_key: @api_key,
+      app_identifier: APP_IDENTIFIER,
       skip_waiting_for_build_processing: false,
-      distribute_external: true
-    )
+      changelog: "MacroMark #{channel} build uploaded via fastlane.",
+      distribute_external: external
+    }
 
-    # Submit for review only when explicitly confirmed via the terminal
-    if UI.confirm("Submit this build for App Store Review?")
-      deliver(
-        submit_for_review: true,
-        automatic_release: false,
-        phased_release: true,
-        force: true
-      )
+    if external
+      upload_options[:groups] = testflight_external_groups
+      upload_options[:notify_external_testers] = true
+    else
+      internal_groups = testflight_internal_groups
+      upload_options[:groups] = internal_groups unless internal_groups.empty?
     end
+
+    upload_to_testflight(**upload_options)
+  end
+
+  private_lane :submit_app_store_train do
+    upload_to_app_store(
+      api_key: @api_key,
+      app_identifier: APP_IDENTIFIER,
+      skip_screenshots: true,
+      skip_metadata: true,
+      submit_for_review: true,
+      automatic_release: app_store_automatic_release?,
+      phased_release: true,
+      run_precheck_before_submit: true,
+      force: true
+    )
+  end
+
+  desc "Build and ship the requested release train"
+  lane :release_train do |options|
+    require_api_key!
+
+    channel = release_train_channel(options)
+    prepare_app_store_signing
+
+    case channel
+    when "nightly"
+      build_release_archive(clean: false)
+      upload_testflight_train(channel: channel, external: false)
+    when "weekly"
+      build_release_archive(clean: false)
+      upload_testflight_train(channel: channel, external: true)
+    when "appstore"
+      build_release_archive(clean: true)
+      submit_app_store_train
+    end
+  end
+
+  # ── TestFlight beta ───────────────────────────────────────────────────────
+  desc "Build and upload a TestFlight beta for the requested train"
+  lane :beta do |options|
+    require_api_key!
+
+    channel = release_train_channel(options)
+    UI.user_error!("The beta lane only supports nightly or weekly.") if channel == "appstore"
+
+    prepare_app_store_signing
+    build_release_archive(clean: false)
+    upload_testflight_train(
+      channel: channel,
+      external: channel == "weekly"
+    )
+  end
+
+  # ── Release (App Store submission) ────────────────────────────────────────
+  desc "Build, upload, and submit to App Store Review"
+  lane :release do
+    release_train(channel: "appstore")
   end
 
   # ── Screenshots ───────────────────────────────────────────────────────────
