@@ -17,6 +17,8 @@ struct MacroManagerView: View {
     @State private var editingMacro: Macro?
     @State private var showingPaywall = false
     @State private var showingFolderSettings = false
+    @State private var showingDailyNoteFormatting = false
+    @State private var showingDestinationProof = false
     @State private var showingRestoreConfirmation = false
     @State private var paywallReason: PaywallReason = .addMacro
 
@@ -74,6 +76,10 @@ struct MacroManagerView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
+
+                    Button("Destination", systemImage: "folder.badge.gearshape") {
+                        showingDestinationProof = true
+                    }
                 }
 
                 // MARK: Folder Structure (Paid)
@@ -95,6 +101,12 @@ struct MacroManagerView: View {
                                     .imageScale(.small)
                             }
                         }
+                    }
+                }
+
+                Section {
+                    Button("Daily Note Formatting", systemImage: "text.alignleft") {
+                        showingDailyNoteFormatting = true
                     }
                 }
 
@@ -184,6 +196,16 @@ struct MacroManagerView: View {
             .sheet(isPresented: $showingFolderSettings) {
                 NavigationStack {
                     FolderSettingsView()
+                }
+            }
+            .sheet(isPresented: $showingDailyNoteFormatting) {
+                NavigationStack {
+                    DailyNoteFormattingView()
+                }
+            }
+            .sheet(isPresented: $showingDestinationProof) {
+                NavigationStack {
+                    DestinationProofView()
                 }
             }
             .fileImporter(isPresented: $showingFolderPicker, allowedContentTypes: [.folder], allowsMultipleSelection: false) { result in

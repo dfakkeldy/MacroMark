@@ -23,6 +23,24 @@ struct MacroMark_Watch_AppTests {
         #expect(store.pendingNotes.first?.text == "Hello world")
     }
 
+    @Test("Queued note date is persisted and cleared on ACK")
+    @MainActor
+    func testQueuedNoteDateClearsWithAck() async throws {
+        let store = LocalStore.shared
+        store.pendingNotes = []
+
+        store.addNote("needs ack")
+        let id = try #require(store.pendingNotes.first?.id)
+        let oldDate = Date(timeIntervalSinceNow: -25 * 60 * 60)
+        store.debugMarkNoteQueued(id, at: oldDate)
+
+        #expect(store.debugQueuedDate(for: id) == oldDate)
+
+        store.removeNote(withId: id)
+
+        #expect(store.debugQueuedDate(for: id) == nil)
+    }
+
     @Test("Audio is enqueued durably and removed only on ACK")
     @MainActor
     func testAudioQueueDurability() async throws {

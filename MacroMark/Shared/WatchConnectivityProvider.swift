@@ -3,15 +3,6 @@ import Foundation
 import Observation
 import MacroMarkKit
 
-actor ContinuationTimeout {
-    var hasCompleted = false
-    func complete() -> Bool {
-        if hasCompleted { return false }
-        hasCompleted = true
-        return true
-    }
-}
-
 @MainActor
 @Observable
 final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
@@ -113,6 +104,22 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
         session.transferFile(url, metadata: metadata)
         return true
     }
+
+#if os(watchOS)
+    func queryProcessed(id: UUID) {
+        guard let session = session, session.activationState == .activated else { return }
+
+        session.sendMessage(["queryProcessed": id.uuidString], replyHandler: { @Sendable reply in
+            let processed = (reply["processed"] as? Bool) == true
+            guard processed else { return }
+
+            Task { @MainActor in
+                LocalStore.shared.removeNote(withId: id)
+                LocalStore.shared.removeAudio(withId: id)
+            }
+        }, errorHandler: { @Sendable _ in })
+    }
+#endif
 
 #if os(iOS)
     /// Send an acknowledgement back to the watch confirming the note was durably saved.
@@ -296,15 +303,15 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
                 }
             }
             
-            session.sendMessage(["request": "dailyFile", "date": date.timeIntervalSince1970], replyHandler: { reply in
+            session.sendMessage(["request": "dailyFile", "date": date.timeIntervalSince1970], replyHandler: { @Sendable reply in
+                let content = reply["content"] as? String ?? ""
                 Task {
                     if await timeout.complete() {
-                        let content = reply["content"] as? String ?? ""
                         UserDefaults.standard.set(content, forKey: cacheKey)
                         continuation.resume(returning: content)
                     }
                 }
-            }, errorHandler: { error in
+            }, errorHandler: { @Sendable _ in
                 Task {
                     if await timeout.complete() {
                         let cached = UserDefaults.standard.string(forKey: cacheKey) ?? ""
@@ -319,6 +326,15 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
 
     nonisolated func session(_ session: WCSession, didReceiveMessage message: [String : Any], replyHandler: @escaping ([String : Any]) -> Void) {
 #if os(iOS)
+        if let idString = message["queryProcessed"] as? String,
+           let id = UUID(uuidString: idString) {
+            let processed = UserDefaults.standard
+                .stringArray(forKey: UserDefaultsKey.processedNoteIDs.rawValue)?
+                .contains(id.uuidString) ?? false
+            replyHandler(["processed": processed])
+            return
+        }
+
         if let request = message["request"] as? String, request == "dailyFile" {
             let timestamp = message["date"] as? TimeInterval ?? Date().timeIntervalSince1970
             let date = Date(timeIntervalSince1970: timestamp)

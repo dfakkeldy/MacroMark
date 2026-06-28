@@ -41,6 +41,13 @@ struct MacroEditView: View {
                 Text("What the macro outputs. Use {date}, {time}, {newline}, {tab}, {backspace}, {clipboard}, {location}, and {uuid} for dynamic content.")
             }
 
+            Section("Preview") {
+                Text("Say: \(editedTrigger.isEmpty ? "Trigger" : editedTrigger) example")
+                    .foregroundStyle(.secondary)
+                Text(editedReplacement + " example")
+                    .font(.system(.body, design: .monospaced))
+            }
+
             Section {
                 TextField("Notes", text: $editedNotes, axis: .vertical)
                     .lineLimit(2...5)

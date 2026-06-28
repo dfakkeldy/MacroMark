@@ -7,6 +7,7 @@ struct FutureNoteComposerView: View {
     @Environment(\.modelContext) private var modelContext
 
     let selectedDate: Date
+    let mode: ComposerMode
 
     @State private var draftText = ""
     @State private var statusMessage: String?
@@ -35,7 +36,7 @@ struct FutureNoteComposerView: View {
                     }
                 }
             }
-            .navigationTitle("Future Note")
+            .navigationTitle(mode.title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -81,12 +82,24 @@ struct FutureNoteComposerView: View {
         case .appended:
             note.isExported = true
             note.exportTarget = ExportTarget.iCloud.rawValue
+            note.exportStatus = .exported
+            note.exportStatusMessage = "Saved to \(ExportTarget.iCloud.rawValue)."
+            note.lastExportAttemptAt = .now
+            note.lastExportedAt = .now
             try? modelContext.save()
             dismiss()
         case .deferred:
+            note.exportStatus = .deferred
+            note.exportStatusMessage = "Waiting for iCloud or the selected destination to become available."
+            note.lastExportAttemptAt = .now
+            try? modelContext.save()
             didSave = true
             statusMessage = "Saved to the inbox. iCloud will need another attempt before this appears in the daily file."
         case .failed:
+            note.exportStatus = .failed
+            note.exportStatusMessage = "The export failed. The original capture is still queued for retry."
+            note.lastExportAttemptAt = .now
+            try? modelContext.save()
             didSave = true
             statusMessage = "Saved to the inbox, but the daily file export failed."
         }
@@ -96,6 +109,6 @@ struct FutureNoteComposerView: View {
 }
 
 #Preview {
-    FutureNoteComposerView(selectedDate: Date())
+    FutureNoteComposerView(selectedDate: Date(), mode: .future)
         .modelContainer(for: ProcessedNote.self, inMemory: true)
 }

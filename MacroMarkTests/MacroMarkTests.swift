@@ -39,4 +39,18 @@ struct MacroMarkTests {
         #expect(filtered.map(\.text) == ["same"])
     }
 
+    @Test
+    func inboxStatusFilterFindsNeedsAttention() throws {
+        let day = Date(timeIntervalSince1970: 1_780_000_000)
+        let notes = [
+            ProcessedNote(text: "ok", createdAt: day, exportStatus: .exported),
+            ProcessedNote(text: "wait", createdAt: day, exportStatus: .deferred),
+            ProcessedNote(text: "bad", createdAt: day, exportStatus: .failed),
+        ]
+
+        let filtered = InboxDateFilter.notes(notes, on: day, status: .needsAttention)
+
+        #expect(filtered.map(\.text) == ["wait", "bad"])
+    }
+
 }

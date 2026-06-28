@@ -2,20 +2,53 @@ import SwiftUI
 import SwiftData
 import MacroMarkKit
 
+enum InboxStatusFilter: String, CaseIterable, Identifiable {
+    case all = "All"
+    case exported = "Exported"
+    case needsAttention = "Needs Attention"
+    case unexported = "Unexported"
+
+    var id: String { rawValue }
+}
+
 enum InboxDateFilter {
-    static func notes(_ notes: [ProcessedNote], on selectedDate: Date, calendar: Calendar = .current) -> [ProcessedNote] {
-        notes.filter { DaySelection.contains($0.createdAt, inSelectedDay: selectedDate, calendar: calendar) }
+    static func notes(
+        _ notes: [ProcessedNote],
+        on selectedDate: Date,
+        status: InboxStatusFilter = .all,
+        calendar: Calendar = .current
+    ) -> [ProcessedNote] {
+        notes.filter { note in
+            guard DaySelection.contains(note.createdAt, inSelectedDay: selectedDate, calendar: calendar) else {
+                return false
+            }
+            switch status {
+            case .all:
+                return true
+            case .exported:
+                return note.exportStatus == .exported
+            case .needsAttention:
+                return note.exportStatus.needsAttention
+            case .unexported:
+                return note.exportStatus != .exported
+            }
+        }
     }
 }
 
 struct InboxView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(AppNavigation.self) private var navigation
     @Query(sort: \ProcessedNote.createdAt, order: .reverse) private var notes: [ProcessedNote]
-    @State private var selectedDate = Date()
-    @State private var showingFutureComposer = false
+    @State private var statusFilter: InboxStatusFilter = .all
+
+    private var selectedDate: Date {
+        get { navigation.selectedDate }
+        nonmutating set { navigation.selectedDate = newValue }
+    }
 
     private var filteredNotes: [ProcessedNote] {
-        InboxDateFilter.notes(notes, on: selectedDate)
+        InboxDateFilter.notes(notes, on: selectedDate, status: statusFilter)
     }
 
     private var isFutureDay: Bool {
@@ -26,8 +59,24 @@ struct InboxView: View {
         NavigationStack {
             List {
                 Section {
-                    DatePicker("Day", selection: $selectedDate, displayedComponents: .date)
-                        .accessibilityIdentifier("inbox.datePicker")
+                    DatePicker(
+                        "Day",
+                        selection: Binding(
+                            get: { navigation.selectedDate },
+                            set: { navigation.selectedDate = $0 }
+                        ),
+                        displayedComponents: .date
+                    )
+                    .accessibilityIdentifier("inbox.datePicker")
+                }
+
+                Section {
+                    Picker("Status", selection: $statusFilter) {
+                        ForEach(InboxStatusFilter.allCases) { filter in
+                            Text(filter.rawValue).tag(filter)
+                        }
+                    }
+                    .pickerStyle(.segmented)
                 }
 
                 if filteredNotes.isEmpty {
@@ -51,10 +100,8 @@ struct InboxView: View {
                                         Label("Incomplete", systemImage: "exclamationmark.triangle.fill")
                                             .foregroundStyle(.yellow)
                                     }
-                                    if note.isExported {
-                                        Label(note.exportTarget ?? "Exported", systemImage: "checkmark.circle.fill")
-                                            .foregroundStyle(.green)
-                                    }
+                                    Label(note.exportStatus.displayName, systemImage: note.exportStatus.systemImage)
+                                        .foregroundStyle(note.exportStatus == .exported ? .green : (note.exportStatus.needsAttention ? .orange : .secondary))
                                 }
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
@@ -72,7 +119,7 @@ struct InboxView: View {
                 if isFutureDay {
                     ToolbarItem(placement: .topBarLeading) {
                         Button("New Note", systemImage: "square.and.pencil") {
-                            showingFutureComposer = true
+                            navigation.openCaptureComposer(date: selectedDate, mode: .future)
                         }
                     }
                 }
@@ -83,8 +130,19 @@ struct InboxView: View {
                     }
                 }
             }
-            .sheet(isPresented: $showingFutureComposer) {
-                FutureNoteComposerView(selectedDate: selectedDate)
+            .sheet(
+                item: Binding(
+                    get: { navigation.composerRequest },
+                    set: { newValue in
+                        if newValue == nil {
+                            navigation.clearComposerRequest()
+                        } else {
+                            navigation.composerRequest = newValue
+                        }
+                    }
+                )
+            ) { request in
+                FutureNoteComposerView(selectedDate: request.date, mode: request.mode)
             }
         }
     }
@@ -100,5 +158,6 @@ struct InboxView: View {
 
 #Preview {
     InboxView()
+        .environment(AppNavigation())
         .modelContainer(for: ProcessedNote.self, inMemory: true)
 }

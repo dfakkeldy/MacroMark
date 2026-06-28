@@ -9,6 +9,28 @@ This roadmap is based on:
 - Reliability findings in `CODE_AUDIT.md`, `REMEDIATION_PLAN.md`, and `IMPLEMENTATION_PLAN.md`.
 - Current launch setup in `docs/KICKSTART_POPULATION.md` and `docs/SETUP_TASKS.md`.
 
+## Implementation Status - 2026-06-28
+
+Implemented in the overnight v1 branch:
+- Export status model and retryable pipeline state for processed notes.
+- Inbox export status, needs-attention filtering, detail status, and manual retry.
+- App Intents for instant capture, typed capture, daily-log review, and append text.
+- Daily-note formatting controls for timestamp style, separators, and optional headings.
+- Destination setup proof with active destination, test note, and last successful export details.
+- Bounded speech authorization, chunk transcription, and location waits, with visible partial-transcription warnings.
+- Stale Watch ACK reconciliation for queued notes/audio after lost acknowledgements.
+- Launch privacy artifacts: app and Watch privacy manifests, privacy policy page, terms page, homepage privacy/support anchors, and local fastlane metadata.
+
+Verified so far:
+- Package tests and generic iOS/watchOS builds passed in Tasks 1-6 as recorded in `.superpowers/sdd/task-*-report.md`.
+- Task 7 watch build and watch tests passed after a simulator boot retry.
+- Task 8 text checks cover the privacy manifests and metadata files without running Xcode builds.
+
+Still manual or pending before App Store submission:
+- StoreKit annual/lifetime product loading, purchase, and restore need local StoreKit verification.
+- Screenshots, TestFlight upload, App Store Connect privacy answers, and a paired iPhone/Apple Watch smoke test remain release gates.
+- GitHub Pages must deploy the updated privacy/support anchors before uploading App Store metadata.
+
 ## v1.0 Positioning
 
 **Primary promise:** Tap the Watch, speak, lower your wrist, and the note safely lands in a dated Markdown file.
@@ -305,6 +327,18 @@ v1.0 is not ready until all gates pass:
 - iOS and watchOS generic builds succeed.
 - `swift test --package-path MacroMarkKit` succeeds.
 - At least one TestFlight smoke test passes on paired physical devices.
+
+## Final v1.0 Verification Notes
+
+- Package tests: passed on 2026-06-28 with `swift test --package-path MacroMarkKit`.
+- iOS generic build: passed on 2026-06-28 with the Debug `MacroMark` scheme.
+- watchOS generic build: passed on 2026-06-28 with the Debug `MacroMark Watch App` scheme.
+- Fastlane build lane: Release archive passed on 2026-06-28, but App Store export failed because app-store provisioning profiles are not installed for the iOS app, watch app, and widget extension.
+- TestFlight upload: not attempted because `APP_STORE_CONNECT_API_KEY_JSON` is not present in this environment.
+- StoreKit local purchase/restore test: not run yet; release remains blocked until annual, lifetime, purchase, restore, and free capture paths pass locally.
+- Paired-device smoke test: not run yet; release remains blocked until this passes on the tested iPhone and Apple Watch models.
+- Public GitHub Pages privacy/support anchors: added in this branch; verify the live URLs again after the branch is merged and deployed.
+- Known v1.1 deferrals: none selected yet.
 
 ## Deferred To v1.1+
 
