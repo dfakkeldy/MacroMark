@@ -32,6 +32,14 @@ public final class iCloudStorageManager {
         return settings
     }
 
+    nonisolated private var dailyNoteFormatting: DailyNoteFormatting {
+        guard let data = UserDefaults.standard.data(forKey: UserDefaultsKey.dailyNoteFormatting.rawValue),
+              let formatting = try? JSONDecoder().decode(DailyNoteFormatting.self, from: data) else {
+            return DailyNoteFormatting()
+        }
+        return formatting
+    }
+
     /// Resolve the base directory without touching main-actor state. Returns the
     /// URL plus the value the write path should publish to `isUsingFallbackStorage`
     /// (`nil` means "leave the flag unchanged", as when a custom save location is
@@ -119,8 +127,11 @@ public final class iCloudStorageManager {
         // wiping every earlier note for the day. Materialize it first.
         await ensureDownloaded(fileURL)
 
-        let timeString = date.formatted(date: .omitted, time: .shortened)
-        let textToAppend = "\n\n\(timeString)\n\n\(text)\n\n"
+        let textToAppend = DailyNoteFormatter.renderEntry(
+            text: text,
+            timestamp: date,
+            formatting: dailyNoteFormatting
+        )
         guard let dataToAppend = textToAppend.data(using: .utf8) else { return .failed }
 
         // Tracks whether the un-materialized-placeholder branch fired so we can

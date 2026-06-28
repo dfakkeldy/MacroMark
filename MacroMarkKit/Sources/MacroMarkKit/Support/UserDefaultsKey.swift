@@ -11,6 +11,7 @@ public enum UserDefaultsKey: String {
     // User-configurable settings (cross-target).
     case captureMode = "captureMode"
     case folderSettings = "folderSettings"
+    case dailyNoteFormatting = "dailyNoteFormatting"
     case customSaveBookmark = "customSaveBookmark"
     case autoExportEnabled = "autoExportEnabled"
     case defaultExportTarget = "defaultExportTarget"

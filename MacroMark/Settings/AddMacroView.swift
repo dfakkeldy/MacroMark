@@ -21,6 +21,12 @@ struct AddMacroView: View {
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
             }
+            Section("Preview") {
+                Text("Say: \(trigger.isEmpty ? "Trigger" : trigger) example")
+                    .foregroundStyle(.secondary)
+                Text(replacement + " example")
+                    .font(.system(.body, design: .monospaced))
+            }
             Section("Notes (Optional)") {
                 TextField("e.g., Use this to format headings", text: $notes, axis: .vertical)
                     .lineLimit(2...5)
