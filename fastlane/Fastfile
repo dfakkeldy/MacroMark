@@ -23,7 +23,14 @@ default_platform(:ios)
 
 APP_SCHEME            = "MacroMark"
 PROJECT_PATH          = "MacroMark.xcodeproj"
-APP_IDENTIFIER        = "Dan.MacroMark"
+APP_IDENTIFIER        = "com.danfakkeldy.macromark"
+WATCH_APP_IDENTIFIER  = "com.danfakkeldy.macromark.watchkitapp"
+WIDGET_IDENTIFIER     = "com.danfakkeldy.macromark.watchkitapp.MacroMarkWidget"
+SIGNING_IDENTIFIERS   = [
+  APP_IDENTIFIER,
+  WATCH_APP_IDENTIFIER,
+  WIDGET_IDENTIFIER
+].freeze
 
 def ci_app_store_connect_api_key
   key_json = ENV["APP_STORE_CONNECT_API_KEY_JSON"].to_s
@@ -72,7 +79,7 @@ platform :ios do
 
     match(
       type: "appstore",
-      app_identifier: APP_IDENTIFIER,
+      app_identifier: SIGNING_IDENTIFIERS,
       readonly: true,
       api_key: api_key
     )
@@ -177,7 +184,7 @@ platform :ios do
   lane :match_dev do
     match(
       type: "development",
-      app_identifier: APP_IDENTIFIER,
+      app_identifier: SIGNING_IDENTIFIERS,
       readonly: true
     )
   end
@@ -186,7 +193,7 @@ platform :ios do
   lane :match_appstore do
     match(
       type: "appstore",
-      app_identifier: APP_IDENTIFIER,
+      app_identifier: SIGNING_IDENTIFIERS,
       readonly: true
     )
   end

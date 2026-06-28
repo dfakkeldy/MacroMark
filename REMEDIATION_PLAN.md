@@ -108,4 +108,4 @@ Most P2/P3 items are independent and parallelizable; the dependency edges are no
 - App Store Connect product/pricing validation.
 - Localization / string catalogs.
 - Instruments-based performance profiling (the §7 findings are static; a separate profiling pass can follow).
-- Renaming the widget bundle kind string (`Dan.MacroMark.watchkitapp.MacroMarkWidget`) — flagged in §11 for the user to confirm the intended reverse-DNS.
+- Renaming the widget bundle kind string (`com.danfakkeldy.macromark.watchkitapp.MacroMarkWidget`) — flagged in §11 for the user to confirm the intended reverse-DNS.

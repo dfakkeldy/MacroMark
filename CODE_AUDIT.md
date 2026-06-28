@@ -424,7 +424,7 @@ Both schemes build clean, so there are no deprecation warnings. The items below 
 - Third-party SPM dependency internals (the project uses only Apple system frameworks — no external packages).
 - Localization — the app appears English-only with no string catalogs; not assessed.
 - Performance profiling — no Instruments traces captured. §7 findings are static analysis of hot paths, not measurements.
-- The `MacroMarkWidget/` target's entitlements file was not opened; verify it matches the App Group identifier (if any) used by the main app. (The widget bundle's kind string `"Dan.MacroMark.watchkitapp.MacroMarkWidget"` looks wrong — app is "MacroMark", not "watchkitapp" — but this was not deeply investigated.)
+- The `MacroMarkWidget/` target's entitlements file was not opened; verify it matches the App Group identifier (if any) used by the main app. (The widget bundle's kind string `"com.danfakkeldy.macromark.watchkitapp.MacroMarkWidget"` looks unusual because it nests under the watch app identifier — app is "MacroMark", not "watchkitapp" — but this was not deeply investigated.)
 
 ---
 
