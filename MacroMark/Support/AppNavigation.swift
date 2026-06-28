@@ -9,6 +9,24 @@ enum AppTab: Hashable {
 struct ComposerRequest: Identifiable, Equatable {
     let id = UUID()
     let date: Date
+    let mode: ComposerMode
+}
+
+enum ComposerMode: Equatable {
+    case instant
+    case system
+    case future
+
+    var title: String {
+        switch self {
+        case .instant:
+            "Instant Capture"
+        case .system:
+            "Typed Capture"
+        case .future:
+            "Future Note"
+        }
+    }
 }
 
 @MainActor
@@ -23,9 +41,9 @@ final class AppNavigation {
         selectedDate = date ?? .now
     }
 
-    func openCaptureComposer(date: Date) {
+    func openCaptureComposer(date: Date, mode: ComposerMode = .system) {
         openDailyLog(date: date)
-        composerRequest = ComposerRequest(date: date)
+        composerRequest = ComposerRequest(date: date, mode: mode)
     }
 
     func clearComposerRequest() {

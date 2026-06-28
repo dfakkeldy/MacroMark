@@ -116,7 +116,7 @@ struct InboxView: View {
                 if isFutureDay {
                     ToolbarItem(placement: .topBarLeading) {
                         Button("New Note", systemImage: "square.and.pencil") {
-                            navigation.openCaptureComposer(date: selectedDate)
+                            navigation.openCaptureComposer(date: selectedDate, mode: .future)
                         }
                     }
                 }
@@ -139,7 +139,7 @@ struct InboxView: View {
                     }
                 )
             ) { request in
-                FutureNoteComposerView(selectedDate: request.date)
+                FutureNoteComposerView(selectedDate: request.date, mode: request.mode)
             }
         }
     }

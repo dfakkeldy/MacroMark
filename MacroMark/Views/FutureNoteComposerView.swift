@@ -7,6 +7,7 @@ struct FutureNoteComposerView: View {
     @Environment(\.modelContext) private var modelContext
 
     let selectedDate: Date
+    let mode: ComposerMode
 
     @State private var draftText = ""
     @State private var statusMessage: String?
@@ -35,7 +36,7 @@ struct FutureNoteComposerView: View {
                     }
                 }
             }
-            .navigationTitle("Future Note")
+            .navigationTitle(mode.title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -108,6 +109,6 @@ struct FutureNoteComposerView: View {
 }
 
 #Preview {
-    FutureNoteComposerView(selectedDate: Date())
+    FutureNoteComposerView(selectedDate: Date(), mode: .future)
         .modelContainer(for: ProcessedNote.self, inMemory: true)
 }

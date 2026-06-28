@@ -29,7 +29,7 @@ struct NoteDetailView: View {
                 }
                 if note.exportStatus.needsAttention {
                     Button("Retry Export", systemImage: "arrow.clockwise") {
-                        exportToICloud()
+                        retryExportToICloud()
                     }
                 }
             }
@@ -42,7 +42,7 @@ struct NoteDetailView: View {
                         }
                     } else if target == .iCloud {
                         Button {
-                            exportToICloud()
+                            retryExportToICloud()
                         } label: {
                             Label(target.rawValue, systemImage: target.iconName)
                         }
@@ -58,6 +58,29 @@ struct NoteDetailView: View {
         }
         .navigationTitle("Note Details")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func retryExportToICloud() {
+        if hasQueuedExport {
+            requestQueuedRetry()
+        } else {
+            exportToICloud()
+        }
+    }
+
+    private var hasQueuedExport: Bool {
+        guard let data = UserDefaults.standard.data(forKey: UserDefaultsKey.pendingExports.rawValue),
+              let pending = try? JSONDecoder().decode([String: QueuedExportProbe].self, from: data)
+        else { return false }
+
+        return pending.values.contains { $0.timestamp == note.createdAt }
+    }
+
+    private func requestQueuedRetry() {
+        note.exportStatusMessage = "Retry requested. MacroMark will use the queued export path."
+        note.lastExportAttemptAt = .now
+        try? note.modelContext?.save()
+        NotificationCenter.default.post(name: .retryDeferredExports, object: nil)
     }
     
     private func exportTo(target: ExportTarget) {
@@ -79,7 +102,7 @@ struct NoteDetailView: View {
     
     private func exportToICloud() {
         Task {
-            let result = await iCloudStorageManager.shared.appendText(note.text + "\n\n")
+            let result = await iCloudStorageManager.shared.appendText(note.text, for: note.createdAt)
             if result == .appended {
                 note.isExported = true
                 note.exportTarget = ExportTarget.iCloud.rawValue
@@ -97,5 +120,9 @@ struct NoteDetailView: View {
                 try? note.modelContext?.save()
             }
         }
+    }
+
+    private struct QueuedExportProbe: Decodable {
+        let timestamp: Date
     }
 }

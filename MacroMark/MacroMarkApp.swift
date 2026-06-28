@@ -845,7 +845,14 @@ struct MacroMarkApp: App {
         guard url.scheme == AppRoute.scheme else { return }
 
         if url.host == "capture" {
-            navigation.openCaptureComposer(date: .now)
+            switch url.path {
+            case "/instant":
+                navigation.openCaptureComposer(date: .now, mode: .instant)
+            case "/system", "":
+                navigation.openCaptureComposer(date: .now, mode: .system)
+            default:
+                navigation.openDailyLog(date: .now)
+            }
             return
         }
 
@@ -875,6 +882,9 @@ struct MacroMarkApp: App {
                 .environment(storeManager)
                 .onOpenURL { url in
                     handleOpenURL(url, container: container, navigation: navigation)
+                }
+                .onReceive(NotificationCenter.default.publisher(for: .retryDeferredExports)) { _ in
+                    retryDeferredExports(container: container)
                 }
                 .task {
                     // Retry any exports that saved to SwiftData but didn't reach
