@@ -2,9 +2,37 @@ import SwiftUI
 import SwiftData
 import MacroMarkKit
 
+enum InboxStatusFilter: String, CaseIterable, Identifiable {
+    case all = "All"
+    case exported = "Exported"
+    case needsAttention = "Needs Attention"
+    case unexported = "Unexported"
+
+    var id: String { rawValue }
+}
+
 enum InboxDateFilter {
-    static func notes(_ notes: [ProcessedNote], on selectedDate: Date, calendar: Calendar = .current) -> [ProcessedNote] {
-        notes.filter { DaySelection.contains($0.createdAt, inSelectedDay: selectedDate, calendar: calendar) }
+    static func notes(
+        _ notes: [ProcessedNote],
+        on selectedDate: Date,
+        status: InboxStatusFilter = .all,
+        calendar: Calendar = .current
+    ) -> [ProcessedNote] {
+        notes.filter { note in
+            guard DaySelection.contains(note.createdAt, inSelectedDay: selectedDate, calendar: calendar) else {
+                return false
+            }
+            switch status {
+            case .all:
+                return true
+            case .exported:
+                return note.exportStatus == .exported
+            case .needsAttention:
+                return note.exportStatus.needsAttention
+            case .unexported:
+                return note.exportStatus != .exported
+            }
+        }
     }
 }
 
@@ -12,10 +40,11 @@ struct InboxView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \ProcessedNote.createdAt, order: .reverse) private var notes: [ProcessedNote]
     @State private var selectedDate = Date()
+    @State private var statusFilter: InboxStatusFilter = .all
     @State private var showingFutureComposer = false
 
     private var filteredNotes: [ProcessedNote] {
-        InboxDateFilter.notes(notes, on: selectedDate)
+        InboxDateFilter.notes(notes, on: selectedDate, status: statusFilter)
     }
 
     private var isFutureDay: Bool {
@@ -27,6 +56,15 @@ struct InboxView: View {
             List {
                 Section {
                     DatePicker("Day", selection: $selectedDate, displayedComponents: .date)
+                }
+
+                Section {
+                    Picker("Status", selection: $statusFilter) {
+                        ForEach(InboxStatusFilter.allCases) { filter in
+                            Text(filter.rawValue).tag(filter)
+                        }
+                    }
+                    .pickerStyle(.segmented)
                 }
 
                 if filteredNotes.isEmpty {
@@ -50,10 +88,8 @@ struct InboxView: View {
                                         Label("Incomplete", systemImage: "exclamationmark.triangle.fill")
                                             .foregroundStyle(.yellow)
                                     }
-                                    if note.isExported {
-                                        Label(note.exportTarget ?? "Exported", systemImage: "checkmark.circle.fill")
-                                            .foregroundStyle(.green)
-                                    }
+                                    Label(note.exportStatus.displayName, systemImage: note.exportStatus.systemImage)
+                                        .foregroundStyle(note.exportStatus == .exported ? .green : (note.exportStatus.needsAttention ? .orange : .secondary))
                                 }
                                 .font(.caption)
                                 .foregroundStyle(.secondary)

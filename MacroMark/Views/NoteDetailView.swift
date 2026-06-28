@@ -20,6 +20,19 @@ struct NoteDetailView: View {
             } header: {
                 Text(note.createdAt.formatted(date: .abbreviated, time: .shortened))
             }
+
+            Section("Status") {
+                Label(note.exportStatus.displayName, systemImage: note.exportStatus.systemImage)
+                if !note.exportStatusMessage.isEmpty {
+                    Text(note.exportStatusMessage)
+                        .foregroundStyle(.secondary)
+                }
+                if note.exportStatus.needsAttention {
+                    Button("Retry Export", systemImage: "arrow.clockwise") {
+                        exportToICloud()
+                    }
+                }
+            }
             
             Section("Export") {
                 ForEach(ExportTarget.allCases) { target in
