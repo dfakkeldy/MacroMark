@@ -38,15 +38,13 @@ To automate screenshot generation for both iOS and watchOS:
    ```
 
 ### 3. Automated Beta Deployment
-You can create a custom lane in your `Fastfile` to build the app and deploy it to TestFlight:
-```ruby
-lane :beta do
-  increment_build_number
-  build_app(scheme: "MacroMark")
-  upload_to_testflight
-end
-```
-Then run:
+
+The `beta` lane accepts a release-train channel and uploads to TestFlight:
 ```bash
-fastlane beta
+bundle exec fastlane beta channel:nightly
+bundle exec fastlane beta channel:weekly
 ```
+
+CI expects `APP_STORE_CONNECT_API_KEY_JSON`, `MATCH_PASSWORD`, and
+`MATCH_GIT_SSH_KEY` to be present before uploading. Missing secrets leave the
+release-train workflow in compile-only mode.
