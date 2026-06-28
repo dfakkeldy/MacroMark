@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require "fileutils"
 require "json"
 
 # ───────────────────────────────────────────────────────────────────────────────
@@ -38,14 +37,42 @@ SIGNING_IDENTIFIERS   = [
   WIDGET_IDENTIFIER
 ].freeze
 
-def ci_app_store_connect_api_key
-  key_json = ENV["APP_STORE_CONNECT_API_KEY_JSON"].to_s
-  return nil if key_json.empty?
+def first_present(*values)
+  values
+    .compact
+    .map(&:to_s)
+    .map(&:strip)
+    .find { |value| !value.empty? }
+end
 
-  key_path = File.expand_path("app_store_connect_api_key.json", __dir__)
-  FileUtils.mkdir_p(File.dirname(key_path))
-  File.write(key_path, key_json)
-  app_store_connect_api_key(key_filepath: key_path)
+def parsed_ci_api_key_json
+  key_json = ENV["APP_STORE_CONNECT_API_KEY_JSON"].to_s.strip
+  return {} if key_json.empty?
+
+  parsed = JSON.parse(key_json)
+  parsed.is_a?(Hash) ? parsed : {}
+rescue JSON::ParserError
+  {}
+end
+
+def truthy_value?(value)
+  %w[1 true yes].include?(value.to_s.downcase)
+end
+
+def ci_app_store_connect_api_key
+  key_data = parsed_ci_api_key_json
+  key_id = first_present(ENV["APP_STORE_CONNECT_API_KEY_KEY_ID"], key_data["key_id"], key_data["keyId"], key_data["KEY_ID"])
+  issuer_id = first_present(ENV["APP_STORE_CONNECT_API_KEY_ISSUER_ID"], key_data["issuer_id"], key_data["issuerId"], key_data["ISSUER_ID"])
+  key_content = first_present(ENV["APP_STORE_CONNECT_API_KEY_KEY"], key_data["key"], key_data["key_content"], key_data["KEY"], key_data["private_key"])
+  in_house = first_present(ENV["APP_STORE_CONNECT_API_KEY_IN_HOUSE"], key_data["in_house"], key_data["inHouse"])
+  return nil if key_id.nil? || issuer_id.nil? || key_content.nil?
+
+  app_store_connect_api_key(
+    key_id: key_id,
+    issuer_id: issuer_id,
+    key_content: key_content.gsub("\\n", "\n"),
+    in_house: truthy_value?(in_house)
+  )
 end
 
 def local_app_store_connect_api_key
