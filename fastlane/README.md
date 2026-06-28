@@ -45,6 +45,6 @@ bundle exec fastlane beta channel:nightly
 bundle exec fastlane beta channel:weekly
 ```
 
-CI expects `APP_STORE_CONNECT_API_KEY_JSON`, `MATCH_PASSWORD`, and
-`MATCH_GIT_SSH_KEY` to be present before uploading. Missing secrets leave the
-release-train workflow in compile-only mode.
+CI expects `APP_STORE_CONNECT_API_KEY_JSON`, `MATCH_PASSWORD`,
+`MATCH_GIT_SSH_KEY`, and `MATCH_GIT_URL` to be present before uploading.
+Missing secrets leave the release-train workflow in compile-only mode.
