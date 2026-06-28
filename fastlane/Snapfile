@@ -1,0 +1,25 @@
+# frozen_string_literal: true
+
+project("MacroMark.xcodeproj")
+scheme("MacroMark")
+
+devices([
+  "iPhone 17 Pro Max",
+  "iPhone 17e",
+  "iPad Pro 13-inch (M5)"
+])
+
+languages(["en-US"])
+launch_arguments(["--screenshot-mode"])
+xcargs("-parallel-testing-enabled NO")
+output_directory("fastlane/screenshots")
+
+clear_previous_screenshots(true)
+erase_simulator(true)
+localize_simulator(true)
+reinstall_app(true)
+override_status_bar(true)
+skip_open_summary(true)
+concurrent_simulators(false)
+
+only_testing(["MacroMarkUITests/MacroMarkScreenshotUITests/testAppStoreScreenshots"])

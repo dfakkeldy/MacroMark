@@ -15,10 +15,14 @@ xcuserdata/
 .DS_Store
 
 # Fastlane
+fastlane/api_key.json
+fastlane/AuthKey*.p8
+fastlane/*.p8
 fastlane/report.xml
+fastlane/Preview.html
 fastlane/test_output/
 fastlane/screenshots/
-fastlane/metadata/      # uncomment once metadata is committed: !fastlane/metadata/
+fastlane/metadata/review_information/
 
 # Bundler
 .bundle/

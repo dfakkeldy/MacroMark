@@ -14,18 +14,22 @@ struct AddMacroView: View {
         Form {
             Section("Trigger (What you say)") {
                 TextField("e.g., Heading One", text: $trigger)
+                    .accessibilityIdentifier("newMacro.trigger")
             }
             Section("Replacement (What it outputs)") {
                 TextField("e.g., # ", text: $replacement)
                     .font(.system(.body, design: .monospaced))
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
+                    .accessibilityIdentifier("newMacro.replacement")
             }
             Section("Notes (Optional)") {
                 TextField("e.g., Use this to format headings", text: $notes, axis: .vertical)
                     .lineLimit(2...5)
+                    .accessibilityIdentifier("newMacro.notes")
             }
         }
+        .accessibilityIdentifier("newMacro.form")
         .navigationTitle("New Macro")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
