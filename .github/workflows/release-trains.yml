@@ -226,6 +226,9 @@ jobs:
       - name: Ship release train when release secrets are present
         env:
           APP_STORE_CONNECT_API_KEY_JSON: ${{ secrets.APP_STORE_CONNECT_API_KEY_JSON }}
+          APP_STORE_CONNECT_API_KEY_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY_KEY }}
+          APP_STORE_CONNECT_API_KEY_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_KEY_ID }}
+          APP_STORE_CONNECT_API_KEY_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ISSUER_ID }}
           APP_STORE_AUTOMATIC_RELEASE: ${{ vars.APP_STORE_AUTOMATIC_RELEASE || 'false' }}
           MATCH_GIT_SSH_KEY: ${{ secrets.MATCH_GIT_SSH_KEY }}
           MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
@@ -236,8 +239,17 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [ -z "$APP_STORE_CONNECT_API_KEY_JSON" ] || [ -z "$MATCH_PASSWORD" ] || [ -z "$MATCH_GIT_SSH_KEY" ] || [ -z "$MATCH_GIT_URL" ]; then
-            echo "::notice title=Compile-only release train::APP_STORE_CONNECT_API_KEY_JSON, MATCH_PASSWORD, MATCH_GIT_SSH_KEY, and MATCH_GIT_URL are required for release-train shipping. The compile gate passed; shipping was skipped."
+          has_api_key_json=false
+          has_api_key_parts=false
+          if [ -n "$APP_STORE_CONNECT_API_KEY_JSON" ]; then
+            has_api_key_json=true
+          fi
+          if [ -n "$APP_STORE_CONNECT_API_KEY_KEY" ] && [ -n "$APP_STORE_CONNECT_API_KEY_KEY_ID" ] && [ -n "$APP_STORE_CONNECT_API_KEY_ISSUER_ID" ]; then
+            has_api_key_parts=true
+          fi
+
+          if { [ "$has_api_key_json" != "true" ] && [ "$has_api_key_parts" != "true" ]; } || [ -z "$MATCH_PASSWORD" ] || [ -z "$MATCH_GIT_SSH_KEY" ] || [ -z "$MATCH_GIT_URL" ]; then
+            echo "::notice title=Compile-only release train::App Store Connect API key credentials plus MATCH_PASSWORD, MATCH_GIT_SSH_KEY, and MATCH_GIT_URL are required for release-train shipping. The compile gate passed; shipping was skipped."
             exit 0
           fi
 

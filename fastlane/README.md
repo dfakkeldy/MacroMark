@@ -59,8 +59,11 @@ bundle exec fastlane release_train channel:weekly
 bundle exec fastlane release_train channel:appstore
 ```
 
-CI expects `APP_STORE_CONNECT_API_KEY_JSON`, `MATCH_PASSWORD`,
+CI expects App Store Connect API key credentials plus `MATCH_PASSWORD`,
 `MATCH_GIT_SSH_KEY`, and `MATCH_GIT_URL` to be present before uploading.
+The API key can be provided either as `APP_STORE_CONNECT_API_KEY_JSON` or as
+the component secrets `APP_STORE_CONNECT_API_KEY_KEY_ID`,
+`APP_STORE_CONNECT_API_KEY_ISSUER_ID`, and `APP_STORE_CONNECT_API_KEY_KEY`.
 Missing secrets leave the release-train workflow in compile-only mode.
 
 Nightly internal TestFlight uses `TESTFLIGHT_INTERNAL_GROUPS`, defaulting to
