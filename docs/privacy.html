@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Privacy Policy | MacroMark</title>
+  <meta name="description" content="MacroMark's privacy policy: no accounts, no tracking, no developer-operated servers, and no analytics. Notes stay on your devices and in your iCloud Drive.">
+  <meta property="og:title" content="MacroMark Privacy Policy">
+  <meta property="og:description" content="No accounts, no tracking, no developer-operated servers, and no analytics.">
+  <meta property="og:image" content="assets/app-icon.png">
+  <meta property="og:type" content="website">
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #050506;
+      --ink-2: #101013;
+      --line: #2a2a31;
+      --paper: #f8f7f2;
+      --muted: #aaa6a0;
+      --dim: #727079;
+      --blue: #2f8cff;
+      --orange: #ff9a3d;
+      --green: #72d8a1;
+      --max: 880px;
+      --radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--ink);
+      color: var(--paper);
+      font-family: "Avenir Next", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.6;
+      letter-spacing: 0;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: .14;
+      background-image:
+        linear-gradient(rgba(248, 247, 242, .08) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(248, 247, 242, .06) 1px, transparent 1px);
+      background-size: 36px 36px;
+      mask-image: linear-gradient(to bottom, rgba(0, 0, 0, .9), transparent 70%);
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .skip-link {
+      position: absolute;
+      left: 1rem;
+      top: 1rem;
+      z-index: 30;
+      padding: .75rem 1rem;
+      background: var(--paper);
+      color: var(--ink);
+      border-radius: var(--radius);
+      transform: translateY(-140%);
+    }
+
+    .skip-link:focus {
+      transform: translateY(0);
+      outline: 3px solid var(--blue);
+      outline-offset: 3px;
+    }
+
+    header,
+    main,
+    footer {
+      position: relative;
+      z-index: 1;
+    }
+
+    .nav,
+    .legal,
+    footer .container {
+      width: min(100% - 2rem, var(--max));
+      margin: 0 auto;
+    }
+
+    .nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 1.25rem 0;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: .65rem;
+      font-weight: 800;
+      font-size: .95rem;
+    }
+
+    .brand img {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      box-shadow: 0 0 0 1px rgba(248, 247, 242, .24);
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: .35rem;
+    }
+
+    .nav-links a,
+    footer a {
+      color: var(--muted);
+    }
+
+    .nav-links a {
+      font-size: .9rem;
+      padding: .55rem .75rem;
+      border-radius: var(--radius);
+    }
+
+    .nav-links a:hover,
+    .nav-links a:focus-visible,
+    footer a:hover,
+    footer a:focus-visible,
+    .legal a:hover,
+    .legal a:focus-visible {
+      color: var(--paper);
+      outline: none;
+    }
+
+    .legal {
+      padding: 4rem 0 5.5rem;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: .55rem;
+      color: var(--muted);
+      font-size: .82rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      margin: 0 0 1.4rem;
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 2.6rem;
+      height: .18rem;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--blue), var(--orange), var(--green));
+    }
+
+    h1,
+    h2,
+    p {
+      margin-top: 0;
+    }
+
+    h1 {
+      max-width: 9ch;
+      margin-bottom: 1rem;
+      font-size: 4.6rem;
+      line-height: .92;
+      font-weight: 900;
+      letter-spacing: 0;
+    }
+
+    .summary {
+      color: #d3cec4;
+      font-size: 1.18rem;
+      max-width: 42rem;
+      margin-bottom: 2rem;
+    }
+
+    .updated {
+      display: inline-flex;
+      padding: .45rem .65rem;
+      margin-bottom: 2.4rem;
+      border: 1px solid rgba(248, 247, 242, .18);
+      border-radius: var(--radius);
+      color: var(--muted);
+      background: rgba(248, 247, 242, .045);
+      font-size: .92rem;
+    }
+
+    .legal-card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(248, 247, 242, .025);
+      overflow: hidden;
+    }
+
+    section.policy-section {
+      padding: 1.45rem;
+      border-bottom: 1px solid var(--line);
+    }
+
+    section.policy-section:last-child {
+      border-bottom: 0;
+    }
+
+    h2 {
+      margin-bottom: .65rem;
+      font-size: 1.45rem;
+      line-height: 1.12;
+    }
+
+    p,
+    li {
+      color: var(--muted);
+    }
+
+    p:last-child,
+    ul:last-child {
+      margin-bottom: 0;
+    }
+
+    ul {
+      margin: .8rem 0 0;
+      padding-left: 1.2rem;
+    }
+
+    li + li {
+      margin-top: .45rem;
+    }
+
+    strong {
+      color: var(--paper);
+    }
+
+    code {
+      color: var(--green);
+      font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+      overflow-wrap: anywhere;
+    }
+
+    .legal a {
+      color: #8fc1ff;
+      text-decoration: underline;
+      text-decoration-color: rgba(143, 193, 255, .45);
+      text-underline-offset: .18em;
+    }
+
+    footer {
+      padding: 2rem 0;
+      color: var(--dim);
+      font-size: .9rem;
+      background: var(--ink);
+      border-top: 1px solid var(--line);
+    }
+
+    footer .container {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    @media (max-width: 720px) {
+      .nav {
+        align-items: flex-start;
+      }
+
+      .nav-links {
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      h1 {
+        font-size: 3.2rem;
+      }
+
+      .summary {
+        font-size: 1.05rem;
+      }
+
+      section.policy-section {
+        padding: 1.15rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header aria-label="Site navigation">
+    <nav class="nav">
+      <a class="brand" href="index.html" aria-label="MacroMark home">
+        <img src="assets/app-icon.png" alt="" width="36" height="36">
+        <span>MacroMark</span>
+      </a>
+      <div class="nav-links" aria-label="Primary">
+        <a href="index.html">Home</a>
+        <a href="https://github.com/dfakkeldy/MacroMark">GitHub</a>
+        <a href="https://github.com/dfakkeldy/MacroMark/issues">Support</a>
+      </div>
+    </nav>
+  </header>
+
+  <main id="main">
+    <article class="legal">
+      <p class="eyebrow">Privacy</p>
+      <h1>Privacy Policy</h1>
+      <p class="summary">MacroMark is designed so your captured notes stay on your devices and in storage you control. We do not run MacroMark accounts, analytics, advertising, tracking, or developer-operated note servers.</p>
+      <p class="updated">Last updated: June 27, 2026</p>
+
+      <div class="legal-card">
+        <section class="policy-section">
+          <h2>1. What MacroMark Stores</h2>
+          <p>MacroMark stores the content you create so the app can work: dictated or typed captures, processed notes, custom macros, export settings, delivery queues, and related timestamps. This data is stored locally on your Apple devices and, when you use iCloud Drive or iCloud-synchronized Apple services, in your personal Apple iCloud account.</p>
+          <p>MacroMark does not send your notes, recordings, macros, or daily Markdown files to servers operated by KinNoKi Labs.</p>
+        </section>
+
+        <section class="policy-section">
+          <h2>2. No Accounts, Tracking, Ads, or Analytics</h2>
+          <p>MacroMark does not require a MacroMark account. We do not use advertising SDKs, third-party analytics SDKs, cross-app tracking, data brokers, or analytics dashboards. We do not build advertising profiles, sell personal information, or share personal information for targeted advertising.</p>
+        </section>
+
+        <section class="policy-section">
+          <h2>3. Microphone, Speech, and Audio Capture</h2>
+          <p>MacroMark asks for microphone and speech recognition access so you can capture voice notes and convert speech into text. Audio captures are processed for the note workflow and queued durably when needed so they can transfer from Apple Watch to iPhone.</p>
+          <p>Speech recognition and dictation features may use Apple system services depending on device capability, language, and OS behavior. Those Apple services are governed by <a href="https://www.apple.com/legal/privacy/" rel="noopener noreferrer">Apple's privacy policy</a>. MacroMark itself does not upload audio to KinNoKi Labs.</p>
+        </section>
+
+        <section class="policy-section">
+          <h2>4. Location Is Optional</h2>
+          <p>MacroMark can use location only when a feature or macro needs it, such as replacing <code>{location}</code> with a readable place. Location access is optional and requires your permission through iOS.</p>
+          <ul>
+            <li><strong>Used for app functionality:</strong> location can be inserted into a note when you choose workflows that request it.</li>
+            <li><strong>Not used for tracking:</strong> location is not used for advertising, analytics, or cross-app profiling.</li>
+            <li><strong>Apple geocoding:</strong> when coordinates need to become a readable place name, MacroMark may use Apple's system geocoding service, governed by Apple's privacy policy.</li>
+          </ul>
+        </section>
+
+        <section class="policy-section">
+          <h2>5. iCloud Drive and Apple Services</h2>
+          <p>MacroMark's default export flow writes plain-text Markdown daily notes to iCloud Drive or another destination you configure. iCloud storage and syncing are provided by Apple through your Apple account. We cannot read your iCloud Drive files.</p>
+          <p>MacroMark may also use Apple frameworks such as WatchConnectivity, SwiftData, StoreKit, WidgetKit, and system logging to provide app features. Those frameworks operate on your device or through Apple services as part of the Apple platform.</p>
+        </section>
+
+        <section class="policy-section">
+          <h2>6. Purchases</h2>
+          <p>If you buy a MacroMark subscription or lifetime unlock, the purchase is processed by Apple through the App Store and StoreKit. MacroMark receives purchase entitlement information needed to unlock features. We do not receive or store your full payment card details.</p>
+        </section>
+
+        <section class="policy-section">
+          <h2>7. Support Requests</h2>
+          <p>If you contact us for support, we receive the information you choose to send, such as your email address, message content, screenshots, logs, or reproduction details. We use that information only to respond to your request and improve MacroMark.</p>
+        </section>
+
+        <section class="policy-section">
+          <h2>8. TestFlight Beta Builds</h2>
+          <p>If you use MacroMark through Apple's TestFlight beta program, Apple may share crash reports, feedback you submit, screenshots you attach, device information, OS version, and build information with the developer. This is part of TestFlight and is governed by Apple's terms and privacy policy. MacroMark does not add separate analytics or tracking to beta builds.</p>
+        </section>
+
+        <section class="policy-section">
+          <h2>9. This Website</h2>
+          <p>This website is a static GitHub Pages site. It sets no MacroMark cookies, embeds no advertising, and contains no MacroMark analytics scripts. GitHub Pages may process standard server request logs under GitHub's own privacy practices.</p>
+        </section>
+
+        <section class="policy-section">
+          <h2>10. Data Retention and Deletion</h2>
+          <p>Your MacroMark notes, macros, settings, and exported Markdown files remain under your control on your devices and in your Apple/iCloud storage. You can delete app data by deleting notes, macros, exported files, or the app itself. Support emails are retained only as long as needed to handle support, maintain business records, or comply with legal obligations.</p>
+        </section>
+
+        <section class="policy-section">
+          <h2>11. Children's Privacy</h2>
+          <p>MacroMark is not directed to children under 13, and we do not knowingly collect personal information from children under 13. If you believe a child has sent us personal information through a support request, contact us and we will delete it when appropriate.</p>
+        </section>
+
+        <section class="policy-section">
+          <h2>12. International and Regional Rights</h2>
+          <p>Depending on where you live, privacy laws such as GDPR, CCPA/CPRA, or similar regional laws may give you rights to access, correct, delete, or object to processing of personal information. Because MacroMark does not operate accounts or note servers, most app data is controlled directly by you on your device or in your Apple/iCloud account.</p>
+          <p>For support data that you have sent to us directly, you can contact us to request access or deletion.</p>
+        </section>
+
+        <section class="policy-section">
+          <h2>13. Changes to This Policy</h2>
+          <p>We may update this Privacy Policy as MacroMark changes. When we do, we will update the date above and publish the new version at <a href="https://dfakkeldy.github.io/MacroMark/privacy.html">https://dfakkeldy.github.io/MacroMark/privacy.html</a>.</p>
+        </section>
+
+        <section class="policy-section">
+          <h2>14. Contact</h2>
+          <p>For privacy or support questions, email <a href="mailto:dan@kinnokilabs.com">dan@kinnokilabs.com</a> or open an issue at <a href="https://github.com/dfakkeldy/MacroMark/issues" rel="noopener noreferrer">github.com/dfakkeldy/MacroMark/issues</a>.</p>
+        </section>
+      </div>
+    </article>
+  </main>
+
+  <footer>
+    <div class="container">
+      <span>MacroMark by KinNoKi Labs.</span>
+      <span><a href="index.html">Home</a> &middot; <a href="https://github.com/dfakkeldy/MacroMark">GitHub</a> &middot; <a href="https://github.com/dfakkeldy/MacroMark/issues">Support</a></span>
+    </div>
+  </footer>
+</body>
+</html>

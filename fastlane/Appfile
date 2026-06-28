@@ -7,7 +7,10 @@ apple_id("dan@kinnokilabs.com") # Your Apple account email
 # Team
 team_id("8AXNA5B37R") # Developer Portal Team ID
 
-# App Store Connect App ID — run `fastlane produce` or check App Store Connect for this.
-# For an app not yet created in App Store Connect, leave this commented.
-# itc_team_id("119XXXXXXXX")     # iTunes Connect Team ID
-# apple_dev_portal_id("XXXXXXXX") # Developer Portal Team ID (if different)
+for_lane :beta do
+  app_identifier([
+    "com.danfakkeldy.macromark",
+    "com.danfakkeldy.macromark.watchkitapp",
+    "com.danfakkeldy.macromark.watchkitapp.MacroMarkWidget"
+  ])
+end
