@@ -17,6 +17,7 @@ struct NoteDetailView: View {
                 TextEditor(text: $note.text)
                     .frame(minHeight: 200)
                     .font(.body)
+                    .accessibilityIdentifier("noteDetail.text")
             } header: {
                 Text(note.createdAt.formatted(date: .abbreviated, time: .shortened))
             }
@@ -43,6 +44,7 @@ struct NoteDetailView: View {
                 }
             }
         }
+        .accessibilityIdentifier("noteDetail.form")
         .navigationTitle("Note Details")
         .navigationBarTitleDisplayMode(.inline)
     }

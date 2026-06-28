@@ -168,12 +168,13 @@ jobs:
         env:
           APP_STORE_CONNECT_API_KEY_JSON: ${{ secrets.APP_STORE_CONNECT_API_KEY_JSON }}
           MATCH_GIT_SSH_KEY: ${{ secrets.MATCH_GIT_SSH_KEY }}
+          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
         run: |
           set -euo pipefail
 
-          if [ -z "$APP_STORE_CONNECT_API_KEY_JSON" ] || [ -z "$MATCH_PASSWORD" ] || [ -z "$MATCH_GIT_SSH_KEY" ]; then
-            echo "::notice title=Compile-only release train::APP_STORE_CONNECT_API_KEY_JSON, MATCH_PASSWORD, and MATCH_GIT_SSH_KEY are required for TestFlight upload. The compile gate passed; upload was skipped."
+          if [ -z "$APP_STORE_CONNECT_API_KEY_JSON" ] || [ -z "$MATCH_PASSWORD" ] || [ -z "$MATCH_GIT_SSH_KEY" ] || [ -z "$MATCH_GIT_URL" ]; then
+            echo "::notice title=Compile-only release train::APP_STORE_CONNECT_API_KEY_JSON, MATCH_PASSWORD, MATCH_GIT_SSH_KEY, and MATCH_GIT_URL are required for TestFlight upload. The compile gate passed; upload was skipped."
             exit 0
           fi
 

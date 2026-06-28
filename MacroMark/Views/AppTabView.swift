@@ -3,17 +3,22 @@ import SwiftData
 import MacroMarkKit
 
 struct AppTabView: View {
+    @Environment(\.modelContext) private var modelContext
+
     var body: some View {
         TabView {
-            InboxView()
-                .tabItem {
-                    Label("Inbox", systemImage: "tray.fill")
-                }
-            
-            MacroManagerView()
-                .tabItem {
-                    Label("Macros", systemImage: "text.quote")
-                }
+            Tab("Inbox", systemImage: "tray.fill") {
+                InboxView()
+                    .accessibilityIdentifier("inbox.screen")
+            }
+
+            Tab("Macros", systemImage: "text.quote") {
+                MacroManagerView()
+                    .accessibilityIdentifier("macros.screen")
+            }
+        }
+        .task {
+            ScreenshotMode.seedIfNeeded(in: modelContext)
         }
     }
 }
