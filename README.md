@@ -8,14 +8,17 @@ MacroMark is a zero-friction, voice-to-text capture tool designed for personal k
 - **Reliability-First Sync**: Watch captures stay queued until the iPhone has durably processed them and the configured export path has succeeded or is safely queued for retry.
 - **Beautiful Watch UI**: A modernized liquid glass interface featuring large, clear microphone and keyboard buttons for instant input selection, plus quick access to "Today's Daily Log" directly from your wrist.
 - **The Append Mechanic**: Instead of cluttering your vault with hundreds of tiny files, MacroMark intelligently appends all your captures for a given day to a single `YYYY-MM-DD.md` daily note.
-- **Daily Review by Date**: The v1.0 roadmap includes a date picker so you can inspect captures for today, yesterday, or any previous daily note.
+- **Daily Review by Date**: Inspect captures for today, yesterday, or any previous daily note from the phone inbox or Watch daily log.
+- **Visible Status and Retry**: Export status labels, needs-attention filtering, partial-transcription warnings, and retry actions make capture state visible instead of mysterious.
+- **Destination Proof**: Settings show the active export destination and can write a test note so you can verify iCloud or folder setup before relying on Watch capture.
 - **Shortcuts Ready**: App Intents expose instant capture, typed capture, daily-log review, and append-text actions to Shortcuts and Siri.
 - **Verbal Macros**: Speak custom trigger words to instantly format your text. Say "Heading One" to output `# `, or use variables like `{date}`, `{time}`, and `{location}` to build clever workflows.
+- **Daily Note Formatting**: Configure timestamp style, separators, and an optional append heading for exported Markdown.
 - **PKM Friendly**: Saves directly to a dedicated iCloud Documents folder, making it instantly accessible to Obsidian, Logseq, and other Markdown-based tools.
 
 ## v1.0 Roadmap
 
-MacroMark v1.0 is the trust-and-capture release: Apple Watch quick capture for Markdown daily notes, with visible sync/export state, setup proof, daily-note review by date, App Intents, safer transcription, and App Store-ready monetization.
+MacroMark v1.0 is the trust-and-capture release: Apple Watch quick capture for Markdown daily notes, with visible sync/export state, setup proof, daily-note review by date, App Intents, safer transcription waits, and App Store-ready privacy and metadata artifacts.
 
 The full roadmap is in [docs/V1_ROADMAP.md](docs/V1_ROADMAP.md). It turns the competitor-review research in [docs/competitive-analysis.md](docs/competitive-analysis.md) into eight v1.0 milestones:
 
@@ -27,6 +30,8 @@ The full roadmap is in [docs/V1_ROADMAP.md](docs/V1_ROADMAP.md). It turns the co
 6. Daily note formatting.
 7. Transcription integrity.
 8. Launch monetization and App Store readiness.
+
+Status notes: StoreKit products, screenshots, TestFlight upload, and paired iPhone/Watch smoke testing still need release verification before v1.0 can be submitted. The repository now includes launch metadata, privacy pages, and a privacy manifest, but App Store Connect privacy answers must still be checked against the final build.
 
 ## Installation
 

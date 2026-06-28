@@ -1,0 +1,12 @@
+MacroMark turns quick Apple Watch captures into plain-text Markdown daily notes.
+
+Tap your Watch, speak or type a thought, and MacroMark queues it safely until your iPhone can process it and append it to the right dated note. It is built for people whose notes live in Markdown, Obsidian, Logseq, or any workflow that starts with simple files.
+
+Features:
+- Watch-first voice and typed capture
+- Durable queue and retry for offline moments
+- Daily notes named like YYYY-MM-DD.md
+- Review captures by date
+- Spoken Markdown macros
+- iCloud Drive storage with no required account
+- Optional Pro features for custom macros and folder structure

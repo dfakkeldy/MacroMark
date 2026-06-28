@@ -1008,6 +1008,8 @@
           <a href="#macros">Macros</a>
           <a href="#platform">Platform</a>
           <a href="#roadmap">Roadmap</a>
+          <a href="privacy.html">Privacy</a>
+          <a href="terms.html">Terms</a>
           <a href="devlog.html">Devlog</a>
           <a href="https://github.com/dfakkeldy/MacroMark">GitHub</a>
         </div>
@@ -1062,7 +1064,7 @@
             <p>Voice capture for people whose notes live in Markdown. Tap your Watch complication, speak, lower your wrist, and let MacroMark append the thought to today's note.</p>
             <div class="actions" aria-label="Calls to action">
               <a class="button primary" href="https://github.com/dfakkeldy/MacroMark">View on GitHub</a>
-              <a class="button secondary" href="#roadmap">See the v1.0 roadmap</a>
+              <a class="button secondary" href="#roadmap">See v1.0 status</a>
             </div>
             <div class="proof" aria-label="Product highlights">
               <span>Watch-first capture</span>
@@ -1243,56 +1245,56 @@
         <div class="container">
           <div class="section-heading">
             <h2 id="roadmap-title">v1.0 is about trust.</h2>
-            <p>The launch roadmap turns competitor-review pain into product requirements: no silent loss, visible sync, date-based review, setup proof, safer transcription, and fair Pro gating.</p>
+            <p>The current implementation covers the core trust surfaces: no silent loss, visible export state, date-based review, setup proof, App Intents, safer transcription waits, and launch privacy artifacts. Manual StoreKit, TestFlight, screenshot, and paired-device checks remain before App Store submission.</p>
           </div>
 
           <div class="roadmap-band">
             <article class="roadmap-item">
               <strong>01</strong>
               <h3>Reliability core</h3>
-              <p>ACK only after durable processing and export success or safe retry state.</p>
+              <p>Implemented: export outcomes, retryable pending exports, and idempotent processing state.</p>
             </article>
 
             <article class="roadmap-item">
               <strong>02</strong>
               <h3>Status and recovery</h3>
-              <p>Show pending, processing, exported, deferred, failed, and retry paths.</p>
+              <p>Implemented: inbox status, needs-attention filtering, detail status, and retry action.</p>
             </article>
 
             <article class="roadmap-item">
               <strong>03</strong>
               <h3>Review by date</h3>
-              <p>Pick a date and inspect the captures for that daily note.</p>
+              <p>Supported: pick dates in the phone inbox and Watch daily log to inspect captures.</p>
             </article>
 
             <article class="roadmap-item">
               <strong>04</strong>
               <h3>App Intents</h3>
-              <p>Start capture, append text, and open daily logs from system surfaces.</p>
+              <p>Implemented: start capture, append text, and open daily logs from system surfaces.</p>
             </article>
 
             <article class="roadmap-item">
               <strong>05</strong>
               <h3>Setup proof</h3>
-              <p>Show the active destination, write a test note, and report last export.</p>
+              <p>Implemented: active destination, test note, and last successful export details.</p>
             </article>
 
             <article class="roadmap-item">
               <strong>06</strong>
               <h3>Daily-note shape</h3>
-              <p>Configure timestamps, separators, headings, tags, and safe appends.</p>
+              <p>Implemented: timestamp style, separators, optional headings, and macro previews.</p>
             </article>
 
             <article class="roadmap-item">
               <strong>07</strong>
               <h3>Transcription integrity</h3>
-              <p>Mark partial transcripts and prevent speech or location replay hangs.</p>
+              <p>Implemented: partial warnings plus bounded speech and location waits; long-recording device smoke remains.</p>
             </article>
 
             <article class="roadmap-item">
               <strong>08</strong>
               <h3>Launch readiness</h3>
-              <p>Finish StoreKit, TestFlight, privacy, screenshots, and App Store metadata.</p>
+              <p>In progress: privacy pages, manifest, and metadata are ready; screenshots and TestFlight remain.</p>
             </article>
           </div>
         </div>
@@ -1303,11 +1305,11 @@
           <div class="cta-panel">
             <div>
               <h2 id="cta-title">Make your Watch a Markdown button.</h2>
-              <p>Build MacroMark from source, add the complication, and follow the v1.0 roadmap toward a reliable Watch-to-Markdown launch.</p>
+              <p>Build MacroMark from source, add the complication, and review the current v1.0 status before relying on a release build.</p>
             </div>
             <div class="actions">
               <a class="button primary" href="https://github.com/dfakkeldy/MacroMark">Get the source</a>
-              <a class="button secondary" href="https://github.com/dfakkeldy/MacroMark/blob/main/docs/V1_ROADMAP.md">Read the roadmap</a>
+              <a class="button secondary" href="https://github.com/dfakkeldy/MacroMark/blob/main/docs/V1_ROADMAP.md">Read v1.0 status</a>
             </div>
           </div>
         </div>
@@ -1317,7 +1319,7 @@
     <footer>
       <div class="container">
         <span>MacroMark by KinNoKi Labs.</span>
-        <span><a href="https://github.com/dfakkeldy/MacroMark">GitHub</a> &middot; <a href="https://github.com/dfakkeldy/MacroMark#readme">README</a> &middot; <a href="https://github.com/dfakkeldy/MacroMark/blob/main/docs/V1_ROADMAP.md">Roadmap</a> &middot; <a href="devlog.html">Devlog</a></span>
+        <span><a href="https://github.com/dfakkeldy/MacroMark">GitHub</a> &middot; <a href="https://github.com/dfakkeldy/MacroMark#readme">README</a> &middot; <a href="https://github.com/dfakkeldy/MacroMark/blob/main/docs/V1_ROADMAP.md">Roadmap</a> &middot; <a href="privacy.html">Privacy</a> &middot; <a href="terms.html">Terms</a> &middot; <a href="devlog.html">Devlog</a></span>
       </div>
     </footer>
   </div>

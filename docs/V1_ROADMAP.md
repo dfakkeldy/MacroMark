@@ -9,6 +9,26 @@ This roadmap is based on:
 - Reliability findings in `CODE_AUDIT.md`, `REMEDIATION_PLAN.md`, and `IMPLEMENTATION_PLAN.md`.
 - Current launch setup in `docs/KICKSTART_POPULATION.md` and `docs/SETUP_TASKS.md`.
 
+## Implementation Status - 2026-06-28
+
+Implemented in the overnight v1 branch:
+- Export status model and retryable pipeline state for processed notes.
+- Inbox export status, needs-attention filtering, detail status, and manual retry.
+- App Intents for instant capture, typed capture, daily-log review, and append text.
+- Daily-note formatting controls for timestamp style, separators, and optional headings.
+- Destination setup proof with active destination, test note, and last successful export details.
+- Bounded speech authorization, chunk transcription, and location waits, with visible partial-transcription warnings.
+- Launch privacy artifacts: privacy manifest, privacy policy page, terms page, and local fastlane metadata.
+
+Verified so far:
+- Package tests and generic iOS/watchOS builds passed in Tasks 1-6 as recorded in `.superpowers/sdd/task-*-report.md`.
+- Task 8 text checks cover the privacy manifest and metadata files without running Xcode builds.
+
+Still manual or pending before App Store submission:
+- Task 7 watch ACK reconciliation and paired-device zombie cleanup are not reflected here until that task commits.
+- StoreKit annual/lifetime product loading, purchase, and restore need local StoreKit verification.
+- Screenshots, TestFlight upload, App Store Connect privacy answers, and a paired iPhone/Apple Watch smoke test remain release gates.
+
 ## v1.0 Positioning
 
 **Primary promise:** Tap the Watch, speak, lower your wrist, and the note safely lands in a dated Markdown file.

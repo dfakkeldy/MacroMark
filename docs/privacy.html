@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Privacy Policy | MacroMark</title>
+  <meta name="description" content="MacroMark privacy policy for Apple Watch capture and Markdown daily notes.">
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #050506;
+      --ink-2: #101013;
+      --line: #2a2a31;
+      --paper: #f8f7f2;
+      --muted: #aaa6a0;
+      --blue: #2f8cff;
+      --orange: #ff9a3d;
+      --max: 860px;
+      --radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--ink);
+      color: var(--paper);
+      font-family: "Avenir Next", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.6;
+      letter-spacing: 0;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .site-header,
+    footer {
+      border-bottom: 1px solid var(--line);
+      background: var(--ink);
+    }
+
+    .nav,
+    .container {
+      width: min(100% - 2rem, var(--max));
+      margin: 0 auto;
+    }
+
+    .nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 1.25rem 0;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: .65rem;
+      font-weight: 800;
+      font-size: .95rem;
+    }
+
+    .brand img {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius);
+      box-shadow: 0 0 0 1px rgba(248, 247, 242, .24);
+    }
+
+    .nav-links,
+    footer .container {
+      display: flex;
+      align-items: center;
+      gap: .35rem;
+      flex-wrap: wrap;
+    }
+
+    .nav-links a,
+    footer a {
+      color: var(--muted);
+      font-size: .9rem;
+      padding: .55rem .75rem;
+      border-radius: var(--radius);
+    }
+
+    .nav-links a:hover,
+    .nav-links a:focus-visible,
+    footer a:hover,
+    footer a:focus-visible {
+      color: var(--paper);
+      background: rgba(248, 247, 242, .08);
+      outline: none;
+    }
+
+    main {
+      min-height: 72svh;
+      background:
+        linear-gradient(90deg, rgba(47, 140, 255, .14), transparent 32%),
+        linear-gradient(270deg, rgba(255, 154, 61, .10), transparent 36%),
+        var(--ink-2);
+    }
+
+    .legal {
+      padding: 6rem 0;
+    }
+
+    h1 {
+      font-size: clamp(3rem, 9vw, 5.5rem);
+      line-height: .95;
+      margin: 0 0 1.4rem;
+      letter-spacing: 0;
+    }
+
+    p {
+      color: #d8d2c7;
+      font-size: 1.08rem;
+      margin: 0 0 1rem;
+      max-width: 44rem;
+    }
+
+    .updated {
+      color: var(--muted);
+      font-size: .9rem;
+      text-transform: uppercase;
+      font-weight: 800;
+      margin-bottom: 1rem;
+    }
+
+    .contact {
+      color: var(--paper);
+      text-decoration: underline;
+      text-decoration-color: var(--orange);
+      text-underline-offset: .18rem;
+    }
+
+    footer {
+      border-top: 1px solid var(--line);
+      border-bottom: 0;
+      padding: 1.35rem 0;
+      color: var(--muted);
+    }
+
+    footer .container {
+      justify-content: space-between;
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header" aria-label="Site navigation">
+    <nav class="nav">
+      <a class="brand" href="index.html" aria-label="MacroMark home">
+        <img src="assets/app-icon.png" alt="" width="36" height="36">
+        <span>MacroMark</span>
+      </a>
+      <div class="nav-links" aria-label="Primary">
+        <a href="index.html">Home</a>
+        <a href="terms.html">Terms</a>
+        <a href="https://github.com/dfakkeldy/MacroMark">GitHub</a>
+      </div>
+    </nav>
+  </header>
+
+  <main>
+    <section class="legal">
+      <div class="container">
+        <p class="updated">Effective June 28, 2026</p>
+        <h1>Privacy Policy</h1>
+        <p>MacroMark is built for local capture into your own Markdown files. The app does not sell personal data, does not include third-party analytics in v1.0, and does not require an account.</p>
+        <p>MacroMark uses microphone and speech recognition access when you dictate notes, location access only when you use a location macro, iCloud Drive or a selected folder to save Markdown daily notes, and StoreKit to manage purchases.</p>
+        <p>Captured notes, audio waiting for delivery, macro settings, and export status stay on your devices or in your iCloud Drive. Contact support at <a class="contact" href="mailto:dan@kinnokilabs.com">dan@kinnokilabs.com</a>.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container">
+      <span>MacroMark by KinNoKi Labs.</span>
+      <span><a href="index.html">Home</a> <a href="terms.html">Terms</a></span>
+    </div>
+  </footer>
+</body>
+</html>
