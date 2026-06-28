@@ -111,6 +111,19 @@ Refresh development certificates & provisioning profiles
 
 Refresh App Store distribution certificates & provisioning profiles
 
+### Automated Beta Deployment
+
+The `beta` lane accepts a release-train channel and uploads to TestFlight:
+
+```bash
+bundle exec fastlane beta channel:nightly
+bundle exec fastlane beta channel:weekly
+```
+
+CI expects `APP_STORE_CONNECT_API_KEY_JSON`, `MATCH_PASSWORD`,
+`MATCH_GIT_SSH_KEY`, and `MATCH_GIT_URL` to be present before uploading.
+Missing secrets leave the release-train workflow in compile-only mode.
+
 ----
 
 This README.md is auto-generated and will be re-generated every time [_fastlane_](https://fastlane.tools) is run.

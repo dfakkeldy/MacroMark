@@ -362,8 +362,11 @@ struct MacroMarkApp: App {
                 return
             }
 
-            // Run macro processing (CPU-bound)
-            let result = await MacroProcessor.process(text: processedText, macros: macros, date: timestamp) {
+            // Run macro processing (CPU-bound). Snapshot the SwiftData models into
+            // Sendable value types on the main actor before handing them to the
+            // off-actor processor — `@Model` objects must not cross isolation domains.
+            let macroRules = macros.map { MacroRule(trigger: $0.trigger, replacement: $0.replacement) }
+            let result = await MacroProcessor.process(text: processedText, macros: macroRules, date: timestamp) {
                 if let location = await LocationManager.shared.getCurrentLocation() {
                     return (latitude: location.coordinate.latitude, longitude: location.coordinate.longitude)
                 }

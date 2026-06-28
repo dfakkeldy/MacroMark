@@ -27,15 +27,27 @@ APP_SCHEME            = "MacroMark"
 PROJECT_PATH          = "MacroMark.xcodeproj"
 APP_IDENTIFIER        = "com.danfakkeldy.macromark"
 TEAM_ID               = "8AXNA5B37R"
+WATCH_APP_IDENTIFIER  = "com.danfakkeldy.macromark.watchkitapp"
+WIDGET_IDENTIFIER     = "com.danfakkeldy.macromark.watchkitapp.MacroMarkWidget"
+SIGNING_IDENTIFIERS   = [
+  APP_IDENTIFIER,
+  WATCH_APP_IDENTIFIER,
+  WIDGET_IDENTIFIER
+].freeze
 
-def load_app_store_connect_api_key
+def ci_app_store_connect_api_key
+  key_json = ENV["APP_STORE_CONNECT_API_KEY_JSON"].to_s
+  return nil if key_json.empty?
+
+  key_path = File.join(Dir.pwd, "fastlane", "app_store_connect_api_key.json")
+  File.write(key_path, key_json)
+  app_store_connect_api_key(key_filepath: key_path)
+end
+
+def local_app_store_connect_api_key
   require "json"
-
   key_path = File.expand_path("api_key.json", __dir__)
-  unless File.exist?(key_path)
-    UI.important("No fastlane/api_key.json found. App Store Connect lanes are unavailable until it is copied from Echo or recreated.")
-    return nil
-  end
+  return nil unless File.exist?(key_path)
 
   key_data = JSON.parse(File.read(key_path))
   app_store_connect_api_key(
@@ -44,6 +56,12 @@ def load_app_store_connect_api_key
     key_content: key_data["key"],
     in_house: key_data["in_house"]
   )
+end
+
+def load_app_store_connect_api_key
+  api_key = ci_app_store_connect_api_key || local_app_store_connect_api_key
+  UI.important("No App Store Connect API key found. Set APP_STORE_CONNECT_API_KEY_JSON or create fastlane/api_key.json.") if api_key.nil?
+  api_key
 end
 
 # ---------------------------------------------------------------------------
@@ -84,12 +102,29 @@ platform :ios do
   end
 
   # ── TestFlight beta ───────────────────────────────────────────────────────
-  desc "Build and upload a new TestFlight beta"
-  lane :beta do
+  desc "Build and upload a release-train TestFlight beta"
+  lane :beta do |options|
     require_api_key!
 
+    channel = options[:channel].to_s.empty? ? "manual" : options[:channel].to_s
+    api_key = @api_key
+
+    match(
+      type: "appstore",
+      app_identifier: SIGNING_IDENTIFIERS,
+      readonly: true,
+      api_key: api_key
+    )
+
+    next_build_number = latest_testflight_build_number(
+      app_identifier: APP_IDENTIFIER,
+      api_key: api_key,
+      initial_build_number: 0
+    ) + 1
+
     increment_build_number(
-      xcodeproj: PROJECT_PATH
+      xcodeproj: PROJECT_PATH,
+      build_number: next_build_number.to_s
     )
 
     build_app(
@@ -103,10 +138,10 @@ platform :ios do
     )
 
     upload_to_testflight(
-      api_key: @api_key,
+      api_key: api_key,
       app_identifier: APP_IDENTIFIER,
       skip_waiting_for_build_processing: false,
-      changelog: "Beta build uploaded via fastlane.",
+      changelog: "MacroMark #{channel} build uploaded via fastlane.",
       distribute_external: false
     )
   end
@@ -235,11 +270,7 @@ platform :ios do
   lane :match_dev do
     match(
       type: "development",
-      app_identifier: [
-        "com.danfakkeldy.macromark",
-        "com.danfakkeldy.macromark.watchkitapp",
-        "com.danfakkeldy.macromark.watchkitapp.MacroMarkWidget"
-      ],
+      app_identifier: SIGNING_IDENTIFIERS,
       readonly: true
     )
   end
@@ -248,11 +279,7 @@ platform :ios do
   lane :match_appstore do
     match(
       type: "appstore",
-      app_identifier: [
-        "com.danfakkeldy.macromark",
-        "com.danfakkeldy.macromark.watchkitapp",
-        "com.danfakkeldy.macromark.watchkitapp.MacroMarkWidget"
-      ],
+      app_identifier: SIGNING_IDENTIFIERS,
       readonly: true
     )
   end

@@ -9,8 +9,8 @@ struct MacroProcessorTests {
     @Test("Test trigger replacement")
     func testTriggerReplacement() async {
         let macros = [
-            Macro(trigger: "Heading One", replacement: "# "),
-            Macro(trigger: "Bold", replacement: "**")
+            MacroRule(trigger: "Heading One", replacement: "# "),
+            MacroRule(trigger: "Bold", replacement: "**")
         ]
         
         let input = "Heading One this is bold"
@@ -21,7 +21,7 @@ struct MacroProcessorTests {
     @Test("Test case insensitive trigger replacement")
     func testCaseInsensitiveTriggerReplacement() async {
         let macros = [
-            Macro(trigger: "heading one", replacement: "# ")
+            MacroRule(trigger: "heading one", replacement: "# ")
         ]
         
         let input = "HEADING ONE this is a test"
@@ -31,7 +31,7 @@ struct MacroProcessorTests {
     
     @Test("Test variable replacements")
     func testVariableReplacements() async {
-        let macros: [Macro] = []
+        let macros: [MacroRule] = []
         let input = "Today is {date} at {time}{newline}Next line"
         let output = await MacroProcessor.process(text: input, macros: macros)
         
@@ -42,7 +42,7 @@ struct MacroProcessorTests {
     
     @Test("Test wrapping tag cleanup")
     func testWrappingTagCleanup() async {
-        let macros: [Macro] = []
+        let macros: [MacroRule] = []
         let input = "This is * bold text * and ** strong text ** and _ italic _"
         let output = await MacroProcessor.process(text: input, macros: macros)
         

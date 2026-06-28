@@ -17,14 +17,14 @@ public enum AppendResult {
 
 @MainActor
 public final class iCloudStorageManager {
-    public static let shared = iCloudStorageManager()
+    public nonisolated static let shared = iCloudStorageManager()
 
     /// Published so UI can observe when iCloud is unavailable and data is saving locally.
     public private(set) var isUsingFallbackStorage = false
 
-    private init() {}
+    nonisolated private init() {}
 
-    private var folderSettings: FolderSettings {
+    nonisolated private var folderSettings: FolderSettings {
         guard let data = UserDefaults.standard.data(forKey: UserDefaultsKey.folderSettings.rawValue),
               let settings = try? JSONDecoder().decode(FolderSettings.self, from: data) else {
             return FolderSettings()
@@ -32,7 +32,11 @@ public final class iCloudStorageManager {
         return settings
     }
 
-    private var baseDirectoryURL: URL {
+    /// Resolve the base directory without touching main-actor state. Returns the
+    /// URL plus the value the write path should publish to `isUsingFallbackStorage`
+    /// (`nil` means "leave the flag unchanged", as when a custom save location is
+    /// in use). Being `nonisolated` lets the read path run off the main actor.
+    nonisolated private func resolvedBaseDirectory() -> (url: URL, fallback: Bool?) {
         if let bookmarkData = UserDefaults.standard.data(forKey: UserDefaultsKey.customSaveBookmark.rawValue) {
             var isStale = false
             if let url = try? URL(resolvingBookmarkData: bookmarkData, options: .withoutUI, relativeTo: nil, bookmarkDataIsStale: &isStale) {
@@ -41,7 +45,7 @@ public final class iCloudStorageManager {
                     UserDefaults.standard.removeObject(forKey: UserDefaultsKey.customSaveBookmark.rawValue)
                     // Fall through to iCloud / local fallback below.
                 } else {
-                    return url
+                    return (url, nil)
                 }
             }
         }
@@ -51,32 +55,41 @@ public final class iCloudStorageManager {
             if !FileManager.default.fileExists(atPath: documentsDir.path) {
                 try? FileManager.default.createDirectory(at: documentsDir, withIntermediateDirectories: true)
             }
-            isUsingFallbackStorage = false
-            return documentsDir
+            return (documentsDir, false)
         }
-        isUsingFallbackStorage = true
-        return URL.documentsDirectory
+        return (URL.documentsDirectory, true)
     }
 
-    private func fileURL(for date: Date, settings: FolderSettings) -> URL {
+    /// Main-actor write-path accessor: resolves the base directory and publishes
+    /// the `isUsingFallbackStorage` flag for the UI. The read path uses
+    /// `resolvedBaseDirectory()` directly and does not mutate the flag.
+    private var baseDirectoryURL: URL {
+        let (url, fallback) = resolvedBaseDirectory()
+        if let fallback {
+            isUsingFallbackStorage = fallback
+        }
+        return url
+    }
+
+    nonisolated private func fileURL(for date: Date, settings: FolderSettings, base: URL) -> URL {
         let filename = settings.format(date: date) + ".md"
 
         switch settings.structure {
         case .flat:
-            return baseDirectoryURL.appending(path: filename)
+            return base.appending(path: filename)
 
         case .monthly:
             let month = date.formatted(Date.FormatStyle().month(.twoDigits))
             let year = date.formatted(Date.FormatStyle().year())
             let folder = "\(year)-\(month)"
-            let dir = baseDirectoryURL.appending(path: folder)
+            let dir = base.appending(path: folder)
             try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
             return dir.appending(path: filename)
 
         case .yearlyMonthly:
             let year = date.formatted(Date.FormatStyle().year())
             let month = date.formatted(Date.FormatStyle().month(.twoDigits))
-            let dir = baseDirectoryURL.appending(path: year).appending(path: month)
+            let dir = base.appending(path: year).appending(path: month)
             try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
             return dir.appending(path: filename)
         }
@@ -98,7 +111,7 @@ public final class iCloudStorageManager {
             }
         }
 
-        let fileURL = self.fileURL(for: date, settings: settings)
+        let fileURL = self.fileURL(for: date, settings: settings, base: baseDir)
 
         // If the day's file already exists in iCloud but hasn't been downloaded
         // to this device yet, FileManager.fileExists returns false — which would
@@ -177,8 +190,8 @@ public final class iCloudStorageManager {
         }
     }
 
-    public func readText(for date: Date = Date()) -> String? {
-        let baseDir = baseDirectoryURL
+    nonisolated public func readText(for date: Date = Date()) -> String? {
+        let baseDir = resolvedBaseDirectory().url
         let isSecurityScoped = UserDefaults.standard.data(forKey: UserDefaultsKey.customSaveBookmark.rawValue) != nil
         let settings = folderSettings
 
@@ -192,7 +205,7 @@ public final class iCloudStorageManager {
             }
         }
 
-        let fileURL = self.fileURL(for: date, settings: settings)
+        let fileURL = self.fileURL(for: date, settings: settings, base: baseDir)
 
         var fileContent: String?
         var error: NSError?

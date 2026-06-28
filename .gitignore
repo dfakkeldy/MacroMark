@@ -14,10 +14,20 @@ xcuserdata/
 # macOS
 .DS_Store
 
+# Python
+__pycache__/
+*.pyc
+
 # Fastlane
+*.mobileprovision
+*.p12
+*.p8
+*.pem
+fastlane/app_store_connect_api_key.json
 fastlane/api_key.json
 fastlane/AuthKey*.p8
 fastlane/*.p8
+fastlane/match_git_ssh_key
 fastlane/report.xml
 fastlane/Preview.html
 fastlane/test_output/
@@ -29,4 +39,7 @@ fastlane/metadata/review_information/
 vendor/bundle/
 
 # Scratch / local-only files
+.env
+.env.local
+.env.*.local
 test.swift

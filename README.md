@@ -31,6 +31,7 @@ The full roadmap is in [docs/V1_ROADMAP.md](docs/V1_ROADMAP.md). It turns the co
 
 ### Prerequisites
 - Xcode 26+ (targets iOS 26.5+ and watchOS 26.5+).
+- Builds in **Swift 6 language mode** (Swift 6.2 toolchain) with strict concurrency.
 - Apple Developer Program account (for iCloud Documents capabilities).
 
 ### Setup
@@ -65,6 +66,22 @@ If you don't want the newline in your final text, say **"not"** immediately afte
 ## Contributing
 
 Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
+
+## Release Engineering - Promotion Ladder
+
+MacroMark uses a one-way promotion ladder: `feature/* -> nightly -> weekly -> main`.
+Feature work branches from `nightly`, and pull requests target `nightly` by default.
+`nightly` receives fast integration PRs and daily TestFlight builds, `weekly` is promoted
+from `nightly` for Monday beta builds, and `main` remains the stable default branch.
+
+| Branch | Source | Protection |
+| --- | --- | --- |
+| `nightly` | `feature/*` | Requires `Build gate + tests`; review optional. |
+| `weekly` | `nightly` | Requires PR and strict `Build gate + tests`; no review required. |
+| `main` | `weekly` | Requires PR and strict `Build gate + tests`; no review required. |
+
+Hotfixes branch from `main`, merge back to `main` by PR, then flow down into `weekly`
+and `nightly` so release trains stay consistent.
 
 ## License
 

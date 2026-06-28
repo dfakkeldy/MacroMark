@@ -27,5 +27,6 @@ let package = Package(
             name: "MacroMarkKitTests",
             dependencies: ["MacroMarkKit"]
         ),
-    ]
+    ],
+    swiftLanguageModes: [.v6]
 )

@@ -27,7 +27,7 @@ public struct MacroProcessor {
     /// Process text through macro expansion and dynamic variable replacement.
     /// This is CPU-bound work — it is NOT isolated to any actor so callers
     /// should invoke it from the global cooperative pool, not the main actor.
-    public static func process(text: String, macros: [Macro], date: Date = Date(), fetchLocation: (() async -> (latitude: Double, longitude: Double)?)? = nil) async -> String {
+    public static func process(text: String, macros: [MacroRule], date: Date = Date(), fetchLocation: (@Sendable () async -> (latitude: Double, longitude: Double)?)? = nil) async -> String {
         var processedText = text
 
         // 1. Apply trigger macros (with cached regex compilation)
