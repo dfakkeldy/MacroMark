@@ -328,6 +328,18 @@ v1.0 is not ready until all gates pass:
 - `swift test --package-path MacroMarkKit` succeeds.
 - At least one TestFlight smoke test passes on paired physical devices.
 
+## Final v1.0 Verification Notes
+
+- Package tests: passed on 2026-06-28 with `swift test --package-path MacroMarkKit`.
+- iOS generic build: passed on 2026-06-28 with the Debug `MacroMark` scheme.
+- watchOS generic build: passed on 2026-06-28 with the Debug `MacroMark Watch App` scheme.
+- Fastlane build lane: Release archive passed on 2026-06-28, but App Store export failed because app-store provisioning profiles are not installed for the iOS app, watch app, and widget extension.
+- TestFlight upload: not attempted because `APP_STORE_CONNECT_API_KEY_JSON` is not present in this environment.
+- StoreKit local purchase/restore test: not run yet; release remains blocked until annual, lifetime, purchase, restore, and free capture paths pass locally.
+- Paired-device smoke test: not run yet; release remains blocked until this passes on the tested iPhone and Apple Watch models.
+- Public GitHub Pages privacy/support anchors: added in this branch; verify the live URLs again after the branch is merged and deployed.
+- Known v1.1 deferrals: none selected yet.
+
 ## Deferred To v1.1+
 
 - AI summaries or rewriting.
