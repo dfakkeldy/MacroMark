@@ -33,14 +33,19 @@ final class LocalStore {
     /// Track note IDs that have already been queued for transfer.
     /// Prevents duplicate entries on iOS when syncPendingNotes is re-triggered.
     private var queuedNoteIDs: Set<UUID> = []
+    private var queuedNoteDates: [UUID: Date] = [:]
 
     /// Track audio IDs already handed to the connectivity provider for transfer.
     private var queuedAudioIDs: Set<UUID> = []
+    private var queuedAudioDates: [UUID: Date] = [:]
 
     private let defaultsKey = "MacroMark_PendingNotes"
     private let queuedKey = "MacroMark_QueuedNoteIDs"
+    private let queuedNoteDatesKey = "MacroMark_QueuedNoteDates"
     private let pendingAudioKey = "MacroMark_PendingAudio"
     private let queuedAudioKey = "MacroMark_QueuedAudioIDs"
+    private let queuedAudioDatesKey = "MacroMark_QueuedAudioDates"
+    private static let reconciliationInterval: TimeInterval = 24 * 60 * 60
 
     /// Durable on-disk location for queued audio (NOT the system temp dir, which
     /// the OS can purge). Audio bytes live here until the phone confirms receipt.
@@ -70,9 +75,19 @@ final class LocalStore {
     }
 
     func syncPendingNotes() {
-        for note in pendingNotes where !queuedNoteIDs.contains(note.id) {
+        let now = Date()
+        for note in pendingNotes {
+            if queuedNoteIDs.contains(note.id) {
+                if let queuedDate = queuedNoteDates[note.id],
+                   now.timeIntervalSince(queuedDate) > Self.reconciliationInterval {
+                    WatchConnectivityProvider.shared.queryProcessed(id: note.id)
+                }
+                continue
+            }
+
             if WatchConnectivityProvider.shared.sendNote(note.id, text: note.text, timestamp: note.timestamp) {
                 queuedNoteIDs.insert(note.id)
+                queuedNoteDates[note.id] = now
             }
         }
         save()
@@ -81,12 +96,15 @@ final class LocalStore {
     func removeNote(withId id: UUID) {
         pendingNotes.removeAll { $0.id == id }
         queuedNoteIDs.remove(id)
+        queuedNoteDates.removeValue(forKey: id)
         save()
     }
 
     /// Allow a note to be re-sent (e.g. after a failed transfer).
     func markNoteUnqueued(_ id: UUID) {
         queuedNoteIDs.remove(id)
+        queuedNoteDates.removeValue(forKey: id)
+        save()
     }
 
     // MARK: - Audio Notes
@@ -120,11 +138,21 @@ final class LocalStore {
     }
 
     func syncPendingAudio() {
-        for item in pendingAudio where !queuedAudioIDs.contains(item.id) {
+        let now = Date()
+        for item in pendingAudio {
+            if queuedAudioIDs.contains(item.id) {
+                if let queuedDate = queuedAudioDates[item.id],
+                   now.timeIntervalSince(queuedDate) > Self.reconciliationInterval {
+                    WatchConnectivityProvider.shared.queryProcessed(id: item.id)
+                }
+                continue
+            }
+
             let url = audioDirectory.appendingPathComponent(item.filename)
             guard FileManager.default.fileExists(atPath: url.path) else { continue }
             if WatchConnectivityProvider.shared.sendFile(url, id: item.id, timestamp: item.timestamp) {
                 queuedAudioIDs.insert(item.id)
+                queuedAudioDates[item.id] = now
             }
         }
         save()
@@ -137,12 +165,14 @@ final class LocalStore {
         }
         pendingAudio.removeAll { $0.id == id }
         queuedAudioIDs.remove(id)
+        queuedAudioDates.removeValue(forKey: id)
         save()
     }
 
     /// Allow an audio note to be re-sent (e.g. after a failed transfer).
     func markAudioUnqueued(_ id: UUID) {
         queuedAudioIDs.remove(id)
+        queuedAudioDates.removeValue(forKey: id)
         syncPendingAudio()
     }
 
@@ -150,14 +180,19 @@ final class LocalStore {
 
     private func save() {
         do {
-            let data = try JSONEncoder().encode(pendingNotes)
+            let encoder = JSONEncoder()
+            let data = try encoder.encode(pendingNotes)
             UserDefaults.standard.set(data, forKey: defaultsKey)
             // Persist queuedNoteIDs so we don't re-send on cold launch
             UserDefaults.standard.set(queuedNoteIDs.map { $0.uuidString }, forKey: queuedKey)
+            let noteDateData = try encoder.encode(Self.stringKeyedDates(queuedNoteDates))
+            UserDefaults.standard.set(noteDateData, forKey: queuedNoteDatesKey)
 
-            let audioData = try JSONEncoder().encode(pendingAudio)
+            let audioData = try encoder.encode(pendingAudio)
             UserDefaults.standard.set(audioData, forKey: pendingAudioKey)
             UserDefaults.standard.set(queuedAudioIDs.map { $0.uuidString }, forKey: queuedAudioKey)
+            let audioDateData = try encoder.encode(Self.stringKeyedDates(queuedAudioDates))
+            UserDefaults.standard.set(audioDateData, forKey: queuedAudioDatesKey)
         } catch {
             #if DEBUG
             print("Failed to save pending notes: \(error)")
@@ -167,9 +202,11 @@ final class LocalStore {
 
     /// Rebuild state from persisted data on cold launch.
     private func load() {
+        let decoder = JSONDecoder()
+
         if let data = UserDefaults.standard.data(forKey: defaultsKey) {
             do {
-                pendingNotes = try JSONDecoder().decode([CapturedNote].self, from: data)
+                pendingNotes = try decoder.decode([CapturedNote].self, from: data)
             } catch {
                 #if DEBUG
                 print("Failed to load pending notes: \(error)")
@@ -181,10 +218,18 @@ final class LocalStore {
         if let queuedArray = UserDefaults.standard.stringArray(forKey: queuedKey) {
             queuedNoteIDs = Set(queuedArray.compactMap { UUID(uuidString: $0) })
         }
+        queuedNoteDates = Self.decodeQueuedDates(
+            from: UserDefaults.standard.data(forKey: queuedNoteDatesKey),
+            using: decoder
+        ).filter { queuedNoteIDs.contains($0.key) }
+        let migrationDate = Date()
+        for id in queuedNoteIDs where queuedNoteDates[id] == nil {
+            queuedNoteDates[id] = migrationDate
+        }
 
         if let audioData = UserDefaults.standard.data(forKey: pendingAudioKey) {
             do {
-                pendingAudio = try JSONDecoder().decode([PendingAudio].self, from: audioData)
+                pendingAudio = try decoder.decode([PendingAudio].self, from: audioData)
             } catch {
                 #if DEBUG
                 print("Failed to load pending audio: \(error)")
@@ -194,5 +239,43 @@ final class LocalStore {
         if let queuedAudioArray = UserDefaults.standard.stringArray(forKey: queuedAudioKey) {
             queuedAudioIDs = Set(queuedAudioArray.compactMap { UUID(uuidString: $0) })
         }
+        queuedAudioDates = Self.decodeQueuedDates(
+            from: UserDefaults.standard.data(forKey: queuedAudioDatesKey),
+            using: decoder
+        ).filter { queuedAudioIDs.contains($0.key) }
+        for id in queuedAudioIDs where queuedAudioDates[id] == nil {
+            queuedAudioDates[id] = migrationDate
+        }
     }
+
+    private static func stringKeyedDates(_ dates: [UUID: Date]) -> [String: Date] {
+        dates.reduce(into: [String: Date]()) { result, entry in
+            result[entry.key.uuidString] = entry.value
+        }
+    }
+
+    private static func decodeQueuedDates(from data: Data?, using decoder: JSONDecoder) -> [UUID: Date] {
+        guard let data,
+              let dateDict = try? decoder.decode([String: Date].self, from: data) else {
+            return [:]
+        }
+
+        return dateDict.reduce(into: [UUID: Date]()) { result, entry in
+            if let id = UUID(uuidString: entry.key) {
+                result[id] = entry.value
+            }
+        }
+    }
+
+    #if DEBUG
+    func debugMarkNoteQueued(_ id: UUID, at date: Date) {
+        queuedNoteIDs.insert(id)
+        queuedNoteDates[id] = date
+        save()
+    }
+
+    func debugQueuedDate(for id: UUID) -> Date? {
+        queuedNoteDates[id]
+    }
+    #endif
 }
