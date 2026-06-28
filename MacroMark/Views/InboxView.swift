@@ -67,6 +67,7 @@ struct InboxView: View {
                         ),
                         displayedComponents: .date
                     )
+                    .accessibilityIdentifier("inbox.datePicker")
                 }
 
                 Section {
@@ -107,10 +108,12 @@ struct InboxView: View {
                             }
                             .padding(.vertical, 4)
                         }
+                        .accessibilityIdentifier("note.row")
                     }
                     .onDelete(perform: deleteNotes)
                 }
             }
+            .accessibilityIdentifier("inbox.list")
             .navigationTitle(selectedDate.formatted(date: .abbreviated, time: .omitted))
             .toolbar {
                 if isFutureDay {

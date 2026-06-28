@@ -96,9 +96,19 @@ struct MacroMarkApp: App {
     @MainActor private static var inFlightIDs: Set<UUID> = []
 
     init() {
+        ScreenshotMode.configureDefaults()
+
         let resolvedContainer: ModelContainer
         do {
-            resolvedContainer = try ModelContainer(for: Macro.self, ProcessedNote.self)
+            if ScreenshotMode.isEnabled {
+                Self.usingInMemoryStore = true
+                resolvedContainer = try ModelContainer(
+                    for: Macro.self, ProcessedNote.self,
+                    configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
+                )
+            } else {
+                resolvedContainer = try ModelContainer(for: Macro.self, ProcessedNote.self)
+            }
         } catch {
 #if DEBUG
             print("Failed to initialize ModelContainer: \(error). Falling back to in-memory store.")
@@ -107,21 +117,21 @@ struct MacroMarkApp: App {
             // Try in-memory as first fallback
             if let memoryContainer = try? ModelContainer(
                 for: Macro.self, ProcessedNote.self,
-                configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+                configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
             ) {
                 resolvedContainer = memoryContainer
             } else {
                 // Last-resort: create a bare container with no schema validation
                 if let bareContainer = try? ModelContainer(
                     for: Macro.self, ProcessedNote.self,
-                    configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+                    configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
                 ) {
                     resolvedContainer = bareContainer
                 } else {
                     // Truly unrecoverable — but we must not crash
                     resolvedContainer = try! ModelContainer(
                         for: Macro.self,
-                        configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+                        configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
                     )
                 }
             }
@@ -129,13 +139,14 @@ struct MacroMarkApp: App {
         }
         container = resolvedContainer
 
+        guard !ScreenshotMode.isEnabled else { return }
+
         // Pre-load StoreKit products
         Task {
             await StoreManager.shared.loadProducts()
         }
 
         setupWatchConnectivity()
-
         // Reprocess any notes that were in-flight when the app was last terminated
         reprocessPendingItems(container: container)
     }
@@ -887,6 +898,8 @@ struct MacroMarkApp: App {
                     retryDeferredExports(container: container)
                 }
                 .task {
+                    guard !ScreenshotMode.isEnabled else { return }
+
                     // Retry any exports that saved to SwiftData but didn't reach
                     // the final target before (iCloud file wasn't materialized, etc.).
                     reprocessAndRetry(container: container)

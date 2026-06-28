@@ -1,12 +1,19 @@
-MacroMark turns quick Apple Watch captures into plain-text Markdown daily notes.
+MacroMark is a fast Apple Watch and iPhone capture tool for people who live in Markdown.
 
-Tap your Watch, speak or type a thought, and MacroMark queues it safely until your iPhone can process it and append it to the right dated note. It is built for people whose notes live in Markdown, Obsidian, Logseq, or any workflow that starts with simple files.
+Tap your watch, speak or type, and MacroMark turns the thought into a plain-text daily note entry. Your captures append to date-based Markdown files in iCloud Drive, ready for Obsidian, Logseq, or any folder-based notes workflow.
 
-Features:
-- Watch-first voice and typed capture
-- Durable queue and retry for offline moments
-- Daily notes named like YYYY-MM-DD.md
-- Review captures by date
-- Spoken Markdown macros
-- iCloud Drive storage with no required account
-- Optional Pro features for custom macros and folder structure
+Key features
+- Capture from Apple Watch with microphone or keyboard input
+- Save quickly when the moment passes, with the original capture timestamp preserved
+- Queue watch captures until iPhone processing and export are durable or safely retryable
+- Append notes to daily Markdown files instead of creating scattered one-off files
+- Use verbal macros to turn spoken triggers into Markdown formatting, dates, times, locations, and reusable text
+- Review daily notes by date from iPhone or Apple Watch
+- Keep your notes in plain text, in storage you control
+
+How it works
+Start a capture from the app or watch complication. MacroMark records the thought, transfers it to the iPhone, expands any macros, and appends the result to the configured daily note. The workflow is designed for quick capture first: fewer taps, durable delivery, and Markdown output you can keep using anywhere.
+
+MacroMark is for note-takers, writers, field workers, Obsidian and Logseq users, and anyone who wants quick thoughts to land in a real Markdown system instead of a closed notes silo.
+
+Questions or feedback? Use the support link on this App Store page.

@@ -1,1 +1,1 @@
-quick,capture,apple,watch,notes,markdown,obsidian,daily,dictation,voice,logseq,second,brain
+notes,dictation,watch,markdown,obsidian,logseq,daily,journal,memo,transcribe,vault,quick
