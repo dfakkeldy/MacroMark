@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # App Store Connect
-app_identifier("Dan.MacroMark") # The bundle identifier of your app
+app_identifier("com.danfakkeldy.macromark") # The bundle identifier of your app
 apple_id("dan@kinnokilabs.com") # Your Apple account email
 
 # Team
