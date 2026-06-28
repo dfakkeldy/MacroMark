@@ -171,6 +171,16 @@ struct UserDefaultsKeyTests {
     }
 }
 
+struct ContinuationTimeoutTests {
+
+    @Test
+    func completeReturnsTrueOnlyOnce() async throws {
+        let timeout = ContinuationTimeout()
+        #expect(await timeout.complete())
+        #expect(!(await timeout.complete()))
+    }
+}
+
 struct AppRouteTests {
 
     @Test

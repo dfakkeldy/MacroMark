@@ -3,15 +3,6 @@ import Foundation
 import Observation
 import MacroMarkKit
 
-actor ContinuationTimeout {
-    var hasCompleted = false
-    func complete() -> Bool {
-        if hasCompleted { return false }
-        hasCompleted = true
-        return true
-    }
-}
-
 @MainActor
 @Observable
 final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
@@ -296,15 +287,15 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
                 }
             }
             
-            session.sendMessage(["request": "dailyFile", "date": date.timeIntervalSince1970], replyHandler: { reply in
+            session.sendMessage(["request": "dailyFile", "date": date.timeIntervalSince1970], replyHandler: { @Sendable reply in
+                let content = reply["content"] as? String ?? ""
                 Task {
                     if await timeout.complete() {
-                        let content = reply["content"] as? String ?? ""
                         UserDefaults.standard.set(content, forKey: cacheKey)
                         continuation.resume(returning: content)
                     }
                 }
-            }, errorHandler: { error in
+            }, errorHandler: { @Sendable _ in
                 Task {
                     if await timeout.complete() {
                         let cached = UserDefaults.standard.string(forKey: cacheKey) ?? ""
