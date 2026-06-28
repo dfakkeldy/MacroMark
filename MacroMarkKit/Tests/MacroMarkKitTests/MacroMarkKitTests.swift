@@ -162,6 +162,15 @@ struct AppendResultTests {
     }
 }
 
+struct UserDefaultsKeyTests {
+
+    @Test
+    func destinationProofKeysRemainStable() async throws {
+        #expect(UserDefaultsKey.lastSuccessfulExportPath.rawValue == "lastSuccessfulExportPath")
+        #expect(UserDefaultsKey.lastSuccessfulExportAt.rawValue == "lastSuccessfulExportAt")
+    }
+}
+
 struct AppRouteTests {
 
     @Test

@@ -18,6 +18,8 @@ public enum UserDefaultsKey: String {
 
     // iOS-side cache.
     case cachedDailyLog = "cachedDailyLog"
+    case lastSuccessfulExportPath = "lastSuccessfulExportPath"
+    case lastSuccessfulExportAt = "lastSuccessfulExportAt"
 
     // iOS write-ahead log / dedup state.
     case processedNoteIDs = "MacroMark_ProcessedNoteIDs"

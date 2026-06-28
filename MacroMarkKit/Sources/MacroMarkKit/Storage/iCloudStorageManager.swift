@@ -105,7 +105,13 @@ public final class iCloudStorageManager {
 
     @discardableResult
     public func appendText(_ text: String, for date: Date = Date()) async -> AppendResult {
-        let baseDir = baseDirectoryURL
+        let resolvedDirectory = resolvedBaseDirectory()
+        let baseDir = resolvedDirectory.url
+        let isFallbackStorage = resolvedDirectory.fallback == true
+        if let fallback = resolvedDirectory.fallback {
+            isUsingFallbackStorage = fallback
+        }
+
         let isSecurityScoped = UserDefaults.standard.data(forKey: UserDefaultsKey.customSaveBookmark.rawValue) != nil
         let settings = folderSettings
 
@@ -169,7 +175,13 @@ public final class iCloudStorageManager {
         if let error {
             Logger.storage.error("File coordinator error: \(error.localizedDescription, privacy: .public)")
         }
-        if writeSucceeded { return .appended }
+        if writeSucceeded {
+            if !isFallbackStorage {
+                UserDefaults.standard.set(fileURL.path, forKey: UserDefaultsKey.lastSuccessfulExportPath.rawValue)
+                UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: UserDefaultsKey.lastSuccessfulExportAt.rawValue)
+            }
+            return .appended
+        }
         if deferred { return .deferred }
         return .failed
     }
