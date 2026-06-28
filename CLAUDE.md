@@ -46,9 +46,13 @@ Never weaken that guarantee. Sync, ACK, WAL, iCloud append, and retry changes ne
 
 ## Branching and Release Workflow
 
-MacroMark does not currently document a `nightly -> weekly -> main` promotion ladder. Do not invent one.
+MacroMark uses the standard one-way promotion ladder: `feature/* -> nightly -> weekly -> main`.
 
-- Use the active branch and the user's requested base branch.
+- Feature work branches from `nightly`, and PRs target `nightly` by default.
+- `nightly` is the fast integration branch for daily TestFlight builds.
+- `weekly` is promoted only from `nightly` for Monday beta builds.
+- `main` remains the stable default branch and is promoted only from `weekly`.
+- Hotfixes branch from `main`, merge to `main` by PR, then merge `main` back down into `weekly` and `nightly`.
 - Do not push directly to protected branches unless explicitly asked.
 - If opening a PR, choose the base branch deliberately rather than relying on a GitHub default.
 - If drafting commits, follow Conventional Commits where practical.
