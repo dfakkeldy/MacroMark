@@ -44,7 +44,7 @@ struct FolderSettingsTests {
 
     @Test
     func jsonRoundtrip() async throws {
-        var settings = FolderSettings(structure: .yearlyMonthly, dateFormat: "MM-dd-yyyy")
+        let settings = FolderSettings(structure: .yearlyMonthly, dateFormat: "MM-dd-yyyy")
         let data = try JSONEncoder().encode(settings)
         let decoded = try JSONDecoder().decode(FolderSettings.self, from: data)
 
@@ -159,6 +159,38 @@ struct AppendResultTests {
         // The pipeline treats `.appended` as the only success; the other two
         // must keep the note in the pending-export WAL.
         #expect(cases.filter { $0 == .appended }.count == 1)
+    }
+}
+
+struct AppRouteTests {
+
+    @Test
+    func captureRoutesAreStable() async throws {
+        #expect(AppRoute.instantCaptureURL.absoluteString == "macromark://capture/instant")
+        #expect(AppRoute.systemCaptureURL.absoluteString == "macromark://capture/system")
+    }
+
+    @Test
+    func dailyLogRoutesUseStableDateFormatting() async throws {
+        let calendar = Calendar(identifier: .gregorian)
+        let date = calendar.date(from: DateComponents(year: 2026, month: 6, day: 28))!
+
+        #expect(AppRoute.dailyLogURL().absoluteString == "macromark://daily-log")
+        #expect(
+            AppRoute.dailyLogURL(date: date, calendar: calendar).absoluteString
+                == "macromark://daily-log?date=2026-06-28"
+        )
+    }
+
+    @Test
+    func appendRouteEncodesQueryTextSafely() async throws {
+        let text = "Title & details\nLine two"
+        let url = AppRoute.appendTextURL(text)
+        let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+
+        #expect(url.absoluteString == "macromark://append?text=Title%20%26%20details%0ALine%20two")
+        #expect(components?.host == "append")
+        #expect(components?.queryItems?.first(where: { $0.name == "text" })?.value == text)
     }
 }
 

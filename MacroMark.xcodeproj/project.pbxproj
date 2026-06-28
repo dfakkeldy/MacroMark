@@ -10,9 +10,11 @@
 		CC149B892FCF718B00B7D581 /* MacroMark Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = CC149B882FCF718B00B7D581 /* MacroMark Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		CC149BE32FCF750200B7D581 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CC149BE22FCF750200B7D581 /* WidgetKit.framework */; };
 		CC149BE52FCF750200B7D581 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CC149BE42FCF750200B7D581 /* SwiftUI.framework */; };
+		CC5FC4222FD100120066D797 /* AppIntents.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CC5FC4232FD100120066D797 /* AppIntents.framework */; };
 		CC149BF42FCF750500B7D581 /* MacroMarkWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = CC149BE02FCF750200B7D581 /* MacroMarkWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		CC5FC41F2FD100120066D797 /* MacroMarkKit in Frameworks */ = {isa = PBXBuildFile; productRef = CC5FC41E2FD100120066D797 /* MacroMarkKit */; };
 		CC5FC4202FD100120066D797 /* MacroMarkKit in Frameworks */ = {isa = PBXBuildFile; productRef = CC5FC41E2FD100120066D797 /* MacroMarkKit */; };
+		CC5FC4212FD100120066D797 /* MacroMarkKit in Frameworks */ = {isa = PBXBuildFile; productRef = CC5FC41E2FD100120066D797 /* MacroMarkKit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -95,6 +97,7 @@
 		CC149BE02FCF750200B7D581 /* MacroMarkWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = MacroMarkWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		CC149BE22FCF750200B7D581 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		CC149BE42FCF750200B7D581 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		CC5FC4232FD100120066D797 /* AppIntents.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppIntents.framework; path = System/Library/Frameworks/AppIntents.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -153,6 +156,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CC5FC4222FD100120066D797 /* AppIntents.framework in Frameworks */,
 				CC5FC41F2FD100120066D797 /* MacroMarkKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -197,6 +201,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CC5FC4212FD100120066D797 /* MacroMarkKit in Frameworks */,
 				CC149BE52FCF750200B7D581 /* SwiftUI.framework in Frameworks */,
 				CC149BE32FCF750200B7D581 /* WidgetKit.framework in Frameworks */,
 			);
@@ -237,6 +242,7 @@
 		CC149BE12FCF750200B7D581 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				CC5FC4232FD100120066D797 /* AppIntents.framework */,
 				CC149BE22FCF750200B7D581 /* WidgetKit.framework */,
 				CC149BE42FCF750200B7D581 /* SwiftUI.framework */,
 			);

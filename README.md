@@ -9,6 +9,7 @@ MacroMark is a zero-friction, voice-to-text capture tool designed for personal k
 - **Beautiful Watch UI**: A modernized liquid glass interface featuring large, clear microphone and keyboard buttons for instant input selection, plus quick access to "Today's Daily Log" directly from your wrist.
 - **The Append Mechanic**: Instead of cluttering your vault with hundreds of tiny files, MacroMark intelligently appends all your captures for a given day to a single `YYYY-MM-DD.md` daily note.
 - **Daily Review by Date**: The v1.0 roadmap includes a date picker so you can inspect captures for today, yesterday, or any previous daily note.
+- **Shortcuts Ready**: App Intents expose instant capture, typed capture, daily-log review, and append-text actions to Shortcuts and Siri.
 - **Verbal Macros**: Speak custom trigger words to instantly format your text. Say "Heading One" to output `# `, or use variables like `{date}`, `{time}`, and `{location}` to build clever workflows.
 - **PKM Friendly**: Saves directly to a dedicated iCloud Documents folder, making it instantly accessible to Obsidian, Logseq, and other Markdown-based tools.
 
@@ -48,7 +49,7 @@ The full roadmap is in [docs/V1_ROADMAP.md](docs/V1_ROADMAP.md). It turns the co
 2. **Wrist-Down Save**: When you lower your wrist, the watchOS `scenePhase` changes, immediately saving your text and the precise origin timestamp to local storage.
 3. **Sync**: `WatchConnectivity` queues the payload and sends it to your iPhone (even in the background).
 4. **Process & Store**: The iOS app processes your text through the Macro Engine and appends it to `YYYY-MM-DD.md` in iCloud Drive.
-5. **Review by Date**: The v1.0 daily-log work adds date-based review so you can verify captures after the moment has passed.
+5. **Review by Date**: Open the daily log in the app or through Shortcuts to inspect captures for any chosen day.
 
 ## Tips
 

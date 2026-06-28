@@ -1,4 +1,5 @@
 import SwiftUI
+import MacroMarkKit
 
 enum CaptureMode: Hashable {
     case instant
@@ -75,14 +76,11 @@ struct ContentView: View {
             }
         }
         .onOpenURL { url in
-            if url.scheme == "macromark" && url.host == "capture" {
-                let path = url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-                navigationPath.removeAll()
-                if path == "instant" {
-                    navigationPath.append(.instant)
-                } else if path == "system" {
-                    navigationPath.append(.system)
-                }
+            navigationPath.removeAll()
+            if url == AppRoute.instantCaptureURL {
+                navigationPath.append(.instant)
+            } else if url == AppRoute.systemCaptureURL {
+                navigationPath.append(.system)
             }
         }
     }

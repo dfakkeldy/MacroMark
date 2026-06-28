@@ -38,10 +38,14 @@ enum InboxDateFilter {
 
 struct InboxView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(AppNavigation.self) private var navigation
     @Query(sort: \ProcessedNote.createdAt, order: .reverse) private var notes: [ProcessedNote]
-    @State private var selectedDate = Date()
     @State private var statusFilter: InboxStatusFilter = .all
-    @State private var showingFutureComposer = false
+
+    private var selectedDate: Date {
+        get { navigation.selectedDate }
+        nonmutating set { navigation.selectedDate = newValue }
+    }
 
     private var filteredNotes: [ProcessedNote] {
         InboxDateFilter.notes(notes, on: selectedDate, status: statusFilter)
@@ -55,7 +59,14 @@ struct InboxView: View {
         NavigationStack {
             List {
                 Section {
-                    DatePicker("Day", selection: $selectedDate, displayedComponents: .date)
+                    DatePicker(
+                        "Day",
+                        selection: Binding(
+                            get: { navigation.selectedDate },
+                            set: { navigation.selectedDate = $0 }
+                        ),
+                        displayedComponents: .date
+                    )
                 }
 
                 Section {
@@ -105,7 +116,7 @@ struct InboxView: View {
                 if isFutureDay {
                     ToolbarItem(placement: .topBarLeading) {
                         Button("New Note", systemImage: "square.and.pencil") {
-                            showingFutureComposer = true
+                            navigation.openCaptureComposer(date: selectedDate)
                         }
                     }
                 }
@@ -116,8 +127,19 @@ struct InboxView: View {
                     }
                 }
             }
-            .sheet(isPresented: $showingFutureComposer) {
-                FutureNoteComposerView(selectedDate: selectedDate)
+            .sheet(
+                item: Binding(
+                    get: { navigation.composerRequest },
+                    set: { newValue in
+                        if newValue == nil {
+                            navigation.clearComposerRequest()
+                        } else {
+                            navigation.composerRequest = newValue
+                        }
+                    }
+                )
+            ) { request in
+                FutureNoteComposerView(selectedDate: request.date)
             }
         }
     }
@@ -133,5 +155,6 @@ struct InboxView: View {
 
 #Preview {
     InboxView()
+        .environment(AppNavigation())
         .modelContainer(for: ProcessedNote.self, inMemory: true)
 }

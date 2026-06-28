@@ -42,12 +42,46 @@ private struct PendingExport: Codable {
     var timestamp: Date
     /// Whether the originating capture was audio (controls which ACK to send).
     var isAudio: Bool
+    /// Shortcut-created exports should retry without sending a watch ACK.
+    var requiresWatchAcknowledgement: Bool
+
+    init(
+        noteId: UUID,
+        processedText: String,
+        timestamp: Date,
+        isAudio: Bool,
+        requiresWatchAcknowledgement: Bool = true
+    ) {
+        self.noteId = noteId
+        self.processedText = processedText
+        self.timestamp = timestamp
+        self.isAudio = isAudio
+        self.requiresWatchAcknowledgement = requiresWatchAcknowledgement
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case noteId
+        case processedText
+        case timestamp
+        case isAudio
+        case requiresWatchAcknowledgement
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        noteId = try container.decode(UUID.self, forKey: .noteId)
+        processedText = try container.decode(String.self, forKey: .processedText)
+        timestamp = try container.decode(Date.self, forKey: .timestamp)
+        isAudio = try container.decode(Bool.self, forKey: .isAudio)
+        requiresWatchAcknowledgement = try container.decodeIfPresent(Bool.self, forKey: .requiresWatchAcknowledgement) ?? true
+    }
 }
 
 @main
 struct MacroMarkApp: App {
     let container: ModelContainer
 
+    @State private var navigation = AppNavigation()
     @State private var storeManager = StoreManager.shared
     @State private var entitlementManager = EntitlementManager.shared
     @State private var containerError: String?
@@ -695,10 +729,14 @@ struct MacroMarkApp: App {
                     Self.addProcessedNoteID(entry.noteId)
                     if entry.isAudio {
                         removePendingAudio(id: entry.noteId)
-                        acknowledgeFileIfDurable(id: entry.noteId)
+                        if entry.requiresWatchAcknowledgement {
+                            acknowledgeFileIfDurable(id: entry.noteId)
+                        }
                     } else {
                         removePendingProcessing(id: entry.noteId)
-                        acknowledgeNoteIfDurable(id: entry.noteId)
+                        if entry.requiresWatchAcknowledgement {
+                            acknowledgeNoteIfDurable(id: entry.noteId)
+                        }
                     }
                     removePendingExport(id: entry.noteId)
                 } else if let storedNote = Self.fetchStoredNote(in: context, matching: entry) {
@@ -722,13 +760,122 @@ struct MacroMarkApp: App {
         return (try? context.fetch(FetchDescriptor<ProcessedNote>(predicate: predicate)))?.first
     }
 
+    private func parseRouteDate(_ raw: String?) -> Date? {
+        guard let raw else { return nil }
+        let parts = raw.split(separator: "-").compactMap { Int($0) }
+        guard parts.count == 3 else { return nil }
+        return Calendar.current.date(
+            from: DateComponents(year: parts[0], month: parts[1], day: parts[2])
+        )
+    }
+
+    @MainActor
+    private func appendTextFromRoute(_ text: String, container: ModelContainer, navigation: AppNavigation) async {
+        let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedText.isEmpty else { return }
+
+        let timestamp = Date()
+        let shortcutNoteID = UUID()
+        navigation.openDailyLog(date: timestamp)
+
+        let context = container.mainContext
+        let note = ProcessedNote(
+            text: trimmedText,
+            createdAt: timestamp,
+            exportStatus: .processing,
+            exportStatusMessage: "Processing capture."
+        )
+        context.insert(note)
+
+        do {
+            try context.save()
+        } catch {
+#if DEBUG
+            print("MacroMark: failed to save append-route note: \(error)")
+#endif
+            return
+        }
+
+        let result = await iCloudStorageManager.shared.appendText(trimmedText, for: timestamp)
+        note.lastExportAttemptAt = .now
+
+        switch result {
+        case .appended:
+            note.isExported = true
+            note.exportTarget = ExportTarget.iCloud.rawValue
+            note.exportStatus = .exported
+            note.exportStatusMessage = "Saved to \(ExportTarget.iCloud.rawValue)."
+            note.lastExportedAt = .now
+        case .deferred:
+            note.exportStatus = .deferred
+            note.exportStatusMessage = "Waiting for iCloud or the selected destination to become available."
+            addPendingExport(
+                PendingExport(
+                    noteId: shortcutNoteID,
+                    processedText: trimmedText,
+                    timestamp: timestamp,
+                    isAudio: false,
+                    requiresWatchAcknowledgement: false
+                )
+            )
+        case .failed:
+            note.exportStatus = .failed
+            note.exportStatusMessage = "The shortcut append is queued for retry."
+            addPendingExport(
+                PendingExport(
+                    noteId: shortcutNoteID,
+                    processedText: trimmedText,
+                    timestamp: timestamp,
+                    isAudio: false,
+                    requiresWatchAcknowledgement: false
+                )
+            )
+        }
+
+        do {
+            try context.save()
+        } catch {
+#if DEBUG
+            print("MacroMark: failed to persist append-route export status: \(error)")
+#endif
+        }
+    }
+
+    private func handleOpenURL(_ url: URL, container: ModelContainer, navigation: AppNavigation) {
+        guard url.scheme == AppRoute.scheme else { return }
+
+        if url.host == "capture" {
+            navigation.openCaptureComposer(date: .now)
+            return
+        }
+
+        if url.host == "daily-log" {
+            let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+            let rawDate = components?.queryItems?.first(where: { $0.name == "date" })?.value
+            navigation.openDailyLog(date: parseRouteDate(rawDate))
+            return
+        }
+
+        if url.host == "append" {
+            let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+            let text = components?.queryItems?.first(where: { $0.name == "text" })?.value ?? ""
+            Task { @MainActor in
+                await appendTextFromRoute(text, container: container, navigation: navigation)
+            }
+        }
+    }
+
     // MARK: - Body
 
     var body: some Scene {
         WindowGroup {
             AppTabView()
+                .environment(navigation)
                 .environment(entitlementManager)
                 .environment(storeManager)
+                .onOpenURL { url in
+                    handleOpenURL(url, container: container, navigation: navigation)
+                }
                 .task {
                     // Retry any exports that saved to SwiftData but didn't reach
                     // the final target before (iCloud file wasn't materialized, etc.).
