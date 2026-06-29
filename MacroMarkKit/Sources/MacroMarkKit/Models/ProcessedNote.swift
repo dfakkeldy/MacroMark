@@ -3,6 +3,7 @@ import SwiftData
 
 @Model
 public final class ProcessedNote {
+    public var sourceID: UUID?
     public var text: String = ""
     public var createdAt: Date = Date()
     public var isExported: Bool = false
@@ -20,6 +21,7 @@ public final class ProcessedNote {
 
     public init(
         text: String,
+        sourceID: UUID? = nil,
         createdAt: Date = Date(),
         isExported: Bool = false,
         exportTarget: String? = nil,
@@ -29,6 +31,7 @@ public final class ProcessedNote {
         lastExportAttemptAt: Date? = nil,
         lastExportedAt: Date? = nil
     ) {
+        self.sourceID = sourceID
         self.text = text
         self.createdAt = createdAt
         self.isExported = isExported
