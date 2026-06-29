@@ -66,7 +66,8 @@ struct FutureNoteComposerView: View {
         statusMessage = nil
 
         let timestamp = DaySelection.timestamp(onSelectedDay: selectedDate)
-        let note = ProcessedNote(text: text, createdAt: timestamp)
+        let noteID = UUID()
+        let note = ProcessedNote(text: text, sourceID: noteID, createdAt: timestamp)
         modelContext.insert(note)
 
         do {
@@ -90,21 +91,52 @@ struct FutureNoteComposerView: View {
             dismiss()
         case .deferred:
             note.exportStatus = .deferred
-            note.exportStatusMessage = "Waiting for iCloud or the selected destination to become available."
+            note.exportStatusMessage = "Waiting for iCloud to materialize the daily file."
             note.lastExportAttemptAt = .now
+            let queued = queuePendingICloudExport(noteID: noteID, text: text, timestamp: timestamp)
+            if !queued {
+                note.exportStatus = .failed
+                note.exportStatusMessage = "The future note export could not be queued for retry."
+            }
             try? modelContext.save()
             didSave = true
-            statusMessage = "Saved to the inbox. iCloud will need another attempt before this appears in the daily file."
+            statusMessage = queued
+                ? "Saved to the inbox. iCloud will retry before this appears in the daily file."
+                : "Saved to the inbox, but the daily file export could not be queued for retry."
         case .failed:
             note.exportStatus = .failed
-            note.exportStatusMessage = "The export failed. The original capture is still queued for retry."
+            note.exportStatusMessage = "The future note export is queued for retry."
             note.lastExportAttemptAt = .now
+            let queued = queuePendingICloudExport(noteID: noteID, text: text, timestamp: timestamp)
+            if !queued {
+                note.exportStatusMessage = "The future note export could not be queued for retry."
+            }
             try? modelContext.save()
             didSave = true
-            statusMessage = "Saved to the inbox, but the daily file export failed."
+            statusMessage = queued
+                ? "Saved to the inbox. The daily file export is queued for retry."
+                : "Saved to the inbox, but the daily file export could not be queued for retry."
         }
 
         isSaving = false
+    }
+
+    private func queuePendingICloudExport(noteID: UUID, text: String, timestamp: Date) -> Bool {
+        do {
+            try PendingExportStore.upsert(
+                PendingExportRecord(
+                    noteId: noteID,
+                    processedText: text,
+                    timestamp: timestamp,
+                    target: .iCloud,
+                    isAudio: false,
+                    requiresWatchAcknowledgement: false
+                )
+            )
+            return true
+        } catch {
+            return false
+        }
     }
 }
 
