@@ -4,10 +4,17 @@ import MacroMarkKit
 
 enum ScreenshotMode {
     static let launchArgument = "--screenshot-mode"
+    static let uiTestArgument = "--ui-test-mode"
+    static let uiTestEnvironmentKey = "MACROMARK_UI_TEST_MODE"
+    static let referenceDate: Date = .now
 
     static var isEnabled: Bool {
         CommandLine.arguments.contains(launchArgument)
+            || CommandLine.arguments.contains(uiTestArgument)
+            || CommandLine.arguments.contains("-FASTLANE_SNAPSHOT")
+            || CommandLine.arguments.contains("-ui_testing")
             || ProcessInfo.processInfo.environment["MACROMARK_SCREENSHOT_MODE"] == "1"
+            || ProcessInfo.processInfo.environment[uiTestEnvironmentKey] == "1"
             || ProcessInfo.processInfo.environment["FASTLANE_SNAPSHOT"] == "1"
     }
 
@@ -30,17 +37,17 @@ enum ScreenshotMode {
     @MainActor
     static func seedIfNeeded(in modelContext: ModelContext) {
         guard isEnabled, !didSeed else { return }
-        didSeed = true
 
         do {
             try deleteExistingScreenshotData(in: modelContext)
-            for macro in screenshotMacros {
+            for macro in previewMacros {
                 modelContext.insert(macro)
             }
-            for note in screenshotNotes {
+            for note in previewNotes {
                 modelContext.insert(note)
             }
             try modelContext.save()
+            didSeed = true
         } catch {
 #if DEBUG
             print("MacroMark screenshot seed failed: \(error)")
@@ -58,7 +65,7 @@ enum ScreenshotMode {
         }
     }
 
-    private static var screenshotMacros: [Macro] {
+    static var previewMacros: [Macro] {
         [
             Macro(
                 trigger: "Standup",
@@ -85,7 +92,7 @@ enum ScreenshotMode {
         ]
     }
 
-    private static var screenshotNotes: [ProcessedNote] {
+    static var previewNotes: [ProcessedNote] {
         [
             ProcessedNote(
                 text: """
@@ -94,7 +101,7 @@ enum ScreenshotMode {
                 - Wire screenshot automation
                 - Verify iCloud daily note export
                 """,
-                createdAt: today(hour: 9, minute: 5),
+                createdAt: today(hour: 16, minute: 5),
                 isExported: true,
                 exportTarget: ExportTarget.iCloud.rawValue
             ),
@@ -111,7 +118,7 @@ enum ScreenshotMode {
             ),
             ProcessedNote(
                 text: "Idea: double tap on Apple Watch starts a durable audio capture.",
-                createdAt: today(hour: 14, minute: 35),
+                createdAt: today(hour: 9, minute: 35),
                 isExported: false,
                 transcriptionPartial: true
             )
@@ -119,6 +126,6 @@ enum ScreenshotMode {
     }
 
     private static func today(hour: Int, minute: Int) -> Date {
-        Calendar.current.date(bySettingHour: hour, minute: minute, second: 0, of: .now) ?? .now
+        Calendar.current.date(bySettingHour: hour, minute: minute, second: 0, of: referenceDate) ?? referenceDate
     }
 }
