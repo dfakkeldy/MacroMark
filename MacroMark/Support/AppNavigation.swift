@@ -33,7 +33,7 @@ enum ComposerMode: Equatable {
 @Observable
 final class AppNavigation {
     var selectedTab: AppTab = .inbox
-    var selectedDate: Date = .now
+    var selectedDate: Date = ScreenshotMode.isEnabled ? ScreenshotMode.referenceDate : .now
     var composerRequest: ComposerRequest?
 
     func openDailyLog(date: Date?) {

@@ -79,7 +79,7 @@ private struct PendingExport: Codable {
 
 @main
 struct MacroMarkApp: App {
-    let container: ModelContainer
+    let container: ModelContainer?
 
     @State private var navigation = AppNavigation()
     @State private var storeManager = StoreManager.shared
@@ -98,7 +98,8 @@ struct MacroMarkApp: App {
     init() {
         ScreenshotMode.configureDefaults()
 
-        let resolvedContainer: ModelContainer
+        let resolvedContainer: ModelContainer?
+        var startupError: String?
         do {
             if ScreenshotMode.isEnabled {
                 Self.usingInMemoryStore = true
@@ -114,46 +115,34 @@ struct MacroMarkApp: App {
             print("Failed to initialize ModelContainer: \(error). Falling back to in-memory store.")
 #endif
             Self.usingInMemoryStore = true
-            // Try in-memory as first fallback
-            if let memoryContainer = try? ModelContainer(
-                for: Macro.self, ProcessedNote.self,
-                configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
-            ) {
-                resolvedContainer = memoryContainer
-            } else {
-                // Last-resort: create a bare container with no schema validation
-                if let bareContainer = try? ModelContainer(
-                    for: Macro.self, ProcessedNote.self,
-                    configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
-                ) {
-                    resolvedContainer = bareContainer
-                } else {
-                    // Truly unrecoverable — but we must not crash
-                    resolvedContainer = try! ModelContainer(
-                        for: Macro.self,
-                        configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
-                    )
-                }
-            }
-            _containerError = State(initialValue: error.localizedDescription)
+            startupError = error.localizedDescription
+            resolvedContainer = Self.makeInMemoryContainer()
         }
         container = resolvedContainer
+        _containerError = State(initialValue: startupError)
 
-        guard !ScreenshotMode.isEnabled else { return }
+        guard let resolvedContainer, !ScreenshotMode.isEnabled else { return }
 
         // Pre-load StoreKit products
         Task {
             await StoreManager.shared.loadProducts()
         }
 
-        setupWatchConnectivity()
+        setupWatchConnectivity(container: resolvedContainer)
         // Reprocess any notes that were in-flight when the app was last terminated
-        reprocessPendingItems(container: container)
+        reprocessPendingItems(container: resolvedContainer)
+    }
+
+    private static func makeInMemoryContainer() -> ModelContainer? {
+        try? ModelContainer(
+            for: Macro.self, ProcessedNote.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
+        )
     }
 
     // MARK: - Watch Connectivity
 
-    private func setupWatchConnectivity() {
+    private func setupWatchConnectivity(container: ModelContainer) {
         let provider = WatchConnectivityProvider.shared
         provider.onNoteReceived = { [container] id, text, timestamp in
             handleIncomingNote(id: id, text: text, timestamp: timestamp, container: container)
@@ -887,58 +876,74 @@ struct MacroMarkApp: App {
 
     var body: some Scene {
         WindowGroup {
-            AppTabView()
-                .environment(navigation)
-                .environment(entitlementManager)
-                .environment(storeManager)
-                .onOpenURL { url in
-                    handleOpenURL(url, container: container, navigation: navigation)
-                }
-                .onReceive(NotificationCenter.default.publisher(for: .retryDeferredExports)) { _ in
-                    retryDeferredExports(container: container)
-                }
-                .task {
-                    guard !ScreenshotMode.isEnabled else { return }
-
-                    // Retry any exports that saved to SwiftData but didn't reach
-                    // the final target before (iCloud file wasn't materialized, etc.).
-                    reprocessAndRetry(container: container)
-                    // Periodically retry while foregrounded — bounded so we don't
-                    // spin forever if iCloud is permanently unavailable.
-                    while !Task.isCancelled {
-                        try? await Task.sleep(for: .seconds(60))
-                        if Task.isCancelled { break }
+            if let container {
+                AppTabView()
+                    .environment(navigation)
+                    .environment(entitlementManager)
+                    .environment(storeManager)
+                    .onOpenURL { url in
+                        handleOpenURL(url, container: container, navigation: navigation)
+                    }
+                    .onReceive(NotificationCenter.default.publisher(for: .retryDeferredExports)) { _ in
                         retryDeferredExports(container: container)
                     }
-                }
-                .overlay(alignment: .top) {
-                    if let error = containerError {
-                        HStack {
-                            Text("Storage error: \(error). Using temporary storage — changes may not be saved.")
-                                .font(.caption)
-                                .foregroundStyle(.white)
-                            // Only allow dismissal when we are NOT on the volatile
-                            // in-memory store. On in-memory storage the warning must
-                            // stay visible because notes will be lost on quit.
-                            if !Self.usingInMemoryStore {
-                                Button {
-                                    withAnimation {
-                                        containerError = nil
+                    .task {
+                        guard !ScreenshotMode.isEnabled else { return }
+
+                        // Retry any exports that saved to SwiftData but didn't reach
+                        // the final target before (iCloud file wasn't materialized, etc.).
+                        reprocessAndRetry(container: container)
+                        // Periodically retry while foregrounded — bounded so we don't
+                        // spin forever if iCloud is permanently unavailable.
+                        while !Task.isCancelled {
+                            try? await Task.sleep(for: .seconds(60))
+                            if Task.isCancelled { break }
+                            retryDeferredExports(container: container)
+                        }
+                    }
+                    .overlay(alignment: .top) {
+                        if let error = containerError {
+                            HStack {
+                                Text("Storage error: \(error). Using temporary storage — changes may not be saved.")
+                                    .font(.caption)
+                                    .foregroundStyle(.white)
+                                // Only allow dismissal when we are NOT on the volatile
+                                // in-memory store. On in-memory storage the warning must
+                                // stay visible because notes will be lost on quit.
+                                if !Self.usingInMemoryStore {
+                                    Button {
+                                        withAnimation {
+                                            containerError = nil
+                                        }
+                                    } label: {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .foregroundStyle(.white.opacity(0.8))
                                     }
-                                } label: {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .foregroundStyle(.white.opacity(0.8))
                                 }
                             }
+                            .padding(12)
+                            .background(.orange, in: .rect(cornerRadius: 8))
+                            .padding(.horizontal)
+                            .padding(.top, 8)
+                            .transition(.move(edge: .top).combined(with: .opacity))
                         }
-                        .padding(12)
-                        .background(.orange, in: .rect(cornerRadius: 8))
-                        .padding(.horizontal)
-                        .padding(.top, 8)
-                        .transition(.move(edge: .top).combined(with: .opacity))
                     }
-                }
+                    .modelContainer(container)
+            } else {
+                StorageUnavailableView(message: containerError)
+            }
         }
-        .modelContainer(container)
+    }
+}
+
+private struct StorageUnavailableView: View {
+    let message: String?
+
+    var body: some View {
+        ContentUnavailableView {
+            Label("Storage Unavailable", systemImage: "externaldrive.badge.exclamationmark")
+        } description: {
+            Text(message ?? "MacroMark could not open its local storage. Relaunch the app or reinstall if this persists.")
+        }
     }
 }
