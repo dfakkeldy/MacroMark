@@ -94,7 +94,7 @@ enum ScreenshotMode {
                 - Wire screenshot automation
                 - Verify iCloud daily note export
                 """,
-                createdAt: today(hour: 9, minute: 5),
+                createdAt: today(hour: 15, minute: 5),
                 isExported: true,
                 exportTarget: ExportTarget.iCloud.rawValue
             ),
@@ -111,7 +111,7 @@ enum ScreenshotMode {
             ),
             ProcessedNote(
                 text: "Idea: double tap on Apple Watch starts a durable audio capture.",
-                createdAt: today(hour: 14, minute: 35),
+                createdAt: today(hour: 9, minute: 35),
                 isExported: false,
                 transcriptionPartial: true
             )

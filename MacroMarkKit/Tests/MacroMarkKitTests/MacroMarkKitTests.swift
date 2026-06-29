@@ -22,6 +22,14 @@ struct MacroModelTests {
         #expect(macro.isDefault == false)
         #expect(macro.sortOrder == 0)
     }
+
+    @Test
+    func processedNoteStoresDurableSourceID() async throws {
+        let sourceID = UUID()
+        let note = ProcessedNote(text: "Saved note", sourceID: sourceID)
+
+        #expect(note.sourceID == sourceID)
+    }
 }
 
 struct FolderSettingsTests {
@@ -210,6 +218,96 @@ struct AppRouteTests {
         #expect(url.absoluteString == "macromark://append?text=Title%20%26%20details%0ALine%20two")
         #expect(components?.host == "append")
         #expect(components?.queryItems?.first(where: { $0.name == "text" })?.value == text)
+    }
+}
+
+struct ExportManagerURLTests {
+
+    @Test
+    func urlSchemeExportsPreserveReservedQueryText() async throws {
+        let text = "Title & key=value + plus\nLine two"
+        let note = ProcessedNote(text: text)
+        let cases: [(target: ExportTarget, textItemName: String)] = [
+            (.drafts, "text"),
+            (.dayOne, "entry"),
+            (.obsidian, "content"),
+            (.bear, "text")
+        ]
+
+        for testCase in cases {
+            let url = try #require(ExportManager.url(for: note, to: testCase.target))
+            let components = try #require(URLComponents(url: url, resolvingAgainstBaseURL: false))
+            let values = components.queryItems?.filter { $0.name == testCase.textItemName }.map(\.value)
+
+            #expect(values == [text])
+        }
+    }
+}
+
+struct PendingExportRecordTests {
+
+    @Test
+    func recordPersistsDestinationTargetAndAckPolicy() async throws {
+        let id = UUID()
+        let timestamp = Date(timeIntervalSinceReferenceDate: 42)
+        let record = PendingExportRecord(
+            noteId: id,
+            processedText: "Draft text",
+            timestamp: timestamp,
+            target: .drafts,
+            isAudio: false,
+            requiresWatchAcknowledgement: false
+        )
+
+        let decoded = try JSONDecoder().decode(
+            PendingExportRecord.self,
+            from: JSONEncoder().encode(record)
+        )
+
+        #expect(decoded.noteId == id)
+        #expect(decoded.target == .drafts)
+        #expect(decoded.requiresWatchAcknowledgement == false)
+    }
+
+    @Test
+    func oldPendingExportRecordsDefaultToICloudAndWatchAck() async throws {
+        let id = UUID()
+        let timestamp = Date(timeIntervalSinceReferenceDate: 84)
+        let legacyRecord = """
+        {
+          "noteId": "\(id.uuidString)",
+          "processedText": "Legacy text",
+          "timestamp": \(timestamp.timeIntervalSinceReferenceDate),
+          "isAudio": true
+        }
+        """.data(using: .utf8)!
+
+        let decoded = try JSONDecoder().decode(PendingExportRecord.self, from: legacyRecord)
+
+        #expect(decoded.noteId == id)
+        #expect(decoded.target == .iCloud)
+        #expect(decoded.requiresWatchAcknowledgement == true)
+    }
+
+    @Test
+    func storeRoundTripsByNoteID() async throws {
+        let suiteName = "PendingExportRecordTests-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defaults.removePersistentDomain(forName: suiteName)
+        let id = UUID()
+        let record = PendingExportRecord(
+            noteId: id,
+            processedText: "Queued",
+            timestamp: Date(timeIntervalSinceReferenceDate: 126),
+            target: .bear,
+            isAudio: true
+        )
+
+        try PendingExportStore.upsert(record, in: defaults)
+        #expect(PendingExportStore.read(from: defaults)[id] == record)
+
+        try PendingExportStore.remove(id: id, from: defaults)
+        #expect(PendingExportStore.read(from: defaults)[id] == nil)
     }
 }
 

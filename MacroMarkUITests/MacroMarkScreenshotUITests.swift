@@ -12,6 +12,7 @@ final class MacroMarkScreenshotUITests: XCTestCase {
         app.launchArguments += [ScreenshotLaunchArgument.mode]
         app.launchEnvironment["MACROMARK_SCREENSHOT_MODE"] = "1"
         app.launchEnvironment["FASTLANE_SNAPSHOT"] = "1"
+        XCUIDevice.shared.orientation = .portrait
         app.launch()
     }
 
@@ -27,7 +28,7 @@ final class MacroMarkScreenshotUITests: XCTestCase {
         captureScreenshot(named: "02-note-detail")
 
         switchToMacros()
-        XCTAssertTrue(app.staticTexts["Standup"].waitForExistence(timeout: 5))
+        XCTAssertTrue(scrollToElement(containing: "Standup", timeout: 5))
         captureScreenshot(named: "03-macros")
 
         app.buttons["Add"].tap()
@@ -76,6 +77,28 @@ final class MacroMarkScreenshotUITests: XCTestCase {
         if cell.waitForExistence(timeout: timeout) {
             cell.tap()
             return true
+        }
+
+        return false
+    }
+
+    private func scrollToElement(containing label: String, timeout: TimeInterval) -> Bool {
+        let predicate = NSPredicate(format: "label CONTAINS %@", label)
+        let button = app.buttons.matching(predicate).firstMatch
+        let text = app.staticTexts.matching(predicate).firstMatch
+
+        if button.waitForExistence(timeout: timeout) || text.exists {
+            return true
+        }
+
+        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.78))
+        let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
+
+        for _ in 0..<5 {
+            start.press(forDuration: 0.05, thenDragTo: end)
+            if button.waitForExistence(timeout: 1) || text.exists {
+                return true
+            }
         }
 
         return false
