@@ -8,7 +8,7 @@ enum CaptureMode: Hashable {
 }
 
 struct ContentView: View {
-    @AppStorage("captureMode") private var captureMode: String = "audio"
+    @AppStorage(UserDefaultsKey.captureMode.rawValue) private var captureMode: String = "audio"
     @State private var navigationPath = [CaptureMode]()
     @State private var selectedDate = Date()
 
@@ -29,6 +29,9 @@ struct ContentView: View {
                         }
                         .buttonStyle(.plain)
                         .glassEffect(.regular.tint(.blue).interactive(), in: .rect(cornerRadius: 16))
+                        .accessibilityLabel("Instant capture")
+                        .accessibilityHint("Starts an audio recording immediately.")
+                        .accessibilityInputLabels(["Instant capture", "Audio capture", "Record note"])
 
                         Button(action: {
                             navigationPath.append(.system)
@@ -39,6 +42,9 @@ struct ContentView: View {
                         }
                         .buttonStyle(.plain)
                         .glassEffect(.regular.tint(.orange).interactive(), in: .rect(cornerRadius: 16))
+                        .accessibilityLabel("System capture")
+                        .accessibilityHint("Opens the system keyboard and dictation capture.")
+                        .accessibilityInputLabels(["System capture", "Keyboard capture", "Dictate note"])
                     }
                     .frame(height: 70)
 

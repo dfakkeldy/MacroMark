@@ -22,7 +22,9 @@ final class LocalStore {
 
     var pendingNotes: [CapturedNote] = [] {
         didSet {
-            save()
+            if !isLoading {
+                save()
+            }
         }
     }
 
@@ -46,6 +48,7 @@ final class LocalStore {
     private let queuedAudioKey = "MacroMark_QueuedAudioIDs"
     private let queuedAudioDatesKey = "MacroMark_QueuedAudioDates"
     private static let reconciliationInterval: TimeInterval = 24 * 60 * 60
+    private var isLoading = false
 
     /// Durable on-disk location for queued audio (NOT the system temp dir, which
     /// the OS can purge). Audio bytes live here until the phone confirms receipt.
@@ -81,6 +84,7 @@ final class LocalStore {
                 if let queuedDate = queuedNoteDates[note.id],
                    now.timeIntervalSince(queuedDate) > Self.reconciliationInterval {
                     WatchConnectivityProvider.shared.queryProcessed(id: note.id)
+                    queuedNoteDates[note.id] = now
                 }
                 continue
             }
@@ -126,12 +130,19 @@ final class LocalStore {
 
         // Only enqueue if the audio actually made it to durable storage.
         guard FileManager.default.fileExists(atPath: destURL.path) else {
+            pendingAudio.removeAll { $0.id == id }
+            queuedAudioIDs.remove(id)
+            queuedAudioDates.removeValue(forKey: id)
+            save()
             #if DEBUG
             print("Failed to persist audio note \(id) — not enqueued")
             #endif
             return
         }
 
+        pendingAudio.removeAll { $0.id == id }
+        queuedAudioIDs.remove(id)
+        queuedAudioDates.removeValue(forKey: id)
         pendingAudio.append(PendingAudio(id: id, filename: destURL.lastPathComponent, timestamp: timestamp))
         save()
         syncPendingAudio()
@@ -139,21 +150,31 @@ final class LocalStore {
 
     func syncPendingAudio() {
         let now = Date()
+        var missingAudioIDs: [UUID] = []
         for item in pendingAudio {
             if queuedAudioIDs.contains(item.id) {
                 if let queuedDate = queuedAudioDates[item.id],
                    now.timeIntervalSince(queuedDate) > Self.reconciliationInterval {
                     WatchConnectivityProvider.shared.queryProcessed(id: item.id)
+                    queuedAudioDates[item.id] = now
                 }
                 continue
             }
 
             let url = audioDirectory.appendingPathComponent(item.filename)
-            guard FileManager.default.fileExists(atPath: url.path) else { continue }
+            guard FileManager.default.fileExists(atPath: url.path) else {
+                missingAudioIDs.append(item.id)
+                continue
+            }
             if WatchConnectivityProvider.shared.sendFile(url, id: item.id, timestamp: item.timestamp) {
                 queuedAudioIDs.insert(item.id)
                 queuedAudioDates[item.id] = now
             }
+        }
+        for id in missingAudioIDs {
+            pendingAudio.removeAll { $0.id == id }
+            queuedAudioIDs.remove(id)
+            queuedAudioDates.removeValue(forKey: id)
         }
         save()
     }
@@ -202,6 +223,9 @@ final class LocalStore {
 
     /// Rebuild state from persisted data on cold launch.
     private func load() {
+        isLoading = true
+        defer { isLoading = false }
+
         let decoder = JSONDecoder()
 
         if let data = UserDefaults.standard.data(forKey: defaultsKey) {
@@ -276,6 +300,52 @@ final class LocalStore {
 
     func debugQueuedDate(for id: UUID) -> Date? {
         queuedNoteDates[id]
+    }
+
+    func debugMarkAudioQueued(_ id: UUID, at date: Date) {
+        queuedAudioIDs.insert(id)
+        queuedAudioDates[id] = date
+        save()
+    }
+
+    func debugQueuedAudioDate(for id: UUID) -> Date? {
+        queuedAudioDates[id]
+    }
+
+    func debugAudioURL(for id: UUID) -> URL {
+        audioDirectory.appendingPathComponent("\(id.uuidString).m4a")
+    }
+
+    func debugInsertPendingAudio(id: UUID, filename: String, timestamp: Date) {
+        pendingAudio.removeAll { $0.id == id }
+        pendingAudio.append(PendingAudio(id: id, filename: filename, timestamp: timestamp))
+        save()
+    }
+
+    func debugReloadFromDisk() {
+        isLoading = true
+        pendingNotes = []
+        pendingAudio = []
+        queuedNoteIDs = []
+        queuedNoteDates = [:]
+        queuedAudioIDs = []
+        queuedAudioDates = [:]
+        isLoading = false
+        load()
+    }
+
+    func debugReset() {
+        for item in pendingAudio {
+            let url = audioDirectory.appendingPathComponent(item.filename)
+            try? FileManager.default.removeItem(at: url)
+        }
+        pendingNotes = []
+        pendingAudio = []
+        queuedNoteIDs = []
+        queuedNoteDates = [:]
+        queuedAudioIDs = []
+        queuedAudioDates = [:]
+        save()
     }
     #endif
 }
