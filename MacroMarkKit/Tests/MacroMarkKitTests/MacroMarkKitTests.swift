@@ -30,6 +30,15 @@ struct MacroModelTests {
 
         #expect(note.sourceID == sourceID)
     }
+
+    @Test
+    func triggerValidatorTrimsAndFindsDuplicates() async throws {
+        let macro = Macro(trigger: "Heading One", replacement: "# ")
+
+        #expect(MacroTriggerValidator.cleanedTrigger("  Heading One\n") == "Heading One")
+        #expect(MacroTriggerValidator.hasDuplicate("heading one", in: [macro]))
+        #expect(!MacroTriggerValidator.hasDuplicate("heading one", in: [macro], excluding: macro))
+    }
 }
 
 struct FolderSettingsTests {
@@ -98,6 +107,36 @@ struct MacroProcessorTests {
         let macros = [MacroRule(trigger: "Hello", replacement: "Bonjour")]
         let result = await MacroProcessor.process(text: "Hello world", macros: macros)
         #expect(result == "Bonjour world")
+    }
+
+    @Test
+    func punctuationTriggerReplacement() async throws {
+        let macros = [
+            MacroRule(trigger: "#tag", replacement: "tagged"),
+            MacroRule(trigger: "C++", replacement: "cpp")
+        ]
+        let result = await MacroProcessor.process(text: "#tag uses C++ but not C++20", macros: macros)
+        #expect(result == "tagged uses cpp but not C++20")
+    }
+
+    @Test
+    func wordTriggerDoesNotMatchInsideLongerWords() async throws {
+        let macros = [MacroRule(trigger: "Not", replacement: "{backspace}")]
+        let result = await MacroProcessor.process(text: "Not notebook", macros: macros)
+        #expect(result == " notebook")
+    }
+
+    @Test
+    func generatedWrappingTokensAreCleaned() async throws {
+        let macros = [MacroRule(trigger: "Bold", replacement: "**")]
+        let result = await MacroProcessor.process(text: "Bold wrapped text Bold", macros: macros)
+        #expect(result == "**wrapped text**")
+    }
+
+    @Test
+    func literalAsterisksAreNotCleanedWithoutGeneratedTokens() async throws {
+        let result = await MacroProcessor.process(text: "3 * 4 * 5 and * literal *", macros: [])
+        #expect(result == "3 * 4 * 5 and * literal *")
     }
 
     @Test

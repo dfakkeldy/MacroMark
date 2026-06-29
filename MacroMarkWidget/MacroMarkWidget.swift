@@ -13,6 +13,9 @@ struct InstantCaptureWidgetView: View {
         Image(systemName: "mic.fill")
             .font(.title)
             .widgetURL(AppRoute.instantCaptureURL)
+            .accessibilityLabel("Instant capture")
+            .accessibilityHint("Starts an audio capture in MacroMark.")
+            .accessibilityAddTraits(.isButton)
     }
 }
 
@@ -23,6 +26,9 @@ struct SystemCaptureWidgetView: View {
         Image(systemName: "keyboard")
             .font(.title)
             .widgetURL(AppRoute.systemCaptureURL)
+            .accessibilityLabel("System capture")
+            .accessibilityHint("Opens keyboard capture in MacroMark.")
+            .accessibilityAddTraits(.isButton)
     }
 }
 

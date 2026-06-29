@@ -9,6 +9,7 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
     static let shared = WatchConnectivityProvider()
 
     private let session: WCSession?
+    private var pendingCaptureMode: String?
 
     // For iOS to process received notes
     var onNoteReceived: ((UUID, String, Date) -> Void)? {
@@ -68,6 +69,12 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
             Task { @MainActor in
                 LocalStore.shared.syncPendingNotes()
                 LocalStore.shared.syncPendingAudio()
+            }
+        }
+#elseif os(iOS)
+        if activationState == .activated {
+            Task { @MainActor in
+                flushPendingSettings()
             }
         }
 #endif
@@ -137,13 +144,32 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
 #endif
 
     func updateSettings(captureMode: String) {
-        guard let session = session, session.activationState == .activated else { return }
+        pendingCaptureMode = captureMode
+        guard sendCaptureModeContext(captureMode) else { return }
+        pendingCaptureMode = nil
+    }
+
+    private func flushPendingSettings() {
+        let captureMode = pendingCaptureMode
+            ?? UserDefaults.standard.string(forKey: UserDefaultsKey.captureMode.rawValue)
+            ?? "audio"
+        guard sendCaptureModeContext(captureMode) else {
+            pendingCaptureMode = captureMode
+            return
+        }
+        pendingCaptureMode = nil
+    }
+
+    private func sendCaptureModeContext(_ captureMode: String) -> Bool {
+        guard let session = session, session.activationState == .activated else { return false }
         do {
             try session.updateApplicationContext(["captureMode": captureMode])
+            return true
         } catch {
 #if DEBUG
             print("Failed to update application context: \(error)")
 #endif
+            return false
         }
     }
 
@@ -164,8 +190,13 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
 
         // --- Phone side: handle incoming notes from watch ---
         if let text = userInfo["text"] as? String {
-            let idString = userInfo["id"] as? String ?? UUID().uuidString
-            let id = UUID(uuidString: idString) ?? UUID()
+            guard let idString = userInfo["id"] as? String,
+                  let id = UUID(uuidString: idString) else {
+#if DEBUG
+                print("Ignoring received note with missing or invalid id")
+#endif
+                return
+            }
             let timestampInterval = userInfo["timestamp"] as? TimeInterval ?? Date().timeIntervalSince1970
             let timestamp = Date(timeIntervalSince1970: timestampInterval)
             // Snapshot the Sendable values above, then touch MainActor state on-actor.
@@ -186,8 +217,13 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
 
         let timestampInterval = file.metadata?["timestamp"] as? TimeInterval ?? Date().timeIntervalSince1970
         let timestamp = Date(timeIntervalSince1970: timestampInterval)
-        let idString = file.metadata?["id"] as? String ?? UUID().uuidString
-        let id = UUID(uuidString: idString) ?? UUID()
+        guard let idString = file.metadata?["id"] as? String,
+              let id = UUID(uuidString: idString) else {
+#if DEBUG
+            print("Ignoring received file with missing or invalid id")
+#endif
+            return
+        }
 
         do {
             if FileManager.default.fileExists(atPath: destURL.path) {
@@ -295,7 +331,7 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
         return await withCheckedContinuation { continuation in
             let timeout = ContinuationTimeout()
             
-            Task {
+            let timeoutTask = Task {
                 try? await Task.sleep(for: .seconds(15))
                 if await timeout.complete() {
                     let cached = UserDefaults.standard.string(forKey: cacheKey) ?? ""
@@ -304,16 +340,24 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
             }
             
             session.sendMessage(["request": "dailyFile", "date": date.timeIntervalSince1970], replyHandler: { @Sendable reply in
+                let contentAvailable = (reply["available"] as? Bool) ?? (reply["content"] != nil)
                 let content = reply["content"] as? String ?? ""
                 Task {
                     if await timeout.complete() {
-                        UserDefaults.standard.set(content, forKey: cacheKey)
-                        continuation.resume(returning: content)
+                        timeoutTask.cancel()
+                        if contentAvailable {
+                            UserDefaults.standard.set(content, forKey: cacheKey)
+                            continuation.resume(returning: content)
+                        } else {
+                            let cached = UserDefaults.standard.string(forKey: cacheKey) ?? ""
+                            continuation.resume(returning: cached)
+                        }
                     }
                 }
             }, errorHandler: { @Sendable _ in
                 Task {
                     if await timeout.complete() {
+                        timeoutTask.cancel()
                         let cached = UserDefaults.standard.string(forKey: cacheKey) ?? ""
                         continuation.resume(returning: cached)
                     }
@@ -341,8 +385,11 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
             // readText is nonisolated, so we read and reply synchronously in this
             // delegate's own isolation region — no need to send the non-Sendable
             // replyHandler across an actor boundary.
-            let content = iCloudStorageManager.shared.readText(for: date) ?? ""
-            replyHandler(["content": content])
+            if let content = iCloudStorageManager.shared.readText(for: date) {
+                replyHandler(["content": content, "available": true])
+            } else {
+                replyHandler(["available": false])
+            }
         }
 #endif
     }
