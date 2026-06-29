@@ -42,10 +42,20 @@ struct MacroProcessorTests {
     
     @Test("Test wrapping tag cleanup")
     func testWrappingTagCleanup() async {
-        let macros: [MacroRule] = []
-        let input = "This is * bold text * and ** strong text ** and _ italic _"
+        let macros = [
+            MacroRule(trigger: "Bold", replacement: "**"),
+            MacroRule(trigger: "Italic", replacement: "_")
+        ]
+        let input = "This is Bold strong text Bold and Italic emphasized text Italic"
         let output = await MacroProcessor.process(text: input, macros: macros)
         
-        #expect(output == "This is *bold text* and **strong text** and _italic_")
+        #expect(output == "This is **strong text** and _emphasized text_")
+    }
+
+    @Test("Test literal asterisks are preserved")
+    func testLiteralAsterisksArePreserved() async {
+        let output = await MacroProcessor.process(text: "3 * 4 * 5", macros: [])
+
+        #expect(output == "3 * 4 * 5")
     }
 }
