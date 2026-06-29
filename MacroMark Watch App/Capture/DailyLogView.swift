@@ -46,6 +46,17 @@ struct DailyLogView: View {
                 content += "\n\n\(timeString)\n\n\(note.text)\n\n"
             }
         }
+
+        let pendingAudio = LocalStore.shared.pendingAudio.filter { audio in
+            DaySelection.contains(audio.timestamp, inSelectedDay: selectedDate)
+        }
+        if !pendingAudio.isEmpty {
+            content += "\n\n**Pending Offline Recordings:**\n"
+            for audio in pendingAudio {
+                let timeString = audio.timestamp.formatted(date: .omitted, time: .shortened)
+                content += "\n\n\(timeString)\n\nAudio recording waiting to sync.\n\n"
+            }
+        }
         
         logContent = content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : content
         isLoading = false
