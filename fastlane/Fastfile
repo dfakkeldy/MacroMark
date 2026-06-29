@@ -97,7 +97,8 @@ platform :ios do
     run_tests(
       project: PROJECT_PATH,
       scheme: APP_SCHEME,
-      devices: ["iPhone 17 Pro Max"]
+      devices: ["iPhone 17 Pro Max"],
+      xcargs: "-parallel-testing-enabled NO"
     )
   end
 
@@ -105,6 +106,7 @@ platform :ios do
   desc "Build and upload a release-train TestFlight beta"
   lane :beta do |options|
     require_api_key!
+    test
 
     channel = options[:channel].to_s.empty? ? "manual" : options[:channel].to_s
     api_key = @api_key
