@@ -5,6 +5,7 @@ import MacroMarkKit
 struct MacroEditView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Query(sort: \Macro.sortOrder, order: .forward) private var macros: [Macro]
 
     @Bindable var macro: Macro
 
@@ -17,6 +18,16 @@ struct MacroEditView: View {
         _editedTrigger = State(initialValue: macro.trigger)
         _editedReplacement = State(initialValue: macro.replacement)
         _editedNotes = State(initialValue: macro.notes)
+    }
+
+    private var cleanedTrigger: String {
+        MacroTriggerValidator.cleanedTrigger(editedTrigger)
+    }
+
+    private var canSave: Bool {
+        !cleanedTrigger.isEmpty
+            && !editedReplacement.isEmpty
+            && !MacroTriggerValidator.hasDuplicate(cleanedTrigger, in: macros, excluding: macro)
     }
 
     var body: some View {
@@ -42,7 +53,7 @@ struct MacroEditView: View {
             }
 
             Section("Preview") {
-                Text("Say: \(editedTrigger.isEmpty ? "Trigger" : editedTrigger) example")
+                Text("Say: \(cleanedTrigger.isEmpty ? "Trigger" : cleanedTrigger) example")
                     .foregroundStyle(.secondary)
                 Text(editedReplacement + " example")
                     .font(.system(.body, design: .monospaced))
@@ -74,7 +85,7 @@ struct MacroEditView: View {
             }
             ToolbarItem(placement: .confirmationAction) {
                 Button("Save") {
-                    macro.trigger = editedTrigger
+                    macro.trigger = cleanedTrigger
                     macro.replacement = editedReplacement
                     macro.notes = editedNotes
                     if macro.isDefault {
@@ -85,7 +96,7 @@ struct MacroEditView: View {
                     MacroProcessor.invalidateRegexCache()
                     dismiss()
                 }
-                .disabled(editedTrigger.trimmingCharacters(in: .whitespaces).isEmpty || editedReplacement.isEmpty)
+                .disabled(!canSave)
             }
         }
     }
