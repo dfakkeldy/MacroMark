@@ -7,28 +7,26 @@ final class MacroMarkScreenshotUITests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
 
+        XCUIDevice.shared.orientation = .portrait
         app = XCUIApplication()
         setupSnapshot(app)
-        app.launchArguments += [ScreenshotLaunchArgument.mode]
-        app.launchEnvironment["MACROMARK_SCREENSHOT_MODE"] = "1"
-        app.launchEnvironment["FASTLANE_SNAPSHOT"] = "1"
-        XCUIDevice.shared.orientation = .portrait
+        app.configureForMacroMarkScreenshots()
         app.launch()
+        XCUIDevice.shared.orientation = .portrait
     }
 
     func testAppStoreScreenshots() throws {
-        let standupText = app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "Standup")).firstMatch
-        XCTAssertTrue(standupText.waitForExistence(timeout: 10))
+        XCTAssertTrue(scrollToTextContaining("Standup"))
         captureScreenshot(named: "01-inbox")
 
         let firstNote = app.buttons.matching(identifier: "note.row").firstMatch
         XCTAssertTrue(firstNote.waitForExistence(timeout: 5))
         firstNote.tap()
-        XCTAssertTrue(app.navigationBars["Note Details"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["noteDetail.form"].waitForExistence(timeout: 5))
         captureScreenshot(named: "02-note-detail")
 
         switchToMacros()
-        XCTAssertTrue(scrollToElement(containing: "Standup", timeout: 5))
+        XCTAssertTrue(scrollToTextContaining("Standup"))
         captureScreenshot(named: "03-macros")
 
         app.buttons["Add"].tap()
@@ -82,29 +80,17 @@ final class MacroMarkScreenshotUITests: XCTestCase {
         return false
     }
 
-    private func scrollToElement(containing label: String, timeout: TimeInterval) -> Bool {
-        let predicate = NSPredicate(format: "label CONTAINS %@", label)
-        let button = app.buttons.matching(predicate).firstMatch
-        let text = app.staticTexts.matching(predicate).firstMatch
+    private func scrollToTextContaining(_ text: String, attempts: Int = 4) -> Bool {
+        let predicate = NSPredicate(format: "label CONTAINS %@", text)
+        let matchingText = app.staticTexts.matching(predicate).firstMatch
 
-        if button.waitForExistence(timeout: timeout) || text.exists {
-            return true
-        }
-
-        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.78))
-        let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
-
-        for _ in 0..<5 {
-            start.press(forDuration: 0.05, thenDragTo: end)
-            if button.waitForExistence(timeout: 1) || text.exists {
+        for _ in 0...attempts {
+            if matchingText.waitForExistence(timeout: 1) {
                 return true
             }
+            app.swipeUp()
         }
 
         return false
     }
-}
-
-private enum ScreenshotLaunchArgument {
-    static let mode = "--screenshot-mode"
 }

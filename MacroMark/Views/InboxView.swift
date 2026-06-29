@@ -41,6 +41,7 @@ struct InboxView: View {
     @Environment(AppNavigation.self) private var navigation
     @Query(sort: \ProcessedNote.createdAt, order: .reverse) private var notes: [ProcessedNote]
     @State private var statusFilter: InboxStatusFilter = .all
+    @State private var screenshotNotes: [ProcessedNote] = []
 
     private var selectedDate: Date {
         get { navigation.selectedDate }
@@ -48,7 +49,17 @@ struct InboxView: View {
     }
 
     private var filteredNotes: [ProcessedNote] {
-        InboxDateFilter.notes(notes, on: selectedDate, status: statusFilter)
+        InboxDateFilter.notes(displayedNotes, on: selectedDate, status: statusFilter)
+    }
+
+    private var displayedNotes: [ProcessedNote] {
+        guard ScreenshotMode.isEnabled else {
+            return notes
+        }
+        if !screenshotNotes.isEmpty {
+            return screenshotNotes
+        }
+        return notes.isEmpty ? ScreenshotMode.previewNotes : notes
     }
 
     private var isFutureDay: Bool {
@@ -114,6 +125,10 @@ struct InboxView: View {
                 }
             }
             .accessibilityIdentifier("inbox.list")
+            .onAppear {
+                ScreenshotMode.seedIfNeeded(in: modelContext)
+                loadScreenshotNotesIfNeeded()
+            }
             .navigationTitle(selectedDate.formatted(date: .abbreviated, time: .omitted))
             .toolbar {
                 if isFutureDay {
@@ -153,6 +168,17 @@ struct InboxView: View {
             modelContext.delete(note)
         }
         try? modelContext.save()
+    }
+
+    private func loadScreenshotNotesIfNeeded() {
+        guard ScreenshotMode.isEnabled else { return }
+
+        var descriptor = FetchDescriptor<ProcessedNote>(
+            sortBy: [SortDescriptor(\ProcessedNote.createdAt, order: .reverse)]
+        )
+        descriptor.fetchLimit = 10
+        let fetchedNotes = (try? modelContext.fetch(descriptor)) ?? []
+        screenshotNotes = fetchedNotes.isEmpty ? ScreenshotMode.previewNotes : fetchedNotes
     }
 }
 

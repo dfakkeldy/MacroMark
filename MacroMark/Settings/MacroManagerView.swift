@@ -21,6 +21,7 @@ struct MacroManagerView: View {
     @State private var showingDestinationProof = false
     @State private var showingRestoreConfirmation = false
     @State private var paywallReason: PaywallReason = .addMacro
+    @State private var screenshotMacros: [Macro] = []
 
     @Environment(EntitlementManager.self) private var entitlements
 
@@ -31,7 +32,17 @@ struct MacroManagerView: View {
     }
 
     private var customMacroCount: Int {
-        macros.filter { !$0.isDefault }.count
+        displayedMacros.filter { !$0.isDefault }.count
+    }
+
+    private var displayedMacros: [Macro] {
+        guard ScreenshotMode.isEnabled else {
+            return macros
+        }
+        if !screenshotMacros.isEmpty {
+            return screenshotMacros
+        }
+        return macros.isEmpty ? ScreenshotMode.previewMacros : macros
     }
 
     var body: some View {
@@ -112,7 +123,7 @@ struct MacroManagerView: View {
 
                 // MARK: Macros
                 Section {
-                    ForEach(macros) { macro in
+                    ForEach(displayedMacros) { macro in
                         Button {
                             if macro.isDefault && !entitlements.canEditDefaultMacros {
                                 paywallReason = .editDefault
@@ -231,7 +242,12 @@ struct MacroManagerView: View {
                 Text("Your custom macros will be kept. Only the built-in defaults will be reset.")
             }
             .onAppear {
-                prepopulateIfNeeded()
+                if ScreenshotMode.isEnabled {
+                    ScreenshotMode.seedIfNeeded(in: modelContext)
+                    loadScreenshotMacrosIfNeeded()
+                } else {
+                    prepopulateIfNeeded()
+                }
             }
         }
     }
@@ -240,13 +256,13 @@ struct MacroManagerView: View {
 
     private func deleteMacros(offsets: IndexSet) {
         for index in offsets {
-            modelContext.delete(macros[index])
+            modelContext.delete(displayedMacros[index])
         }
         MacroProcessor.invalidateRegexCache()
     }
 
     private func moveMacros(from source: IndexSet, to destination: Int) {
-        var sorted = macros
+        var sorted = displayedMacros
         sorted.move(fromOffsets: source, toOffset: destination)
         for (index, macro) in sorted.enumerated() {
             macro.sortOrder = index
@@ -301,6 +317,17 @@ struct MacroManagerView: View {
             }
             try? modelContext.save()
         }
+    }
+
+    private func loadScreenshotMacrosIfNeeded() {
+        guard ScreenshotMode.isEnabled else { return }
+
+        var descriptor = FetchDescriptor<Macro>(
+            sortBy: [SortDescriptor(\Macro.sortOrder, order: .forward)]
+        )
+        descriptor.fetchLimit = 20
+        let fetchedMacros = (try? modelContext.fetch(descriptor)) ?? []
+        screenshotMacros = fetchedMacros.isEmpty ? ScreenshotMode.previewMacros : fetchedMacros
     }
 
     private func restoreDefaults() {

@@ -4,7 +4,6 @@ import MacroMarkKit
 
 struct AppTabView: View {
     @Environment(AppNavigation.self) private var navigation
-    @Environment(\.modelContext) private var modelContext
 
     var body: some View {
         @Bindable var navigation = navigation
@@ -19,9 +18,6 @@ struct AppTabView: View {
                 MacroManagerView()
                     .accessibilityIdentifier("macros.screen")
             }
-        }
-        .task {
-            ScreenshotMode.seedIfNeeded(in: modelContext)
         }
     }
 }
