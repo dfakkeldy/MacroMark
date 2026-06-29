@@ -86,8 +86,6 @@ struct MacroMarkApp: App {
         }
 
         setupWatchConnectivity(container: resolvedContainer)
-        // Reprocess any notes that were in-flight when the app was last terminated
-        reprocessPendingItems(container: resolvedContainer)
     }
 
     private static func makeInMemoryContainer() -> ModelContainer? {
@@ -130,27 +128,35 @@ struct MacroMarkApp: App {
     /// Capped at ~5000 entries (LRU eviction) to bound UserDefaults plist growth.
     private static let maxProcessedNoteIDs = 5000
     @MainActor private static var cachedProcessedIDs: Set<UUID>?
-    @MainActor private static var cachedProcessedIDsCount = 0
+    @MainActor private static var cachedProcessedIDOrder: [UUID]?
+
+    private static func readProcessedNoteIDOrder() -> [UUID] {
+        if let cached = cachedProcessedIDOrder { return cached }
+        let order = ProcessedNoteIDStore.loadOrder()
+        cachedProcessedIDOrder = order
+        cachedProcessedIDs = Set(order)
+        return order
+    }
 
     private static func readProcessedNoteIDs() -> Set<UUID> {
-        if let cached = cachedProcessedIDs { return cached }
-        guard let strings = UserDefaults.standard.stringArray(forKey: UserDefaultsKey.processedNoteIDs.rawValue) else { return [] }
-        let ids = Set(strings.compactMap { UUID(uuidString: $0) })
+        if let cached = cachedProcessedIDs {
+            return cached
+        }
+        let order = readProcessedNoteIDOrder()
+        let ids = Set(order)
         cachedProcessedIDs = ids
-        cachedProcessedIDsCount = ids.count
         return ids
     }
 
     private static func addProcessedNoteID(_ id: UUID) {
-        var processed = readProcessedNoteIDs()
-        processed.insert(id)
-        // LRU eviction: drop oldest entries when exceeding the cap.
-        while processed.count > maxProcessedNoteIDs, let first = processed.first {
-            processed.remove(first)
-        }
-        UserDefaults.standard.set(processed.map(\.uuidString), forKey: UserDefaultsKey.processedNoteIDs.rawValue)
-        cachedProcessedIDs = processed
-        cachedProcessedIDsCount = processed.count
+        let updatedOrder = ProcessedNoteIDStore.inserting(
+            id,
+            into: readProcessedNoteIDOrder(),
+            maxCount: maxProcessedNoteIDs
+        )
+        ProcessedNoteIDStore.saveOrder(updatedOrder)
+        cachedProcessedIDOrder = updatedOrder
+        cachedProcessedIDs = Set(updatedOrder)
     }
 
     private var processedNoteIDs: Set<UUID> { Self.readProcessedNoteIDs() }
@@ -295,19 +301,36 @@ struct MacroMarkApp: App {
     ) {
 #if canImport(UIKit)
         var bgTask = UIBackgroundTaskIdentifier.invalid
+        var processingTask: Task<Void, Never>?
         bgTask = UIApplication.shared.beginBackgroundTask(withName: name) {
             // Background task expiring — the raw text/audio is already saved in the
             // write-ahead log, so it will be reprocessed on next launch.
 #if DEBUG
             print("MacroMark: Background task '\(name)' expiring for note \(noteId)")
 #endif
-            Self.inFlightIDs.remove(noteId)
-            UIApplication.shared.endBackgroundTask(bgTask)
-            bgTask = .invalid
+            Task { @MainActor in
+                processingTask?.cancel()
+                if bgTask != .invalid {
+                    UIApplication.shared.endBackgroundTask(bgTask)
+                    bgTask = .invalid
+                }
+            }
         }
 #endif
 
-        Task { @MainActor in
+        let task = Task { @MainActor in
+            defer {
+                Self.inFlightIDs.remove(noteId)
+#if canImport(UIKit)
+                if bgTask != .invalid {
+                    UIApplication.shared.endBackgroundTask(bgTask)
+                    bgTask = .invalid
+                }
+#endif
+            }
+
+            guard !Task.isCancelled else { return }
+
             let processedText: String
             let macros: [Macro]
 
@@ -325,6 +348,7 @@ struct MacroMarkApp: App {
             if let audioURL = url {
                 do {
                     let result = try await AudioTranscriber.transcribe(fileURL: audioURL)
+                    guard !Task.isCancelled else { return }
                     processedText = result.text
                     transcriptionPartial = result.hadPartialFailure
                 } catch {
@@ -334,25 +358,11 @@ struct MacroMarkApp: App {
                     // Keep the audio file AND the WAL entry so it can be retried on
                     // the next launch. Do NOT delete and do NOT ACK — losing the
                     // recording is worse than a deferred retry.
-                    Self.inFlightIDs.remove(noteId)
-#if canImport(UIKit)
-                    if bgTask != .invalid {
-                        UIApplication.shared.endBackgroundTask(bgTask)
-                        bgTask = .invalid
-                    }
-#endif
                     return
                 }
             } else if let directText = text {
                 processedText = directText
             } else {
-                Self.inFlightIDs.remove(noteId)
-#if canImport(UIKit)
-                if bgTask != .invalid {
-                    UIApplication.shared.endBackgroundTask(bgTask)
-                    bgTask = .invalid
-                }
-#endif
                 return
             }
 
@@ -366,20 +376,15 @@ struct MacroMarkApp: App {
                 }
                 return nil
             }
+            guard !Task.isCancelled else { return }
 
             // Save and export — ACK is sent inside processAndExport only after the
             // export target actually succeeds (§5.1).
             await processAndExport(noteId: noteId, text: result, isAudio: isAudio, timestamp: timestamp, autoExport: autoExport, rawTarget: rawTarget, context: context, transcriptionPartial: transcriptionPartial)
-
-            Self.inFlightIDs.remove(noteId)
-
-#if canImport(UIKit)
-            if bgTask != .invalid {
-                UIApplication.shared.endBackgroundTask(bgTask)
-                bgTask = .invalid
-            }
-#endif
         }
+#if canImport(UIKit)
+        processingTask = task
+#endif
     }
 
     // MARK: - Write-ahead log accessors

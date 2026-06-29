@@ -5,7 +5,7 @@ import os
 /// as "not yet delivered" and keep the note in its write-ahead log for retry —
 /// the user's definition of "delivered" is "in the daily-note file," not "saved
 /// to SwiftData."
-public enum AppendResult {
+public enum AppendResult: Sendable {
     /// The text was appended (or a new file created) successfully.
     case appended
     /// The day's file exists in iCloud but is not materialized locally; the write
@@ -68,38 +68,25 @@ public final class iCloudStorageManager {
         return (URL.documentsDirectory, true)
     }
 
-    /// Main-actor write-path accessor: resolves the base directory and publishes
-    /// the `isUsingFallbackStorage` flag for the UI. The read path uses
-    /// `resolvedBaseDirectory()` directly and does not mutate the flag.
-    private var baseDirectoryURL: URL {
-        let (url, fallback) = resolvedBaseDirectory()
-        if let fallback {
-            isUsingFallbackStorage = fallback
+    nonisolated private static func fileURL(
+        for date: Date,
+        settings: FolderSettings,
+        base: URL,
+        createDirectories: Bool
+    ) -> URL {
+        let url = appending(relativePath: settings.relativePath(for: date), to: base)
+        if createDirectories {
+            try? FileManager.default.createDirectory(
+                at: url.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
         }
         return url
     }
 
-    nonisolated private func fileURL(for date: Date, settings: FolderSettings, base: URL) -> URL {
-        let filename = settings.format(date: date) + ".md"
-
-        switch settings.structure {
-        case .flat:
-            return base.appending(path: filename)
-
-        case .monthly:
-            let month = date.formatted(Date.FormatStyle().month(.twoDigits))
-            let year = date.formatted(Date.FormatStyle().year())
-            let folder = "\(year)-\(month)"
-            let dir = base.appending(path: folder)
-            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-            return dir.appending(path: filename)
-
-        case .yearlyMonthly:
-            let year = date.formatted(Date.FormatStyle().year())
-            let month = date.formatted(Date.FormatStyle().month(.twoDigits))
-            let dir = base.appending(path: year).appending(path: month)
-            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-            return dir.appending(path: filename)
+    nonisolated private static func appending(relativePath: String, to base: URL) -> URL {
+        relativePath.split(separator: "/").reduce(base) { url, component in
+            url.appending(path: String(component))
         }
     }
 
@@ -114,18 +101,46 @@ public final class iCloudStorageManager {
 
         let isSecurityScoped = UserDefaults.standard.data(forKey: UserDefaultsKey.customSaveBookmark.rawValue) != nil
         let settings = folderSettings
+        let formatting = dailyNoteFormatting
 
+        return await Task.detached(priority: .utility) {
+            await Self.appendTextOffMain(
+                text,
+                for: date,
+                baseDir: baseDir,
+                isFallbackStorage: isFallbackStorage,
+                isSecurityScoped: isSecurityScoped,
+                settings: settings,
+                formatting: formatting
+            )
+        }.value
+    }
+
+    nonisolated private static func appendTextOffMain(
+        _ text: String,
+        for date: Date,
+        baseDir: URL,
+        isFallbackStorage: Bool,
+        isSecurityScoped: Bool,
+        settings: FolderSettings,
+        formatting: DailyNoteFormatting
+    ) async -> AppendResult {
+        var didStartSecurityScope = false
         if isSecurityScoped {
-            _ = baseDir.startAccessingSecurityScopedResource()
+            guard baseDir.startAccessingSecurityScopedResource() else {
+                Logger.storage.error("Could not access the selected export folder security scope")
+                return .failed
+            }
+            didStartSecurityScope = true
         }
 
         defer {
-            if isSecurityScoped {
+            if didStartSecurityScope {
                 baseDir.stopAccessingSecurityScopedResource()
             }
         }
 
-        let fileURL = self.fileURL(for: date, settings: settings, base: baseDir)
+        let fileURL = Self.fileURL(for: date, settings: settings, base: baseDir, createDirectories: true)
 
         // If the day's file already exists in iCloud but hasn't been downloaded
         // to this device yet, FileManager.fileExists returns false — which would
@@ -136,7 +151,7 @@ public final class iCloudStorageManager {
         let textToAppend = DailyNoteFormatter.renderEntry(
             text: text,
             timestamp: date,
-            formatting: dailyNoteFormatting
+            formatting: formatting
         )
         guard let dataToAppend = textToAppend.data(using: .utf8) else { return .failed }
 
@@ -187,19 +202,19 @@ public final class iCloudStorageManager {
     }
 
     /// iCloud stores not-yet-downloaded files as a hidden `.<name>.icloud` placeholder.
-    private func cloudPlaceholderURL(for url: URL) -> URL {
+    nonisolated private static func cloudPlaceholderURL(for url: URL) -> URL {
         url.deletingLastPathComponent()
             .appendingPathComponent("." + url.lastPathComponent + ".icloud")
     }
 
-    private func cloudCopyExistsButNotDownloaded(_ url: URL) -> Bool {
+    nonisolated private static func cloudCopyExistsButNotDownloaded(_ url: URL) -> Bool {
         FileManager.default.fileExists(atPath: cloudPlaceholderURL(for: url).path)
     }
 
     /// If the file exists in iCloud but isn't materialized locally, trigger a
     /// download and wait briefly for it so an append doesn't overwrite it.
     /// Uses cooperative `Task.sleep` so it never blocks the MainActor.
-    private func ensureDownloaded(_ url: URL) async {
+    nonisolated private static func ensureDownloaded(_ url: URL) async {
         guard !FileManager.default.fileExists(atPath: url.path),
               cloudCopyExistsButNotDownloaded(url) else { return }
 
@@ -218,17 +233,22 @@ public final class iCloudStorageManager {
         let isSecurityScoped = UserDefaults.standard.data(forKey: UserDefaultsKey.customSaveBookmark.rawValue) != nil
         let settings = folderSettings
 
+        var didStartSecurityScope = false
         if isSecurityScoped {
-            _ = baseDir.startAccessingSecurityScopedResource()
+            guard baseDir.startAccessingSecurityScopedResource() else {
+                Logger.storage.error("Could not access the selected read folder security scope")
+                return nil
+            }
+            didStartSecurityScope = true
         }
 
         defer {
-            if isSecurityScoped {
+            if didStartSecurityScope {
                 baseDir.stopAccessingSecurityScopedResource()
             }
         }
 
-        let fileURL = self.fileURL(for: date, settings: settings, base: baseDir)
+        let fileURL = Self.fileURL(for: date, settings: settings, base: baseDir, createDirectories: false)
 
         var fileContent: String?
         var error: NSError?

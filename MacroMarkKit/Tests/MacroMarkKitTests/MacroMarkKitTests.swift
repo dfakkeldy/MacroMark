@@ -68,6 +68,25 @@ struct FolderSettingsTests {
         #expect(decoded.structure == .yearlyMonthly)
         #expect(decoded.dateFormat == "MM-dd-yyyy")
     }
+
+    @Test
+    func dateFormatIsSanitizedForSafeDailyNoteFilenames() async throws {
+        #expect(FolderSettings.sanitizedDateFormat("") == FolderSettings.defaultDateFormat)
+        #expect(FolderSettings.sanitizedDateFormat("yyyy/MM/dd") == "yyyy-MM-dd")
+        #expect(FolderSettings.sanitizedDateFormat("yyyy MM dd") == "yyyy-MM-dd")
+        #expect(FolderSettings.sanitizedDateFormat("yyyy-MM") == FolderSettings.defaultDateFormat)
+    }
+
+    @Test
+    func relativePathMatchesStorageStructure() async throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let date = try #require(calendar.date(from: DateComponents(year: 2026, month: 6, day: 28, hour: 12)))
+
+        #expect(FolderSettings(structure: .flat).relativePath(for: date) == "2026-06-28.md")
+        #expect(FolderSettings(structure: .monthly).relativePath(for: date) == "2026-06/2026-06-28.md")
+        #expect(FolderSettings(structure: .yearlyMonthly).relativePath(for: date) == "2026/06/2026-06-28.md")
+    }
 }
 
 struct ProductIdentifiersTests {

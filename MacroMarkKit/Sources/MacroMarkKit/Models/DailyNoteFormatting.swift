@@ -1,6 +1,6 @@
 import Foundation
 
-public struct DailyNoteFormatting: Codable, Equatable {
+public struct DailyNoteFormatting: Codable, Equatable, Sendable {
     public var timestampStyle: TimestampStyle
     public var separator: Separator
     public var appendHeading: String
@@ -15,7 +15,7 @@ public struct DailyNoteFormatting: Codable, Equatable {
         self.appendHeading = appendHeading
     }
 
-    public enum TimestampStyle: String, Codable, CaseIterable, Identifiable {
+    public enum TimestampStyle: String, Codable, CaseIterable, Identifiable, Sendable {
         case none
         case timeOnly
         case fullDateTime
@@ -34,7 +34,7 @@ public struct DailyNoteFormatting: Codable, Equatable {
         }
     }
 
-    public enum Separator: String, Codable, CaseIterable, Identifiable {
+    public enum Separator: String, Codable, CaseIterable, Identifiable, Sendable {
         case blankLine
         case horizontalRule
 

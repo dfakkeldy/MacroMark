@@ -7,6 +7,7 @@ import MacroMarkKit
 final class AudioTranscriber {
     /// Speech framework has a ~60s request limit; 50s leaves headroom.
     private static let chunkDurationSeconds: TimeInterval = 50
+    private static let chunkRecognitionTimeout: Duration = .seconds(75)
     private static let timescale: CMTimeScale = 1000
 
     /// The outcome of a transcription session. When some chunks fail but others
@@ -64,6 +65,22 @@ final class AudioTranscriber {
                 let chunkText: String = try await withTaskCancellationHandler {
                     try await withCheckedThrowingContinuation { continuation in
                         let resumeGate = ContinuationTimeout()
+                        let timeoutTask = Task {
+                            try? await Task.sleep(for: chunkRecognitionTimeout)
+                            guard !Task.isCancelled else { return }
+                            if await resumeGate.complete() {
+                                speechTaskBox.withLock { $0?.cancel() }
+                                continuation.resume(
+                                    throwing: NSError(
+                                        domain: "AudioTranscriber",
+                                        code: 5,
+                                        userInfo: [
+                                            NSLocalizedDescriptionKey: "Speech recognition timed out."
+                                        ]
+                                    )
+                                )
+                            }
+                        }
                         let task = recognizer.recognitionTask(with: request) { @Sendable result, error in
                             let finalTranscript: String?
                             if let result, result.isFinal {
@@ -76,6 +93,7 @@ final class AudioTranscriber {
 
                             Task {
                                 guard await resumeGate.complete() else { return }
+                                timeoutTask.cancel()
                                 if let error {
                                     continuation.resume(throwing: error)
                                 } else if let finalTranscript {

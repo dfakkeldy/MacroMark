@@ -53,4 +53,17 @@ struct MacroMarkTests {
         #expect(filtered.map(\.text) == ["wait", "bad"])
     }
 
+    @Test
+    func processedNoteIDStoreKeepsRecentIDsAndRefreshesDuplicates() throws {
+        let first = try #require(UUID(uuidString: "00000000-0000-0000-0000-000000000001"))
+        let second = try #require(UUID(uuidString: "00000000-0000-0000-0000-000000000002"))
+        let third = try #require(UUID(uuidString: "00000000-0000-0000-0000-000000000003"))
+
+        let refreshed = ProcessedNoteIDStore.inserting(first, into: [first, second], maxCount: 2)
+        #expect(refreshed == [second, first])
+
+        let capped = ProcessedNoteIDStore.inserting(third, into: refreshed, maxCount: 2)
+        #expect(capped == [first, third])
+    }
+
 }
