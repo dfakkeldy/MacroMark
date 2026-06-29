@@ -9,8 +9,8 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
     static let shared = LocationManager()
     
     private let manager = CLLocationManager()
-    private var activeContinuation: CheckedContinuation<CLLocation?, Never>?
-    private var activeContinuationTimeout: ContinuationTimeout?
+    private var pendingLocationContinuations: [CheckedContinuation<CLLocation?, Never>] = []
+    private var activeLocationTimeout: ContinuationTimeout?
     private var activeLocationManager: CLLocationManager?
     private var activeLocationManagerID: ObjectIdentifier?
     private var authContinuation: CheckedContinuation<Void, Never>?
@@ -24,75 +24,89 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
     }
 
     func getCurrentLocation() async -> CLLocation? {
-        guard !isRequestingLocation else { return nil }
-        isRequestingLocation = true
-        defer { isRequestingLocation = false }
-
-        if manager.authorizationStatus == .notDetermined {
-            await withCheckedContinuation { continuation in
-                let timeout = ContinuationTimeout()
-                self.authContinuation = continuation
-                self.authContinuationTimeout = timeout
-                Task { @MainActor in
-                    try? await Task.sleep(for: .seconds(5))
-                    if await timeout.complete() {
-                        self.authContinuation = nil
-                        self.authContinuationTimeout = nil
-                        continuation.resume()
-                    }
-                }
-                manager.requestWhenInUseAuthorization()
+        await withCheckedContinuation { continuation in
+            pendingLocationContinuations.append(continuation)
+            guard !isRequestingLocation else { return }
+            isRequestingLocation = true
+            Task { @MainActor in
+                await beginLocationRequest()
             }
+        }
+    }
+
+    private func beginLocationRequest() async {
+        if manager.authorizationStatus == .notDetermined {
+            await requestAuthorizationIfNeeded()
         }
 
         guard manager.authorizationStatus == .authorizedWhenInUse || manager.authorizationStatus == .authorizedAlways else {
-            return nil
+            finishLocationRequest(returning: nil)
+            return
         }
 
-        return await withCheckedContinuation { continuation in
+        let timeout = ContinuationTimeout()
+        let requestManager = CLLocationManager()
+        let requestID = ObjectIdentifier(requestManager)
+        requestManager.delegate = self
+        requestManager.desiredAccuracy = manager.desiredAccuracy
+        activeLocationTimeout = timeout
+        activeLocationManager = requestManager
+        activeLocationManagerID = requestID
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(5))
+            guard self.activeLocationManagerID == requestID else { return }
+            if await timeout.complete() {
+                self.finishLocationRequest(returning: nil, id: requestID)
+            }
+        }
+        requestManager.requestLocation()
+    }
+
+    private func requestAuthorizationIfNeeded() async {
+        await withCheckedContinuation { continuation in
             let timeout = ContinuationTimeout()
-            let requestManager = CLLocationManager()
-            let requestID = ObjectIdentifier(requestManager)
-            requestManager.delegate = self
-            requestManager.desiredAccuracy = manager.desiredAccuracy
-            self.activeContinuation = continuation
-            self.activeContinuationTimeout = timeout
-            self.activeLocationManager = requestManager
-            self.activeLocationManagerID = requestID
+            authContinuation = continuation
+            authContinuationTimeout = timeout
             Task { @MainActor in
                 try? await Task.sleep(for: .seconds(5))
-                guard self.activeLocationManagerID == requestID else { return }
                 if await timeout.complete() {
-                    self.clearActiveLocationRequest(id: requestID)
-                    continuation.resume(returning: nil)
+                    self.authContinuation = nil
+                    self.authContinuationTimeout = nil
+                    continuation.resume()
                 }
             }
-            requestManager.requestLocation()
+            manager.requestWhenInUseAuthorization()
         }
     }
 
-    private func clearActiveLocationRequest(id: ObjectIdentifier) {
-        guard activeLocationManagerID == id else { return }
+    private func finishLocationRequest(returning location: CLLocation?, id: ObjectIdentifier? = nil) {
+        if let id {
+            guard activeLocationManagerID == id else { return }
+        }
         activeLocationManager?.delegate = nil
         activeLocationManager?.stopUpdatingLocation()
-        activeContinuation = nil
-        activeContinuationTimeout = nil
+        activeLocationTimeout = nil
         activeLocationManager = nil
         activeLocationManagerID = nil
+        isRequestingLocation = false
+
+        let continuations = pendingLocationContinuations
+        pendingLocationContinuations.removeAll()
+        for continuation in continuations {
+            continuation.resume(returning: location)
+        }
     }
-    
+
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         let requestID = ObjectIdentifier(manager)
         let location = locations.first
         Task { @MainActor in
             guard activeLocationManagerID == requestID,
-                  let continuation = activeContinuation,
-                  let timeout = activeContinuationTimeout else {
+                  let timeout = activeLocationTimeout else {
                 return
             }
-            clearActiveLocationRequest(id: requestID)
             if await timeout.complete() {
-                continuation.resume(returning: location)
+                finishLocationRequest(returning: location, id: requestID)
             }
         }
     }
@@ -125,13 +139,11 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
             print("Location request failed: \(errorDescription)")
             #endif
             guard activeLocationManagerID == requestID,
-                  let continuation = activeContinuation,
-                  let timeout = activeContinuationTimeout else {
+                  let timeout = activeLocationTimeout else {
                 return
             }
-            clearActiveLocationRequest(id: requestID)
             if await timeout.complete() {
-                continuation.resume(returning: nil)
+                finishLocationRequest(returning: nil, id: requestID)
             }
         }
     }
