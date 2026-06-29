@@ -55,6 +55,9 @@ public final class iCloudStorageManager {
                 } else {
                     return (url, nil)
                 }
+            } else {
+                // Broken bookmark data should not keep poisoning the fallback path.
+                UserDefaults.standard.removeObject(forKey: UserDefaultsKey.customSaveBookmark.rawValue)
             }
         }
 

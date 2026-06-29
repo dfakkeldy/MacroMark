@@ -85,19 +85,40 @@ struct MacroEditView: View {
             }
             ToolbarItem(placement: .confirmationAction) {
                 Button("Save") {
-                    macro.trigger = cleanedTrigger
-                    macro.replacement = editedReplacement
-                    macro.notes = editedNotes
-                    if macro.isDefault {
-                        macro.isDefaultEdited = true
-                    }
-                    // The regex cache is keyed by trigger pattern; an edit may have
-                    // changed it, so drop stale compiled regexes.
-                    MacroProcessor.invalidateRegexCache()
-                    dismiss()
+                    saveChanges()
                 }
                 .disabled(!canSave)
             }
+        }
+    }
+
+    private func saveChanges() {
+        let originalTrigger = macro.trigger
+        let originalReplacement = macro.replacement
+        let originalNotes = macro.notes
+        let originalIsDefaultEdited = macro.isDefaultEdited
+
+        macro.trigger = cleanedTrigger
+        macro.replacement = editedReplacement
+        macro.notes = editedNotes
+        if macro.isDefault {
+            macro.isDefaultEdited = true
+        }
+
+        do {
+            try modelContext.save()
+            // The regex cache is keyed by trigger pattern; an edit may have
+            // changed it, so drop stale compiled regexes.
+            MacroProcessor.invalidateRegexCache()
+            dismiss()
+        } catch {
+            macro.trigger = originalTrigger
+            macro.replacement = originalReplacement
+            macro.notes = originalNotes
+            macro.isDefaultEdited = originalIsDefaultEdited
+#if DEBUG
+            print("MacroMark: failed to save macro edits: \(error)")
+#endif
         }
     }
 }

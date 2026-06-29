@@ -134,4 +134,13 @@ struct MacroMark_Watch_AppTests {
         #expect(!store.pendingAudio.contains { $0.id == id })
     }
 
+    @Test("System capture accepts mixed WatchKit text input results")
+    func testSystemCaptureTextExtractionHandlesMixedResults() async throws {
+        #expect(SystemCaptureView.extractedText(from: ["Hello"]) == "Hello")
+        #expect(SystemCaptureView.extractedText(from: ["  "]) == nil)
+        #expect(SystemCaptureView.extractedText(from: "Direct input") == "Direct input")
+        #expect(SystemCaptureView.extractedText(from: [123 as Any]) == "123")
+        #expect(SystemCaptureView.extractedText(from: [Any]()) == nil)
+    }
+
 }

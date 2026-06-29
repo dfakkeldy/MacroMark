@@ -28,16 +28,17 @@ struct DailyLogView: View {
         }
         .navigationTitle("Daily Log")
         .task(id: selectedDate) {
-            await loadLog()
+            await loadLog(for: selectedDate)
         }
     }
     
-    private func loadLog() async {
+    private func loadLog(for date: Date) async {
         isLoading = true
-        var content = await WatchConnectivityProvider.shared.fetchDailyFile(for: selectedDate)
+        var content = await WatchConnectivityProvider.shared.fetchDailyFile(for: date)
+        guard !Task.isCancelled else { return }
         
         let pending = LocalStore.shared.pendingNotes.filter { note in
-            DaySelection.contains(note.timestamp, inSelectedDay: selectedDate)
+            DaySelection.contains(note.timestamp, inSelectedDay: date)
         }
         if !pending.isEmpty {
             content += "\n\n**Pending Offline Notes:**\n"
@@ -48,7 +49,7 @@ struct DailyLogView: View {
         }
 
         let pendingAudio = LocalStore.shared.pendingAudio.filter { audio in
-            DaySelection.contains(audio.timestamp, inSelectedDay: selectedDate)
+            DaySelection.contains(audio.timestamp, inSelectedDay: date)
         }
         if !pendingAudio.isEmpty {
             content += "\n\n**Pending Offline Recordings:**\n"
@@ -58,6 +59,7 @@ struct DailyLogView: View {
             }
         }
         
+        guard !Task.isCancelled else { return }
         logContent = content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : content
         isLoading = false
     }

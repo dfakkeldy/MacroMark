@@ -24,7 +24,7 @@ struct SystemCaptureView: View {
 
     private func presentDictation() {
         WKExtension.shared().visibleInterfaceController?.presentTextInputController(withSuggestions: nil, allowedInputMode: .plain) { result in
-            guard let results = result as? [String], let textResult = results.first, !textResult.isEmpty else {
+            guard let textResult = Self.extractedText(from: result) else {
                 dismiss()
                 return
             }
@@ -40,6 +40,22 @@ struct SystemCaptureView: View {
                 await SystemCaptureView.finishAndSave(text: textResult, timestamp: timestamp)
             }
         }
+    }
+
+    static func extractedText(from result: Any?) -> String? {
+        let rawValue: Any?
+        if let strings = result as? [String] {
+            rawValue = strings.first
+        } else if let values = result as? [Any] {
+            rawValue = values.first
+        } else {
+            rawValue = result
+        }
+
+        guard let rawValue else { return nil }
+        let text = (rawValue as? String) ?? String(describing: rawValue)
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 
     private static func finishAndSave(text: String, timestamp: Date) async {

@@ -57,13 +57,25 @@ struct AddMacroView: View {
             }
             ToolbarItem(placement: .confirmationAction) {
                 Button("Save") {
-                    let newMacro = Macro(trigger: cleanedTrigger, replacement: replacement, notes: notes)
-                    modelContext.insert(newMacro)
-                    MacroProcessor.invalidateRegexCache()
-                    dismiss()
+                    saveMacro()
                 }
                 .disabled(!canSave)
             }
+        }
+    }
+
+    private func saveMacro() {
+        let newMacro = Macro(trigger: cleanedTrigger, replacement: replacement, notes: notes)
+        modelContext.insert(newMacro)
+        do {
+            try modelContext.save()
+            MacroProcessor.invalidateRegexCache()
+            dismiss()
+        } catch {
+            modelContext.delete(newMacro)
+#if DEBUG
+            print("MacroMark: failed to save new macro: \(error)")
+#endif
         }
     }
 }

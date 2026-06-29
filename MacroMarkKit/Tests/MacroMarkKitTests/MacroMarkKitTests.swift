@@ -228,6 +228,29 @@ struct AppendResultTests {
     }
 }
 
+struct ICloudStorageManagerBookmarkTests {
+
+    @Test
+    func invalidCustomSaveBookmarkIsClearedBeforeFallbackRead() async throws {
+        let defaults = UserDefaults.standard
+        let key = UserDefaultsKey.customSaveBookmark.rawValue
+        let previousBookmark = defaults.data(forKey: key)
+        defer {
+            if let previousBookmark {
+                defaults.set(previousBookmark, forKey: key)
+            } else {
+                defaults.removeObject(forKey: key)
+            }
+        }
+
+        defaults.set(Data("not-a-valid-bookmark".utf8), forKey: key)
+
+        _ = iCloudStorageManager.shared.readText(for: Date(timeIntervalSinceReferenceDate: 0))
+
+        #expect(defaults.data(forKey: key) == nil)
+    }
+}
+
 struct UserDefaultsKeyTests {
 
     @Test
