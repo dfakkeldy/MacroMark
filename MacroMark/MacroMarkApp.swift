@@ -209,6 +209,9 @@ struct MacroMarkApp: App {
 #endif
         // Deduplicate: if we've already processed this note, just re-send the ACK
         if processedNoteIDs.contains(id) {
+            if pendingProcessing[id] != nil {
+                removePendingProcessing(id: id)
+            }
             acknowledgeNoteIfDurable(id: id)
             return
         }
@@ -217,7 +220,6 @@ struct MacroMarkApp: App {
         guard pendingExports[id] == nil else { return }
         // Already being processed this session — don't start a duplicate pass.
         guard !Self.inFlightIDs.contains(id) else { return }
-        Self.inFlightIDs.insert(id)
 
         // Write-ahead log: persist raw text + original timestamp before processing
         var pending = pendingProcessing
@@ -231,6 +233,7 @@ struct MacroMarkApp: App {
             return
         }
 
+        Self.inFlightIDs.insert(id)
         startBackgroundTaskAndProcess(name: "ProcessNote", noteId: id, text: text, isAudio: false, timestamp: timestamp, container: container)
     }
 
@@ -242,12 +245,18 @@ struct MacroMarkApp: App {
         print("MacroMark iOS Received Audio File: \(url)")
 #endif
         if processedNoteIDs.contains(id) {
+            if pendingAudio[id] != nil {
+                removePendingAudio(id: id)
+            }
             acknowledgeFileIfDurable(id: id)
             return
         }
         // Already transcribed + saved to SwiftData, awaiting export — the retry
         // timer will deliver it. Don't re-process (would duplicate the note).
         guard pendingExports[id] == nil else { return }
+        // Already being transcribed this session — don't replace the file under
+        // the active speech recognizer.
+        guard !Self.inFlightIDs.contains(id) else { return }
 
         // Move the audio into durable storage and record it in the WAL BEFORE
         // processing, so a crash mid-transcription doesn't lose the recording.
@@ -747,8 +756,20 @@ struct MacroMarkApp: App {
         guard !pending.isEmpty else { return }
         let context = container.mainContext
         let autoExport = UserDefaults.standard.bool(forKey: UserDefaultsKey.autoExportEnabled.rawValue)
+        let processedIDs = Self.readProcessedNoteIDs()
 
         for (id, entry) in pending {
+            if processedIDs.contains(entry.noteId) {
+                do {
+                    try removePendingExport(id: id)
+                } catch {
+#if DEBUG
+                    print("MacroMark: failed to remove already-processed pending export \(id): \(error)")
+#endif
+                }
+                continue
+            }
+
             // Skip entries already being retried by a prior tick — prevents the
             // periodic timer from spawning a second retry Task for the same id
             // while the first is still awaiting `performExport` (which would
@@ -760,6 +781,18 @@ struct MacroMarkApp: App {
                 let storedNote = Self.fetchStoredNote(in: context, matching: entry)
                 let note: ProcessedNote
                 if let storedNote {
+                    if storedNote.exportStatus == .exported {
+                        Self.addProcessedNoteID(entry.noteId)
+                        do {
+                            try removePendingExport(id: id)
+                        } catch {
+#if DEBUG
+                            print("MacroMark: failed to remove exported pending export \(id): \(error)")
+#endif
+                        }
+                        Self.retryingExportIDs.remove(id)
+                        return
+                    }
                     note = storedNote
                 } else {
                     note = ProcessedNote(
@@ -808,10 +841,10 @@ struct MacroMarkApp: App {
                         }
                     }
                     do {
-                        try removePendingExport(id: entry.noteId)
+                        try removePendingExport(id: id)
                     } catch {
 #if DEBUG
-                        print("MacroMark: failed to remove pending export \(entry.noteId): \(error)")
+                        print("MacroMark: failed to remove pending export \(id): \(error)")
 #endif
                     }
                 } else {
