@@ -5,10 +5,21 @@ import MacroMarkKit
 struct AddMacroView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Query(sort: \Macro.sortOrder, order: .forward) private var macros: [Macro]
 
     @State private var trigger: String = ""
     @State private var replacement: String = ""
     @State private var notes: String = ""
+
+    private var cleanedTrigger: String {
+        MacroTriggerValidator.cleanedTrigger(trigger)
+    }
+
+    private var canSave: Bool {
+        !cleanedTrigger.isEmpty
+            && !replacement.isEmpty
+            && !MacroTriggerValidator.hasDuplicate(cleanedTrigger, in: macros)
+    }
 
     var body: some View {
         Form {
@@ -24,7 +35,7 @@ struct AddMacroView: View {
                     .accessibilityIdentifier("newMacro.replacement")
             }
             Section("Preview") {
-                Text("Say: \(trigger.isEmpty ? "Trigger" : trigger) example")
+                Text("Say: \(cleanedTrigger.isEmpty ? "Trigger" : cleanedTrigger) example")
                     .foregroundStyle(.secondary)
                 Text(replacement + " example")
                     .font(.system(.body, design: .monospaced))
@@ -46,12 +57,12 @@ struct AddMacroView: View {
             }
             ToolbarItem(placement: .confirmationAction) {
                 Button("Save") {
-                    let newMacro = Macro(trigger: trigger, replacement: replacement, notes: notes)
+                    let newMacro = Macro(trigger: cleanedTrigger, replacement: replacement, notes: notes)
                     modelContext.insert(newMacro)
                     MacroProcessor.invalidateRegexCache()
                     dismiss()
                 }
-                .disabled(trigger.trimmingCharacters(in: .whitespaces).isEmpty || replacement.isEmpty)
+                .disabled(!canSave)
             }
         }
     }

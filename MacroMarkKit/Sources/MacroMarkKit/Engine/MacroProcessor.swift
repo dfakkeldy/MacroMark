@@ -19,21 +19,20 @@ public struct MacroProcessor {
         regexCache.withLock { $0.removeAll() }
     }
 
-    /// Pre-compiled wrapping-tag cleanup regex (constant pattern, cached once).
-    private static let wrapCleanupRegex: NSRegularExpression? = {
-        try? NSRegularExpression(pattern: #"([\*\_\~]+)\s+(.+?)\s+\1"#, options: [])
-    }()
+    private static let wrappingReplacementTokens: Set<String> = ["*", "**", "_", "__", "~~", "`", "```"]
 
     /// Process text through macro expansion and dynamic variable replacement.
     /// This is CPU-bound work — it is NOT isolated to any actor so callers
     /// should invoke it from the global cooperative pool, not the main actor.
     public static func process(text: String, macros: [MacroRule], date: Date = Date(), fetchLocation: (@Sendable () async -> (latitude: Double, longitude: Double)?)? = nil) async -> String {
         var processedText = text
+        let wrappingPlaceholders = wrappingPlaceholders(for: macros)
 
         // 1. Apply trigger macros (with cached regex compilation)
         for macro in macros {
-            guard !macro.trigger.isEmpty else { continue }
-            let pattern = "\\b\(NSRegularExpression.escapedPattern(for: macro.trigger))\\b"
+            let trigger = MacroTriggerValidator.cleanedTrigger(macro.trigger)
+            guard !trigger.isEmpty else { continue }
+            let pattern = triggerPattern(for: trigger)
 
             let regex: NSRegularExpression
             if let cached = regexCache.withLock({ $0[pattern] }) {
@@ -54,7 +53,9 @@ public struct MacroProcessor {
                 in: processedText,
                 options: [],
                 range: range,
-                withTemplate: NSRegularExpression.escapedTemplate(for: macro.replacement)
+                withTemplate: NSRegularExpression.escapedTemplate(
+                    for: wrappingPlaceholders[macro.replacement] ?? macro.replacement
+                )
             )
         }
 
@@ -120,18 +121,69 @@ public struct MacroProcessor {
             processedText = processedText.replacing("{location}", with: locationString)
         }
 
-        // 3. Wrapping tag cleanup
-        if let regex = wrapCleanupRegex {
-            let range = NSRange(processedText.startIndex..., in: processedText)
-            processedText = regex.stringByReplacingMatches(
-                in: processedText,
-                options: [],
-                range: range,
-                withTemplate: "$1$2$1"
-            )
-        }
+        // 3. Wrapping tag cleanup for formatting tokens inserted by macros.
+        processedText = cleanGeneratedWrappingTokens(in: processedText, placeholdersByToken: wrappingPlaceholders)
+        processedText = restoreWrappingTokens(in: processedText, placeholdersByToken: wrappingPlaceholders)
 
         return processedText
+    }
+
+    private static func triggerPattern(for trigger: String) -> String {
+        let containsWordCharacter = trigger.contains { isWordBoundaryCharacter($0) }
+        var pattern = ""
+        if containsWordCharacter {
+            pattern += #"(?<![\p{L}\p{N}_])"#
+        }
+        pattern += NSRegularExpression.escapedPattern(for: trigger)
+        if containsWordCharacter {
+            pattern += #"(?![\p{L}\p{N}_])"#
+        }
+        return pattern
+    }
+
+    private static func isWordBoundaryCharacter(_ character: Character) -> Bool {
+        character.unicodeScalars.allSatisfy { scalar in
+            CharacterSet.alphanumerics.contains(scalar) || scalar.value == 95
+        }
+    }
+
+    private static func wrappingPlaceholders(for macros: [MacroRule]) -> [String: String] {
+        var placeholders: [String: String] = [:]
+        for macro in macros where wrappingReplacementTokens.contains(macro.replacement) {
+            guard placeholders[macro.replacement] == nil else { continue }
+            placeholders[macro.replacement] = "\u{E000}\(placeholders.count)\u{E001}"
+        }
+        return placeholders
+    }
+
+    private static func cleanGeneratedWrappingTokens(
+        in text: String,
+        placeholdersByToken: [String: String]
+    ) -> String {
+        var cleaned = text
+        for placeholder in placeholdersByToken.values {
+            let escaped = NSRegularExpression.escapedPattern(for: placeholder)
+            guard let regex = try? NSRegularExpression(pattern: "\(escaped)\\s+(.+?)\\s+\(escaped)") else {
+                continue
+            }
+            let range = NSRange(cleaned.startIndex..., in: cleaned)
+            let template = NSRegularExpression.escapedTemplate(for: placeholder)
+                + "$1"
+                + NSRegularExpression.escapedTemplate(for: placeholder)
+            cleaned = regex.stringByReplacingMatches(in: cleaned, options: [], range: range, withTemplate: template)
+        }
+        return cleaned
+    }
+
+    private static func restoreWrappingTokens(
+        in text: String,
+        placeholdersByToken: [String: String]
+    ) -> String {
+        var restored = text
+        for (token, placeholder) in placeholdersByToken {
+            restored = restored.replacing(placeholder, with: token)
+        }
+        return restored
     }
 
     /// Reverse-geocode a location to a human-readable string.
