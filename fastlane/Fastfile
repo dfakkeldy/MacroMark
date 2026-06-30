@@ -38,9 +38,18 @@ SIGNING_IDENTIFIERS   = [
   WIDGET_IDENTIFIER
 ].freeze
 SIGNING_TARGETS       = {
-  "MacroMark" => APP_IDENTIFIER,
-  "MacroMark Watch App" => WATCH_APP_IDENTIFIER,
-  "MacroMarkWidgetExtension" => WIDGET_IDENTIFIER
+  "MacroMark" => {
+    bundle_identifier: APP_IDENTIFIER,
+    sdk: "iphoneos*"
+  },
+  "MacroMark Watch App" => {
+    bundle_identifier: WATCH_APP_IDENTIFIER,
+    sdk: "watchos*"
+  },
+  "MacroMarkWidgetExtension" => {
+    bundle_identifier: WIDGET_IDENTIFIER,
+    sdk: "watchos*"
+  }
 }.freeze
 
 def first_present(*values)
@@ -197,7 +206,9 @@ platform :ios do
       api_key: @api_key
     )
 
-    SIGNING_TARGETS.each do |target, bundle_identifier|
+    SIGNING_TARGETS.each do |target, signing|
+      bundle_identifier = signing.fetch(:bundle_identifier)
+
       update_code_signing_settings(
         use_automatic_signing: false,
         path: PROJECT_PATH,
@@ -205,7 +216,7 @@ platform :ios do
         targets: [target],
         build_configurations: ["Release"],
         code_sign_identity: "Apple Distribution",
-        sdk: "iphoneos*",
+        sdk: signing.fetch(:sdk),
         profile_name: app_store_profile_name(bundle_identifier),
         bundle_identifier: bundle_identifier
       )
