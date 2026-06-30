@@ -31,11 +31,17 @@ PROJECT_PATH          = "MacroMark.xcodeproj"
 APP_IDENTIFIER        = "com.danfakkeldy.macromark"
 WATCH_APP_IDENTIFIER  = "com.danfakkeldy.macromark.watchkitapp"
 WIDGET_IDENTIFIER     = "com.danfakkeldy.macromark.watchkitapp.MacroMarkWidget"
+TEAM_ID               = "8AXNA5B37R"
 SIGNING_IDENTIFIERS   = [
   APP_IDENTIFIER,
   WATCH_APP_IDENTIFIER,
   WIDGET_IDENTIFIER
 ].freeze
+SIGNING_TARGETS       = {
+  "MacroMark" => APP_IDENTIFIER,
+  "MacroMark Watch App" => WATCH_APP_IDENTIFIER,
+  "MacroMarkWidgetExtension" => WIDGET_IDENTIFIER
+}.freeze
 
 def first_present(*values)
   values
@@ -133,6 +139,19 @@ def app_store_automatic_release?
   %w[1 true yes].include?(ENV["APP_STORE_AUTOMATIC_RELEASE"].to_s.downcase)
 end
 
+def app_store_profile_name(bundle_identifier)
+  first_present(
+    ENV["sigh_#{bundle_identifier}_appstore_profile-name"],
+    "match AppStore #{bundle_identifier}"
+  )
+end
+
+def app_store_profile_mapping
+  SIGNING_IDENTIFIERS.to_h do |bundle_identifier|
+    [bundle_identifier, app_store_profile_name(bundle_identifier)]
+  end
+end
+
 # ---------------------------------------------------------------------------
 # Before All — ensure `match` is available for signing, but don't fail if
 # unset. Run `fastlane match_dev` or `fastlane match_appstore` first.
@@ -177,6 +196,20 @@ platform :ios do
       readonly: true,
       api_key: @api_key
     )
+
+    SIGNING_TARGETS.each do |target, bundle_identifier|
+      update_code_signing_settings(
+        use_automatic_signing: false,
+        path: PROJECT_PATH,
+        team_id: TEAM_ID,
+        targets: [target],
+        build_configurations: ["Release"],
+        code_sign_identity: "Apple Distribution",
+        sdk: "iphoneos*",
+        profile_name: app_store_profile_name(bundle_identifier),
+        bundle_identifier: bundle_identifier
+      )
+    end
   end
 
   private_lane :build_release_archive do |options|
@@ -196,6 +229,9 @@ platform :ios do
       scheme: APP_SCHEME,
       configuration: "Release",
       export_method: "app-store",
+      export_options: {
+        provisioningProfiles: app_store_profile_mapping
+      },
       include_symbols: true,
       include_bitcode: false,
       clean: options[:clean]
