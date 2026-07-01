@@ -9,7 +9,7 @@ Sources:
 
 Roadmap follow-up: `docs/V1_ROADMAP.md` turns these review themes into the v1.0 launch milestones.
 
-Important source note: Kickstart confirms MacroMark is pre-launch and has no App Store app ID yet, so there are no first-party reviews. The current Kickstart MCP tools expose tracked competitors and keyword rankings, but not competitor review bodies. Competitor review themes below come from Apple's public review RSS feeds.
+Important source note: MacroMark is still pre-launch, but Kickstart now tracks App Store app ID `6785081218`. There are no first-party reviews as of the 2026-07-01 refresh. The current Kickstart MCP tools expose tracked competitors and keyword rankings, but not competitor review bodies. Competitor review themes below come from Apple's public review RSS feeds.
 
 ## Executive Summary
 
