@@ -1,0 +1,7 @@
+Initial release of MacroMark.
+
+- Capture dictated or typed notes from Apple Watch
+- Append captures to Markdown daily notes in iCloud Drive
+- Use custom verbal macros for Markdown formatting and dynamic values
+- Review recent captures and daily notes from iPhone and Apple Watch
+- Unlock premium macro and folder customization options with StoreKit

@@ -40,23 +40,30 @@
     <div class="devlog-timeline">
             <!-- AUTO-DEVLOG:START -->
             <article class="week-entry automated-devlog">
-                <p class="week-meta">Automated · Jun 15-21, 2026 · 10 commits</p>
+                <p class="week-meta">Automated · Jun 22-28, 2026 · 22 commits</p>
                 <h2>Weekly build digest</h2>
+                <h3>Shipped</h3>
+                <ul>
+                    <li>Add watch dated log and capture <a href="https://github.com/dfakkeldy/MacroMark/commit/2eb484e" target="_blank" rel="noopener noreferrer">2eb484e</a></li>
+                    <li>Fetch watch daily logs by date <a href="https://github.com/dfakkeldy/MacroMark/commit/ef1291f" target="_blank" rel="noopener noreferrer">ef1291f</a></li>
+                    <li>Add iPhone dated note browsing <a href="https://github.com/dfakkeldy/MacroMark/commit/3cd41f4" target="_blank" rel="noopener noreferrer">3cd41f4</a></li>
+                    <li>Add shared day selection helper <a href="https://github.com/dfakkeldy/MacroMark/commit/ff8c738" target="_blank" rel="noopener noreferrer">ff8c738</a></li>
+                </ul>
                 <h3>Fixed</h3>
                 <ul>
-                    <li>P3 — CaptureMode enum and fetchLimit guard <a href="https://github.com/dfakkeldy/MacroMark/commit/efac8be" target="_blank" rel="noopener noreferrer">efac8be</a></li>
-                    <li>P2 medium-cleanup — export badge, dedup cap, keychain sync, dead symbols, notes UI, magic constants <a href="https://github.com/dfakkeldy/MacroMark/commit/f938207" target="_blank" rel="noopener noreferrer">f938207</a></li>
-                    <li>#if DEBUG gating on all remaining prints + partial transcription surfacing <a href="https://github.com/dfakkeldy/MacroMark/commit/14fe941" target="_blank" rel="noopener noreferrer">14fe941</a></li>
-                    <li>P2/P3 cleanup — stale files, naming, entitlements, file organization <a href="https://github.com/dfakkeldy/MacroMark/commit/b6e090f" target="_blank" rel="noopener noreferrer">b6e090f</a></li>
-                    <li>P1 UserDefaults centralization, date format dedup, restoreDefaults safety <a href="https://github.com/dfakkeldy/MacroMark/commit/80f955f" target="_blank" rel="noopener noreferrer">80f955f</a></li>
-                    <li>P0 data-loss, crash, and concurrency fixes <a href="https://github.com/dfakkeldy/MacroMark/commit/dc6b674" target="_blank" rel="noopener noreferrer">dc6b674</a></li>
+                    <li>Make WCSession delegate methods nonisolated to fix Swift 6 launch crash <a href="https://github.com/dfakkeldy/MacroMark/commit/4d81db3" target="_blank" rel="noopener noreferrer">4d81db3</a></li>
                 </ul>
                 <h3>Build, docs, and housekeeping</h3>
                 <ul>
-                    <li>Remove stale widget template files <a href="https://github.com/dfakkeldy/MacroMark/commit/48ec6a0" target="_blank" rel="noopener noreferrer">48ec6a0</a></li>
-                    <li>Add fastlane CI/CD configuration <a href="https://github.com/dfakkeldy/MacroMark/commit/16d24c9" target="_blank" rel="noopener noreferrer">16d24c9</a></li>
-                    <li>Correct README publisher/tooling + add Kickstart population package <a href="https://github.com/dfakkeldy/MacroMark/commit/c80ede3" target="_blank" rel="noopener noreferrer">c80ede3</a></li>
-                    <li>Fresh code audit, remediation plan, and implementation plan <a href="https://github.com/dfakkeldy/MacroMark/commit/13fb5ef" target="_blank" rel="noopener noreferrer">13fb5ef</a></li>
+                    <li>Load App Store Connect key from component secrets <a href="https://github.com/dfakkeldy/MacroMark/commit/fc20612" target="_blank" rel="noopener noreferrer">fc20612</a></li>
+                    <li>Route release trains to TestFlight and App Store <a href="https://github.com/dfakkeldy/MacroMark/commit/f92b7ab" target="_blank" rel="noopener noreferrer">f92b7ab</a></li>
+                    <li>Update bundle identifiers <a href="https://github.com/dfakkeldy/MacroMark/commit/e67ab58" target="_blank" rel="noopener noreferrer">e67ab58</a></li>
+                    <li>Provide match repo URL to release trains <a href="https://github.com/dfakkeldy/MacroMark/commit/997639f" target="_blank" rel="noopener noreferrer">997639f</a></li>
+                    <li>Ignore local signing secrets <a href="https://github.com/dfakkeldy/MacroMark/commit/b9a5286" target="_blank" rel="noopener noreferrer">b9a5286</a></li>
+                    <li>Add release ladder automation <a href="https://github.com/dfakkeldy/MacroMark/commit/811e33b" target="_blank" rel="noopener noreferrer">811e33b</a></li>
+                    <li>Add weekly automation <a href="https://github.com/dfakkeldy/MacroMark/commit/836f513" target="_blank" rel="noopener noreferrer">836f513</a></li>
+                    <li>Re-sync AGENTS.md and record the Swift 6.2 migration <a href="https://github.com/dfakkeldy/MacroMark/commit/bca76e7" target="_blank" rel="noopener noreferrer">bca76e7</a></li>
+                    <li><em>...and 9 more housekeeping items.</em></li>
                 </ul>
             </article>
             <!-- AUTO-DEVLOG:END -->
