@@ -1,16 +1,10 @@
 name: Release Trains
 
 on:
-  push:
-    branches:
-      - main
   schedule:
     # America/Halifax nightly at 02:00 local time.
     - cron: "0 5 * * *" # ADT, UTC-03:00
     - cron: "0 6 * * *" # AST, UTC-04:00
-    # America/Halifax weekly at 03:15 local time on Mondays.
-    - cron: "15 6 * * 1" # ADT, UTC-03:00
-    - cron: "15 7 * * 1" # AST, UTC-04:00
   workflow_dispatch:
     inputs:
       channel:
@@ -20,8 +14,6 @@ on:
         type: choice
         options:
           - nightly
-          - weekly
-          - appstore
 
 permissions:
   contents: read
@@ -42,7 +34,6 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           EVENT_SCHEDULE: ${{ github.event.schedule || '' }}
-          EVENT_REF_NAME: ${{ github.ref_name }}
           REQUESTED_CHANNEL: ${{ github.event.inputs.channel || '' }}
         run: |
           set -euo pipefail
@@ -54,32 +45,16 @@ jobs:
 
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             case "$REQUESTED_CHANNEL" in
-              nightly|weekly)
-                channel="$REQUESTED_CHANNEL"
-                branch="$REQUESTED_CHANNEL"
-                reason="Manual ${channel} train"
-                ;;
-              appstore|main)
-                channel="appstore"
-                branch="main"
-                reason="Manual App Store train"
+              nightly)
+                channel="nightly"
+                branch="nightly"
+                reason="Manual nightly internal TestFlight train"
                 ;;
               *)
-                echo "::error title=Unknown release train::Expected nightly, weekly, or appstore. Got '$REQUESTED_CHANNEL'."
+                echo "::error title=Unknown release train::Expected nightly. Got '$REQUESTED_CHANNEL'."
                 exit 1
                 ;;
             esac
-          elif [ "$EVENT_NAME" = "push" ]; then
-            if [ "$EVENT_REF_NAME" = "main" ]; then
-              channel="appstore"
-              branch="main"
-              reason="Main branch App Store train"
-            else
-              channel="inactive"
-              branch="$EVENT_REF_NAME"
-              reason="Push to non-App-Store branch ${EVENT_REF_NAME}"
-              should_run="false"
-            fi
           else
             offset="$(TZ=America/Halifax date +%z)"
 
@@ -93,16 +68,6 @@ jobs:
                 channel="nightly"
                 branch="nightly"
                 reason="Active AST nightly train"
-                ;;
-              "15 6 * * 1:-0300")
-                channel="weekly"
-                branch="weekly"
-                reason="Active ADT weekly train"
-                ;;
-              "15 7 * * 1:-0400")
-                channel="weekly"
-                branch="weekly"
-                reason="Active AST weekly train"
                 ;;
               *)
                 channel="inactive"
@@ -229,13 +194,11 @@ jobs:
           APP_STORE_CONNECT_API_KEY_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY_KEY }}
           APP_STORE_CONNECT_API_KEY_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_KEY_ID }}
           APP_STORE_CONNECT_API_KEY_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ISSUER_ID }}
-          APP_STORE_AUTOMATIC_RELEASE: ${{ vars.APP_STORE_AUTOMATIC_RELEASE || 'false' }}
           MATCH_GIT_SSH_KEY: ${{ secrets.MATCH_GIT_SSH_KEY }}
           MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
           RELEASE_CHANNEL: ${{ needs.resolve.outputs.channel }}
           TESTFLIGHT_INTERNAL_GROUPS: ${{ vars.TESTFLIGHT_INTERNAL_GROUPS || 'Nightly' }}
-          TESTFLIGHT_EXTERNAL_GROUPS: ${{ vars.TESTFLIGHT_EXTERNAL_GROUPS || secrets.TESTFLIGHT_EXTERNAL_GROUPS }}
         run: |
           set -euo pipefail
 
