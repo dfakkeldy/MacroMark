@@ -102,10 +102,12 @@ These new views were created and exist on disk but need Xcode target membership:
 
 - [x] Create App ID and listing in App Store Connect (`6785081218`)
 - [ ] Create **Auto-Renewable Subscription**: `com.macromark.subscription.annual`
-  - Price: $4.99 USD / year
+  - Price: $9.99 USD / year
   - Introductory Offer: 1-month free trial
 - [ ] Create **Non-Consumable IAP**: `com.macromark.lifetime`
-  - Price: $12.99 USD
+  - Price: $24.99 USD standard price
+  - Launch intro: $16.99 USD via App Store Connect temporary/scheduled price change; non-consumables do not support introductory offers
+- [ ] Follow the current detailed setup in `docs/ASC_IAP_SETUP.md`
 - [ ] Complete App Store privacy answers and Accessibility Nutrition Labels
 - [ ] Upload screenshots and metadata
 - [ ] Submit a processed TestFlight/App Store build for review
