@@ -36,3 +36,35 @@ The iPhone acts as the processing hub and storage engine.
   2. Evaluates dynamic variables (`{date}`, `{time}`, `{newline}`, `{location}` using MapKit reverse geocoding).
   3. Cleans up formatting artifacts (e.g., removing spaces inside Markdown wrapping tags like `* bold *`).
 - **`iCloudStorageManager`**: Resolves the app's ubiquitous iCloud Documents container. It formats the current date to locate `YYYY-MM-DD.md` and uses `NSFileCoordinator` and `FileHandle` to safely append the processed string to the end of the file.
+
+## 4. Durability And Export State
+
+MacroMark treats captured notes and recordings as user data, not transient messages. The reliability model is:
+
+1. Watch capture persists locally before transfer.
+2. WatchConnectivity delivers text or audio to the iPhone.
+3. The iPhone processes the payload, expands macros, and saves the processed record.
+4. Export status tracks whether the configured target appended successfully, deferred safely, or needs attention.
+5. Watch-side data is acknowledged only after iPhone-side durability and export safety are established.
+
+The public UI mirrors this model through inbox status, needs-attention filtering, note detail status, retry actions, partial transcription warnings, and destination setup proof. Any future sync/storage work must preserve idempotency: replayed notes, audio files, and ACK messages must not duplicate user-visible Markdown exports.
+
+## 5. Product And Monetization Boundaries
+
+The launch model is free download plus MacroMark Pro:
+
+- Free tier: core Apple Watch/iPhone capture, daily-note append, and review.
+- Pro: unlimited macros, default macro editing, folder customization, and advanced formatting/customization where shipped.
+- StoreKit products: `com.macromark.subscription.annual` and `com.macromark.lifetime`.
+
+The app has no account system and no third-party analytics in the v1.0 plan. Privacy disclosures, App Store metadata, and the website must stay consistent with that behavior.
+
+## 6. Release And Documentation Architecture
+
+- Promotion ladder: `feature/* -> nightly -> weekly -> main`.
+- GitHub Pages source: `main /docs`.
+- Release automation source: current workflow on `main`, narrowed to nightly internal TestFlight as of PR #90 and reconciled back toward `nightly` in the release reconciliation branch.
+- Devlog automation: `Scripts/doc_automation/` updates `docs/guides/devlog.md` and `docs/devlog.html` and opens a reviewable PR.
+- App Store readiness source: `docs/APP_STORE_READINESS.md`.
+
+As of 2026-07-02, the release reconciliation branch brings together `origin/main` release automation/docs work and `origin/nightly` v1 product work. Keep the branch being shipped, the release workflow, README, website, Fastlane metadata, and App Store Connect state aligned before final App Store submission.

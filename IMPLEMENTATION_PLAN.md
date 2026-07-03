@@ -2,6 +2,12 @@
 
 Generated 2026-06-20. Companion to `CODE_AUDIT.md` and `REMEDIATION_PLAN.md` (same date). This document defines **self-contained batches** that can be dispatched to parallel coding subagents. Each batch lists the exact files to touch, the exact change, the acceptance test, and the build command.
 
+> Status update, 2026-07-02: this file is a historical audit-remediation execution plan.
+> Many P0/P1/P2 items landed later on `nightly`; release automation fixes landed on
+> `main` and are being reconciled back toward `nightly`. Use `docs/V1_ROADMAP.md`, `docs/APP_STORE_READINESS.md`, and
+> `docs/BRANCH_WORKTREE_CLEANUP.md` for the current release state before dispatching
+> any remaining remediation batches from this older snapshot.
+
 All batches assume:
 - Working dir: `/Users/dfakkeldy/Developer/MacroMark`
 - AGENTS.md rules apply (Swift 6.2+, iOS 26 target, `@Observable` + `@MainActor`, no `DispatchQueue`/`Task.sleep(nanoseconds:)`/`ObservableObject`/C-style formatters, `foregroundStyle`/`clipShape(.rect(cornerRadius:))`, etc.).
