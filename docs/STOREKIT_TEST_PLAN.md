@@ -13,6 +13,12 @@ Local config:
 
 Before each test, use a clean simulator install or clear the StoreKit test session transactions in Xcode's StoreKit Transaction Manager.
 
+## Preflight Risks From The Current Code
+
+- Simulator builds currently auto-enable Pro in `EntitlementManager.simulateEntitled` via `#if targetEnvironment(simulator)`. That means a normal simulator run cannot prove the unentitled free-tier gates or paywall-trigger behavior. Use a physical iPhone run from Xcode with the StoreKit configuration for those gate tests, or make a small Dan-approved code change before relying on simulator-only results.
+- The paywall terms copy uses `introOffer.period.debugDescription`. If the UI shows `P1M` instead of user-friendly copy like `1-month free trial`, mark the test failed and file a pre-submission UI fix before taking App Review screenshots.
+- These tests prove local StoreKit behavior only. They do not prove that App Store Connect products exist, that ASC pricing is approved, or that production purchases work.
+
 ## 1. Annual Purchase And Trial
 
 - [ ] Pass
@@ -20,13 +26,15 @@ Before each test, use a clean simulator install or clear the StoreKit test sessi
 
 Steps:
 
-1. Launch the iOS app in a simulator using the MacroMark scheme and local StoreKit configuration.
-2. Open the macro manager with no entitlement.
-3. Add custom macros until the fourth macro prompts the paywall.
-4. Confirm the annual card displays the localized StoreKit price for `com.macromark.subscription.annual`.
-5. Confirm the terms copy mentions the annual price and 1-month free trial.
-6. Purchase the annual product.
-7. Return to macro management.
+1. Launch the iOS app from Xcode using the MacroMark scheme and local StoreKit configuration.
+2. For purchase-sheet-only checks, a simulator is acceptable.
+3. For free-tier gating checks, use a physical iPhone or a build where simulator auto-entitlement has been intentionally disabled.
+4. Open the macro manager with no entitlement.
+5. Add custom macros until the fourth macro prompts the paywall.
+6. Confirm the annual card displays the localized StoreKit price for `com.macromark.subscription.annual`.
+7. Confirm the terms copy mentions the annual price and a human-readable 1-month free trial.
+8. Purchase the annual product.
+9. Return to macro management.
 
 Expected result:
 
@@ -45,6 +53,7 @@ Steps:
 4. Refresh entitlements by relaunching the app or using Restore Purchases.
 5. Let the subscription expire in the StoreKit test session.
 6. Refresh entitlements again.
+7. Run the post-expiry gate check on a physical device or non-auto-entitled build.
 
 Expected result:
 
@@ -58,7 +67,7 @@ While the annual subscription is active, Pro gates stay open. After expiry and e
 Steps:
 
 1. Clear local transactions and app data.
-2. Trigger the paywall from the fourth custom macro or another Pro-only control.
+2. Trigger the paywall from the fourth custom macro or another Pro-only control on a physical device or non-auto-entitled build.
 3. Confirm the lifetime card displays the localized StoreKit price for `com.macromark.lifetime`.
 4. Purchase the lifetime product.
 5. Relaunch the app.
@@ -94,7 +103,7 @@ The lifetime unlock keeps Pro access active after annual expiry. The app should 
 Steps:
 
 1. Purchase annual or lifetime in a StoreKit test session.
-2. Delete the app from the simulator.
+2. Delete the app from the device or simulator.
 3. Reinstall and launch the app with the same StoreKit test session.
 4. Open the paywall.
 5. Tap Restore Purchases.
@@ -111,7 +120,7 @@ Restore refreshes entitlements and dismisses the paywall when an active annual o
 Steps:
 
 1. Clear local StoreKit transactions and app data.
-2. Confirm there is no active entitlement.
+2. Confirm there is no active entitlement. This requires a physical device or a build where simulator auto-entitlement is disabled.
 3. Add three custom macros.
 4. Attempt to add a fourth custom macro.
 5. Try editing a default macro.
@@ -160,6 +169,7 @@ No paywall appears during capture, processing, retry, ACK, or daily-note append.
 ## 9. Evidence To Record
 
 - Date, Xcode version, simulator device, and StoreKit test session name.
+- Whether the run used simulator auto-entitlement, a physical device, or a non-auto-entitled debug build.
 - Product IDs shown in the Transaction Manager.
 - Screenshots of annual purchase, lifetime purchase, restore, and free-tier gate.
 - Notes about any mismatch between displayed localized prices and `MacroMarkKit/Configuration.storekit`.
