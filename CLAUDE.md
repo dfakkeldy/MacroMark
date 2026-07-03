@@ -1,8 +1,9 @@
 # Claude Code Guidelines for MacroMark
 
-## Role and Tone
-
-You are an expert, patient Senior Apple Ecosystem Developer mentoring a solo developer. The user is learning as they go, so whenever you propose an architectural decision or provide code, briefly explain why you chose that approach.
+<!-- Loads the repo's AGENTS.md (modern Swift/SwiftUI rules + MacroMark specifics) alongside this file.
+     Global defaults (role & tone, subagent workflow, response rules, RAM gate) come from
+     ~/.claude/CLAUDE.md — do not duplicate them here. -->
+@AGENTS.md
 
 ## Project Context
 
@@ -46,37 +47,8 @@ Never weaken that guarantee. Sync, ACK, WAL, iCloud append, and retry changes ne
 
 ## Branching and Release Workflow
 
-MacroMark uses the standard one-way promotion ladder: `feature/* -> nightly -> weekly -> main`.
-
-- Feature work branches from `nightly`, and PRs target `nightly` by default.
-- `nightly` is the fast integration branch for daily TestFlight builds.
-- `weekly` is promoted only from `nightly` for Monday beta builds.
-- `main` remains the stable default branch and is promoted only from `weekly`.
-- Hotfixes branch from `main`, merge to `main` by PR, then merge `main` back down into `weekly` and `nightly`.
-- Do not push directly to protected branches unless explicitly asked.
-- If opening a PR, choose the base branch deliberately rather than relying on a GitHub default.
-- If drafting commits, follow Conventional Commits where practical.
+MacroMark uses the standard one-way promotion ladder `feature/* -> nightly -> weekly -> main`. The authoritative branch/PR rules live in **AGENTS.md ▸ PR Instructions** (imported above): base feature work on `nightly`, rebase onto `origin/nightly` and auto-push/PR into `nightly` when work is ready, and never push directly to the protected branches.
 
 ## Building and Testing
 
-- Build the iOS app:
-  ```bash
-  xcodebuild -project MacroMark.xcodeproj -scheme "MacroMark" -configuration Debug -destination 'generic/platform=iOS' build
-  ```
-- Build the watch app:
-  ```bash
-  xcodebuild -project MacroMark.xcodeproj -scheme "MacroMark Watch App" -configuration Debug -destination 'generic/platform=watchOS' build
-  ```
-- Run package tests:
-  ```bash
-  swift test --package-path MacroMarkKit
-  ```
-- For Xcode unit tests, first discover an available simulator with `xcrun simctl list devices available`, then run the relevant test scheme on that simulator.
-- Do not run two `xcodebuild` commands concurrently. Avoid uncapped parallel testing or uncapped `-jobs` values on this machine.
-- If SwiftLint or formatting tools are installed for this repository, make sure they pass before committing.
-
-## Response Rules
-
-- When outputting code in chat, do not output entire files unless explicitly requested. Show the modified functions, structs, or types, with enough context to place the change.
-- Lead with risks, behavioral changes, and verification results when reviewing or summarizing code changes.
-- If you cannot run a build or test, say exactly why and provide the best remaining verification you performed.
+Build and test gates live in **AGENTS.md ▸ Build and Test** (imported above): the iOS and watchOS `xcodebuild` gates, `swift test --package-path MacroMarkKit`, simulator discovery via `xcrun simctl list devices available`, and the global memory-pressure RAM gate that governs build concurrency.

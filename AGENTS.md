@@ -121,17 +121,18 @@ You are a Senior iOS Engineer specializing in SwiftUI, SwiftData, watchOS, Widge
   swift test --package-path MacroMarkKit
   ```
 - For Xcode unit tests, discover an available simulator with `xcrun simctl list devices available` and run the relevant scheme on that simulator.
-- Do not run two `xcodebuild` invocations concurrently. Avoid uncapped parallel test runs on this machine.
+- Build concurrency is governed by the global memory-pressure RAM gate (`~/.claude/bin/xcode-build-gate.sh`); let it decide rather than serializing by hand, and never enable uncapped parallel testing or `-jobs`.
 - If SwiftLint or Swift format tooling is installed for this repo, make sure it returns no warnings or errors before committing.
 
 ## PR Instructions
 
 - MacroMark uses the standard promotion ladder `feature/* -> nightly -> weekly -> main`.
-- Feature work branches from `nightly`; PRs target `nightly` unless the user explicitly asks for a hotfix or another base.
-- `weekly` is promoted only from `nightly`, and `main` is promoted only from `weekly`.
+- Feature work branches from `nightly`; PRs target `nightly` (`gh pr create --base nightly ...`) unless the user explicitly asks for a hotfix or another base. In a fresh worktree, confirm the branch is cut from `nightly` before any edits; if tooling branched from the default (`main`), reset onto `origin/nightly` first.
+- Commit autonomously at natural checkpoints using Conventional Commits — do not wait to be asked.
+- Auto-push feature work (default ON): when committed work is ready, rebase it onto the latest `nightly` (`git fetch origin && git rebase origin/nightly`; `--force-with-lease` if the branch was already pushed), then push and open a ready-for-review PR into `nightly` without stopping to flag it — report the PR link afterward. If the rebase hits conflicts that cannot be resolved cleanly, stop and explain instead of forcing it.
+- `weekly` is promoted only from `nightly`, and `main` is promoted only from `weekly`; promotions are their own PRs, normally the maintainer's job — only open one if asked.
 - Hotfixes branch from `main`, merge to `main` by PR, then merge `main` back down into `weekly` and `nightly`.
-- Never push directly to protected branches unless explicitly asked.
-- If drafting commit messages, use Conventional Commits when practical.
+- Never push directly to the protected branches (`main`/`weekly`/`nightly`); they change only through PRs.
 - Mention documentation updates when a change affects architecture, setup, release behavior, data durability, user-visible workflows, or the README feature description.
 
 ## Xcode MCP
