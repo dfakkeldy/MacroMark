@@ -7,7 +7,7 @@
       "type": "autoRenewable",
       "displayName": "MacroMark Annual",
       "description": "Unlock unlimited macros, default macro editing, and folder customization.",
-      "price": 4.99,
+      "price": 9.99,
       "subscription": {
         "subscriptionPeriod": "P1Y",
         "introductoryOffer": {
@@ -21,7 +21,7 @@
       "type": "nonConsumable",
       "displayName": "MacroMark Lifetime",
       "description": "One-time purchase. Unlock everything forever.",
-      "price": 12.99
+      "price": 24.99
     }
   ],
   "settings": {

@@ -11,7 +11,7 @@ MacroMark is a pre-launch freemium/subscription productivity utility: free Apple
 | Category | Productivity |
 | Platforms | iOS and watchOS |
 | Lifecycle stage | Pre-launch, planned launch 2026-08-04 |
-| Monetization | Free download; Pro annual subscription planned at $4.99/year; lifetime unlock planned at $12.99 |
+| Monetization | Free download; Pro annual subscription planned at $9.99/year with 1-month free trial; lifetime unlock planned at $24.99 with $16.99 launch intro |
 | Audience | Markdown daily-note users, Apple Watch users, Obsidian/Logseq users, field workers, walkers/commuters, PKM power users |
 | Current traction | No TestFlight builds or customer reviews visible in the 2026-07-01 Kickstart refresh |
 | Current ASO | 89/100 score; one `en-US` localization; title short; no Custom Product Pages, In-App Events, or Promoted IAP configured |

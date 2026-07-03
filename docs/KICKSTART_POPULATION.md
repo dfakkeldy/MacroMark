@@ -40,8 +40,8 @@
 > UI, an append-to-daily-note mechanic (one file per day instead of hundreds of
 > fragments), and verbal macros (say "Heading One" for "# ", or insert
 > {date}/{time}/{location} variables). Built for iOS 26 and watchOS 26 in Swift 6.2 /
-> SwiftUI. Freemium: a free tier with limited macros, plus a Pro upgrade (Annual $4.99/yr
-> with free trial, or Lifetime $12.99) unlocking unlimited macros, default-macro editing,
+> SwiftUI. Freemium: a free tier with limited macros, plus a Pro upgrade (Annual $9.99/yr
+> with 1-month free trial, or Lifetime $24.99 with a $16.99 launch intro) unlocking unlimited macros, default-macro editing,
 > and folder customization.
 
 ---
@@ -53,7 +53,7 @@
 | **pressKitCompanyName** | KinNoKi Labs |
 | **pressKitContactName** | Dan Fakkeldy |
 | **pressKitContactEmail** | dan@kinnokilabs.com |
-| **pressKitAppPrice** | Free with Pro upgrade — Annual $4.99/yr (free trial) or Lifetime $12.99 |
+| **pressKitAppPrice** | Free with Pro upgrade - Annual $9.99/yr (1-month free trial) or Lifetime $24.99 ($16.99 launch intro) |
 | **pressKitMinimumOS** | iOS 26.5 / watchOS 26.5 |
 
 > The Xcode project and Kickstart press kit agree on iOS 26.5 / watchOS 26.5 and
@@ -95,8 +95,8 @@
 > a Liquid Glass interface with large microphone and keyboard buttons and one-tap access to
 > today's log.
 >
-> MacroMark is free to start, with a Pro upgrade (Annual $4.99/yr with a free trial, or
-> $12.99 Lifetime) that unlocks unlimited macros, default-macro editing, and folder
+> MacroMark is free to start, with a Pro upgrade (Annual $9.99/yr with a 1-month free trial, or
+> $24.99 Lifetime with a $16.99 launch intro) that unlocks unlimited macros, default-macro editing, and folder
 > customization. Requires iOS 26.5 and watchOS 26.5.
 
 ---
@@ -170,7 +170,7 @@ MacroMark-specific items. Project-specific pre-launch items to ensure are covere
 - Resolve the open `docs/SETUP_TASKS.md` Xcode steps (SPM package, target membership, StoreKit config)
 - Confirm iCloud Documents container ID is provisioned for the production App ID
 - App Privacy: declare microphone + speech recognition usage; Privacy Manifest present
-- StoreKit: products approved in App Store Connect (`Annual $4.99` autorenew + `Lifetime $12.99` non-consumable), restore-purchases verified
+- StoreKit: products created and approved in App Store Connect (`Annual $9.99` autorenew with 1-month free trial + `Lifetime $24.99` non-consumable with $16.99 launch intro), restore-purchases verified
 - watchOS complication / `macromark://capture/instant` deep link verified on device
 - Screenshots: iPhone + Apple Watch via fastlane snapshot
 - Accessibility Nutrition Labels declared after an accessibility pass
