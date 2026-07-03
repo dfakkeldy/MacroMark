@@ -31,7 +31,7 @@ The full roadmap is in [docs/V1_ROADMAP.md](docs/V1_ROADMAP.md). It turns the co
 7. Transcription integrity.
 8. Launch monetization and App Store readiness.
 
-Status notes: StoreKit products, screenshots, TestFlight upload, and paired iPhone/Watch smoke testing still need release verification before v1.0 can be submitted. The repository now includes launch metadata, privacy pages, and app/watch privacy manifests, but App Store Connect privacy answers and the live GitHub Pages privacy/support URLs must still be checked against the final build.
+Status notes as of 2026-07-02: Kickstart is tracking App Store ID `6785081218`, GitHub Pages serves from `main /docs`, and App Store optimization metadata scores 89/100. No processed TestFlight build has been verified yet. Accessibility Nutrition Labels have zero declarations, and StoreKit purchase/restore, screenshots, privacy answers, and paired iPhone/Watch smoke testing still need release verification before v1.0 can be submitted. The current readiness checklist lives in [docs/APP_STORE_READINESS.md](docs/APP_STORE_READINESS.md).
 
 ## Installation
 
@@ -79,6 +79,8 @@ MacroMark uses a one-way promotion ladder: `feature/* -> nightly -> weekly -> ma
 Feature work branches from `nightly`, and pull requests target `nightly` by default.
 `nightly` receives fast integration PRs and daily TestFlight builds, `weekly` is promoted
 from `nightly` for Monday beta builds, and `main` remains the stable default branch.
+
+GitHub Pages currently publishes from `main /docs`. Website-only changes that need to deploy before the next `nightly -> weekly -> main` promotion may target `main`, but product code should continue through the ladder.
 
 | Branch | Source | Protection |
 | --- | --- | --- |

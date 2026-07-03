@@ -1,13 +1,15 @@
 # MacroMark — Kickstart Population Package
 
-> **Status:** ✅ APPLIED 2026-06-20. The project was created manually in the Kickstart app
+> **Status:** ✅ APPLIED 2026-06-20; refreshed 2026-07-01. The project was created manually in the Kickstart app
 > (the MCP `create_project` endpoint was failing — 7/7 connection drops; all other write
 > endpoints worked fine). Launch date set to **Aug 4, 2026**. Applied: project record +
-> full press kit, 14 competitors, 14 tracked keywords (with baseline snapshots), an "App
+> full press kit, competitors, tracked keywords (with baseline snapshots), an "App
 > Launch Checklist" template + "v1.0 Launch" instance (57 items), and a kickoff journal
 > entry, plus the live **website** at https://dfakkeldy.github.io/MacroMark/ (GitHub Pages,
-> `gh-pages` branch). Still open: App Store ID (pre-launch) and a competitor
-> privacy/screenshot refresh (hit a 429 rate limit — retry later from the app).
+> `main /docs`). Kickstart now tracks App Store ID `6785081218`, website/support metadata,
+> 20 competitors, and one `en-US` App Store localization. Still open: first visible
+> TestFlight build, Accessibility Nutrition Labels, pricing/free-vs-paid confirmation, and
+> final competitor screenshot/copy review.
 > This file remains the source of truth for App Store Connect / fastlane metadata.
 >
 > Data sourced from: repo (`README.md`, `MacroMarkKit/Configuration.storekit`,
@@ -24,9 +26,9 @@
 | **name** | MacroMark |
 | **tagline** | Zero-friction voice capture for your Markdown vault |
 | **supportEmailAddress** | dan@kinnokilabs.com |
-| **websiteAddress** | https://dfakkeldy.github.io/MacroMark/ (GitHub Pages, `gh-pages` branch) |
-| **launchDate** | Aug 4, 2026 (set in app) — pre-launch (v1.0, build 1; no App Store ID yet) |
-| **appStoreAppID / appStoreURL** | _none yet — pre-launch_ |
+| **websiteAddress** | https://dfakkeldy.github.io/MacroMark/ (GitHub Pages, `main /docs`) |
+| **launchDate** | Aug 4, 2026 (set in app) |
+| **appStoreAppID / appStoreURL** | `6785081218` / https://apps.apple.com/app/id6785081218 |
 
 **description** (internal):
 
@@ -54,9 +56,8 @@
 | **pressKitAppPrice** | Free with Pro upgrade — Annual $4.99/yr (free trial) or Lifetime $12.99 |
 | **pressKitMinimumOS** | iOS 26.5 / watchOS 26.5 |
 
-> ⚠️ `README.md` credits "Echo Technologies" and says "watchOS 10.0+"; the Xcode project
-> is the ground truth (iOS 26.5 / watchOS 26.5), and you chose **KinNoKi Labs** as the
-> company. Consider fixing the README to match.
+> The Xcode project and Kickstart press kit agree on iOS 26.5 / watchOS 26.5 and
+> **KinNoKi Labs** as the public company name.
 
 **pressKitKeyFeatures:**
 
@@ -114,8 +115,10 @@ From `fastlane/README.md`, lightly refined against live keyword data:
 
 ## 4. Competitors  (`add_competitor`, by integer App Store ID)
 
-Ranked by relevance to MacroMark's exact value prop (voice / quick capture → Markdown / PKM,
-or Apple Watch capture). All IDs verified live on 2026-06-20.
+Ranked by relevance to MacroMark's exact value prop (voice / quick capture -> Markdown / PKM,
+or Apple Watch capture). Seed IDs were verified on 2026-06-20; Kickstart refresh on
+2026-07-01 reports 20 tracked competitors, so this table is the seed set rather than the
+complete current tracking list.
 
 | # | App | App Store ID | Why it's a competitor |
 |---|---|---|---|
@@ -170,7 +173,8 @@ MacroMark-specific items. Project-specific pre-launch items to ensure are covere
 - StoreKit: products approved in App Store Connect (`Annual $4.99` autorenew + `Lifetime $12.99` non-consumable), restore-purchases verified
 - watchOS complication / `macromark://capture/instant` deep link verified on device
 - Screenshots: iPhone + Apple Watch via fastlane snapshot
-- Reconcile README ("Echo Technologies" / "watchOS 10.0+") with KinNoKi Labs / watchOS 26.5
+- Accessibility Nutrition Labels declared after an accessibility pass
+- First internal TestFlight build visible in App Store Connect / Kickstart
 
 ---
 

@@ -2,6 +2,12 @@
 
 Generated 2026-06-20. Scope: 43 Swift source files (~3,700 LOC) across 4 targets — `MacroMark` (iOS), `MacroMark Watch App`, `MacroMarkKit` (SPM), `MacroMarkWidget`. Excluded: `.git`, `.build`, `.swiftpm`, `MacroMarkKit/.build`, `MacroMarkKit/.swiftpm`, and the untracked scratch file `test.swift` at the repo root. No `Dead/` archive directory exists.
 
+> Status update, 2026-07-02: this audit is a historical snapshot. Several findings
+> were resolved on later branches, and the release reconciliation branch is bringing
+> together release automation from `origin/main` and v1 product work from `origin/nightly`.
+> Use `docs/V1_ROADMAP.md`, `docs/APP_STORE_READINESS.md`, and
+> `docs/BRANCH_WORKTREE_CLEANUP.md` before using this audit to decide current work.
+
 This audit supersedes the 2026-06-05 snapshot. Since then, commits `0a8a9ec`, `b16c535`, `4e2c3dd`, and `f015c9e` landed an end-to-end ACK protocol, a write-ahead log, and several concurrency fixes. Those changes were re-verified here; the prior report's §3.1 (UIPasteboard off MainActor), §3.3 (AudioTranscriber leaked continuation), §3.4 (sendMessage continuation isolation), §5.4 (StoreManager finish-before-entitlement), and §6.1 (compile-time `#if DEBUG` paywall bypass) are now **resolved** and intentionally not re-raised.
 
 Findings cite `path/to/file.swift:LINE` so you can jump straight to them in Xcode. Each item has a recommended action; no code changes were made during the audit.

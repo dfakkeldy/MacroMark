@@ -5,9 +5,6 @@ on:
     # America/Halifax nightly at 02:00 local time.
     - cron: "0 5 * * *" # ADT, UTC-03:00
     - cron: "0 6 * * *" # AST, UTC-04:00
-    # America/Halifax weekly at 03:15 local time on Mondays.
-    - cron: "15 6 * * 1" # ADT, UTC-03:00
-    - cron: "15 7 * * 1" # AST, UTC-04:00
   workflow_dispatch:
     inputs:
       channel:
@@ -17,7 +14,6 @@ on:
         type: choice
         options:
           - nightly
-          - weekly
 
 permissions:
   contents: read
@@ -43,34 +39,39 @@ jobs:
           set -euo pipefail
 
           channel=""
+          branch=""
           reason=""
           should_run="true"
 
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
-            channel="$REQUESTED_CHANNEL"
-            reason="Manual ${channel} train"
+            case "$REQUESTED_CHANNEL" in
+              nightly)
+                channel="nightly"
+                branch="nightly"
+                reason="Manual nightly internal TestFlight train"
+                ;;
+              *)
+                echo "::error title=Unknown release train::Expected nightly. Got '$REQUESTED_CHANNEL'."
+                exit 1
+                ;;
+            esac
           else
             offset="$(TZ=America/Halifax date +%z)"
 
             case "${EVENT_SCHEDULE}:${offset}" in
               "0 5 * * *:-0300")
                 channel="nightly"
+                branch="nightly"
                 reason="Active ADT nightly train"
                 ;;
               "0 6 * * *:-0400")
                 channel="nightly"
+                branch="nightly"
                 reason="Active AST nightly train"
-                ;;
-              "15 6 * * 1:-0300")
-                channel="weekly"
-                reason="Active ADT weekly train"
-                ;;
-              "15 7 * * 1:-0400")
-                channel="weekly"
-                reason="Active AST weekly train"
                 ;;
               *)
                 channel="inactive"
+                branch="main"
                 reason="Inactive DST companion schedule ${EVENT_SCHEDULE} at ${offset}"
                 should_run="false"
                 ;;
@@ -79,7 +80,7 @@ jobs:
 
           {
             echo "channel=$channel"
-            echo "branch=$channel"
+            echo "branch=$branch"
             echo "reason=$reason"
             echo "should_run=$should_run"
           } >> "$GITHUB_OUTPUT"
@@ -99,6 +100,29 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ needs.resolve.outputs.branch }}
+
+      - name: Checkout release automation
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: .release-automation
+          sparse-checkout: |
+            Gemfile
+            Gemfile.lock
+            fastlane/Appfile
+            fastlane/Fastfile
+            fastlane/Gymfile
+          sparse-checkout-cone-mode: false
+
+      - name: Use release automation from workflow commit
+        run: |
+          set -euo pipefail
+          cp .release-automation/Gemfile Gemfile
+          cp .release-automation/Gemfile.lock Gemfile.lock
+          cp .release-automation/fastlane/Appfile fastlane/Appfile
+          cp .release-automation/fastlane/Fastfile fastlane/Fastfile
+          cp .release-automation/fastlane/Gymfile fastlane/Gymfile
+          rm -rf .release-automation
 
       - name: Select Xcode 26
         uses: maxim-lobanov/setup-xcode@v1
@@ -205,17 +229,31 @@ jobs:
         with:
           bundler-cache: true
 
-      - name: Upload to TestFlight when release secrets are present
+      - name: Ship release train when release secrets are present
         env:
           APP_STORE_CONNECT_API_KEY_JSON: ${{ secrets.APP_STORE_CONNECT_API_KEY_JSON }}
+          APP_STORE_CONNECT_API_KEY_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY_KEY }}
+          APP_STORE_CONNECT_API_KEY_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_KEY_ID }}
+          APP_STORE_CONNECT_API_KEY_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ISSUER_ID }}
           MATCH_GIT_SSH_KEY: ${{ secrets.MATCH_GIT_SSH_KEY }}
           MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          RELEASE_CHANNEL: ${{ needs.resolve.outputs.channel }}
+          TESTFLIGHT_INTERNAL_GROUPS: ${{ vars.TESTFLIGHT_INTERNAL_GROUPS || 'Nightly' }}
         run: |
           set -euo pipefail
 
-          if [ -z "$APP_STORE_CONNECT_API_KEY_JSON" ] || [ -z "$MATCH_PASSWORD" ] || [ -z "$MATCH_GIT_SSH_KEY" ] || [ -z "$MATCH_GIT_URL" ]; then
-            echo "::notice title=Compile-only release train::APP_STORE_CONNECT_API_KEY_JSON, MATCH_PASSWORD, MATCH_GIT_SSH_KEY, and MATCH_GIT_URL are required for TestFlight upload. The compile gate passed; upload was skipped."
+          has_api_key_json=false
+          has_api_key_parts=false
+          if [ -n "$APP_STORE_CONNECT_API_KEY_JSON" ]; then
+            has_api_key_json=true
+          fi
+          if [ -n "$APP_STORE_CONNECT_API_KEY_KEY" ] && [ -n "$APP_STORE_CONNECT_API_KEY_KEY_ID" ] && [ -n "$APP_STORE_CONNECT_API_KEY_ISSUER_ID" ]; then
+            has_api_key_parts=true
+          fi
+
+          if { [ "$has_api_key_json" != "true" ] && [ "$has_api_key_parts" != "true" ]; } || [ -z "$MATCH_PASSWORD" ] || [ -z "$MATCH_GIT_SSH_KEY" ] || [ -z "$MATCH_GIT_URL" ]; then
+            echo "::notice title=Compile-only release train::App Store Connect API key credentials plus MATCH_PASSWORD, MATCH_GIT_SSH_KEY, and MATCH_GIT_URL are required for release-train shipping. The compile gate passed; shipping was skipped."
             exit 0
           fi
 
@@ -226,4 +264,4 @@ jobs:
           eval "$(ssh-agent -s)"
           ssh-add ~/.ssh/match_git_ssh_key
 
-          bundle exec fastlane beta channel:${{ needs.resolve.outputs.channel }}
+          bundle exec fastlane release_train channel:${{ needs.resolve.outputs.channel }}
