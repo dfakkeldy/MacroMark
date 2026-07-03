@@ -13,6 +13,22 @@ Canonical product IDs:
 
 The app code does not reference a subscription group ID. Create the subscription group in App Store Connect and keep the annual product inside that group; the app loads products by product ID.
 
+## 0. Product ID Audit Result
+
+Use these exact IDs in App Store Connect. They intentionally do not use the app bundle ID prefix `com.danfakkeldy.macromark`, and that is okay as long as ASC uses the exact same strings.
+
+| Location | Annual | Lifetime | Subscription group reference |
+| --- | --- | --- | --- |
+| `MacroMarkKit/Sources/MacroMarkKit/Store/ProductIdentifiers.swift` | `com.macromark.subscription.annual` | `com.macromark.lifetime` | None |
+| `MacroMarkKit/Sources/MacroMarkKit/Store/StoreManager.swift` | Loaded through `ProductIdentifiers.all` | Loaded through `ProductIdentifiers.all` | None |
+| `MacroMarkKit/Sources/MacroMarkKit/Store/EntitlementManager.swift` | Entitlement check | Entitlement check and keychain backstop | None |
+| `MacroMark/Settings/SubscriptionPaywallView.swift` | Uses centralized ID for annual trial copy; price comes from `Product.displayPrice` | Product card comes from loaded StoreKit product; price comes from `Product.displayPrice` | None |
+| `MacroMark Watch App/` | No product ID strings found | No product ID strings found | None |
+| `MacroMarkWidget/` | No product ID strings found | No product ID strings found | None |
+| `MacroMarkKit/Configuration.storekit` | $9.99/year, 1-month free trial | $24.99 | None |
+
+Result: code and local StoreKit config match the canonical product IDs. No code-vs-canonical mismatch was found. App Store Connect still needs Dan-side verification.
+
 ## 1. Confirm Agreements And App Record
 
 1. Open App Store Connect.
@@ -46,10 +62,11 @@ Use one subscription group. MacroMark has one paid entitlement tier, so a single
 9. Set the starting United States price to `$9.99`.
 10. Leave generated comparable prices in other storefronts unless deliberately localizing prices.
 11. Open Availability and choose the launch storefronts.
-12. Add the `en-US` localization:
+12. If App Store Connect asks for tax category, keep `App Store software` unless a tax advisor says otherwise.
+13. Add the `en-US` localization:
     - Display Name: `MacroMark Pro Annual`
     - Description: `Unlock unlimited macros, default macro editing, and folder customization for one year. Capture stays free.`
-13. Add an App Review screenshot showing the MacroMark paywall with fake/demo content only.
+14. Add an App Review screenshot showing the MacroMark paywall with fake/demo content only.
 
 ## 4. Add The Annual 1-Month Free Trial
 
@@ -57,15 +74,16 @@ Use one subscription group. MacroMark has one paid entitlement tier, so a single
 2. Open the `MacroMark Pro` group.
 3. Open `MacroMark Pro Annual`.
 4. Open Subscription Prices.
-5. Choose Set Up Introductory Offer.
-6. Select all launch storefronts.
-7. Set the start date to the launch date or the earliest date you want the offer available.
-8. Leave the end date empty unless the trial is intentionally time-limited.
-9. Choose the `Free` offer type.
-10. Choose `1 Month`.
-11. Confirm and save.
+5. Click View all Subscription Pricing if the introductory-offer controls are not already visible.
+6. Choose Set Up Introductory Offer.
+7. Select all launch storefronts.
+8. Set the start date to the launch date or the earliest date you want the offer available.
+9. Leave the end date empty unless the trial is intentionally time-limited.
+10. Choose the `Free` offer type.
+11. Choose `1 Month`.
+12. Confirm and save.
 
-Do not choose Pay As You Go for the trial. Apple treats free trial, pay up front, and pay as you go as separate introductory offer types.
+Do not choose Pay As You Go for this trial. Apple treats free trial, pay up front, and pay as you go as separate introductory offer types. MacroMark's intended offer is a 1-month free trial.
 
 ## 5. Create The Lifetime Non-Consumable
 
@@ -79,15 +97,19 @@ Do not choose Pay As You Go for the trial. Apple treats free trial, pay up front
 8. Set Product ID to `com.macromark.lifetime`.
 9. Save.
 10. Open Price Schedule.
-11. For launch, set the active price to `$16.99` if the launch intro is still intended to be live.
-12. Schedule the standard price change to `$24.99` effective September 1, 2026, or the first business day after launch week.
-13. If the launch intro is no longer active, set `$24.99` as the starting price immediately.
-14. Add the `en-US` localization:
+11. Click Add Pricing.
+12. Select United States as the base country or region.
+13. For launch week, set the active price to `$16.99` if the launch intro is still intended to be live.
+14. Add or schedule the standard price change to `$24.99` effective September 1, 2026, or the first business day after launch week.
+15. If the launch intro is no longer active, set `$24.99` as the starting price immediately.
+16. Leave Apple's comparable storefront prices in place unless deliberately localizing prices.
+17. If App Store Connect asks for tax category, keep `App Store software` unless a tax advisor says otherwise.
+18. Add the `en-US` localization:
     - Display Name: `MacroMark Pro Lifetime`
     - Description: `One-time unlock for unlimited macros, default macro editing, and folder customization. Capture stays free.`
-15. Add an App Review screenshot showing the lifetime option with fake/demo content only.
+19. Add an App Review screenshot showing the lifetime option with fake/demo content only.
 
-Non-consumable IAPs do not use subscription introductory offers. The launch intro must be implemented as a temporary/scheduled App Store Connect price change, then returned to the standard `$24.99` price.
+Non-consumable IAPs do not use subscription introductory offers. The launch intro must be implemented as a temporary or scheduled App Store Connect price change, then returned to the standard `$24.99` price. Apple documents In-App Purchase price changes as supporting definite start and end dates or permanent changes, so this is the right ASC mechanism for the $16.99 launch intro.
 
 ## 6. Attach IAPs To The First App Version
 
@@ -103,33 +125,29 @@ Non-consumable IAPs do not use subscription introductory offers. The launch intr
 
 First-time IAPs and subscriptions normally need to be submitted with a new app version. Do not assume approved products are available in production until the app version and IAPs are approved.
 
-## 7. Small Business Program Check
+## 7. IAP Review Screenshot Requirements
+
+Add one App Review screenshot for each product:
+
+1. Run MacroMark with fake/demo data only.
+2. Open the paywall so the annual and lifetime products are visible.
+3. Capture an iPhone or iPad screenshot that clearly shows the product being offered.
+4. Upload that image in each product's Review Information section.
+5. Add a short review note, for example: `Open Settings > Macros, add a fourth custom macro, then choose the annual or lifetime product on the paywall. Capture itself remains free.`
+
+Apple uses these screenshots for review only; they are not displayed on the App Store. The screenshot must meet one of the screenshot specifications supported by MacroMark. If the paywall shows `P1M` or any other developer-facing trial text, fix that before taking the final screenshots.
+
+## 8. Small Business Program Check
 
 1. Confirm the Account Holder is doing the enrollment/status check.
-2. Open Apple's Small Business Program page.
-3. Confirm Associated Developer Accounts are listed correctly.
-4. Confirm the latest Paid Apps Agreement is accepted.
-5. Confirm program status by email or App Store Connect business notices.
-6. After approval, verify proceeds in Sales and Trends after Apple's stated processing window.
+2. Open Apple's Small Business Program page: `https://developer.apple.com/app-store/small-business-program/`.
+3. Choose Enroll Now and sign in with the Account Holder Apple Account.
+4. Confirm the latest Paid Apps Agreement is accepted in App Store Connect.
+5. List all Associated Developer Accounts if any apply.
+6. Submit the enrollment or confirm the current enrollment status from Apple's confirmation email/business notices.
+7. After approval, verify proceeds in Sales and Trends after Apple's stated processing window.
 
 Estimated Dan time: 10-20 minutes if agreements and account ownership are already settled.
-
-## 8. Product ID Audit
-
-Current repository audit:
-
-| Location | `com.macromark.subscription.annual` | `com.macromark.lifetime` | Subscription group reference |
-| --- | --- | --- | --- |
-| `MacroMarkKit/Sources/MacroMarkKit/Store/ProductIdentifiers.swift` | Present | Present | None |
-| `MacroMarkKit/Sources/MacroMarkKit/Store/StoreManager.swift` | Loaded through `ProductIdentifiers.all` | Loaded through `ProductIdentifiers.all` | None |
-| `MacroMarkKit/Sources/MacroMarkKit/Store/EntitlementManager.swift` | Entitlement check | Entitlement check | None |
-| `MacroMark/Settings/SubscriptionPaywallView.swift` | References `ProductIdentifiers.annualSubscription` for trial copy; price uses `displayPrice` | No literal string; card displays `StoreManager` product with `displayPrice` | None |
-| `MacroMark Watch App/` | No literal product ID strings found | No literal product ID strings found | None |
-| `MacroMarkWidget/` | No literal product ID strings found | No literal product ID strings found | None |
-| `MacroMarkKit/Configuration.storekit` | Present at $9.99/year with 1-month free trial | Present at $24.99 | None |
-| `MacroMarkKit/Tests/MacroMarkKitTests/MacroMarkKitTests.swift` | Expected by test | Expected by test | None |
-
-Result: code and local StoreKit config match the canonical product IDs. App Store Connect still needs Dan-side verification.
 
 ## References
 

@@ -16,6 +16,8 @@ This checklist separates repository-confirmed facts from Dan-only App Store Conn
 | Annual intro offer | Repo configured locally | 1-month free trial in `MacroMarkKit/Configuration.storekit`; verify in App Store Connect |
 | Lifetime standard price | Repo configured locally | `$24.99` in `MacroMarkKit/Configuration.storekit`; verify in App Store Connect |
 | Lifetime launch intro | Dan-only ASC task | `$16.99` launch intro must be a temporary/scheduled non-consumable price change, not an introductory offer |
+| Simulator free-tier StoreKit gate tests | Verify/follow-up needed | `EntitlementManager.simulateEntitled` returns true on simulator, so simulator-only testing cannot prove unentitled gates |
+| Paywall trial copy | Verify/follow-up needed | `SubscriptionPaywallView` uses `introOffer.period.debugDescription`; fail screenshots/review prep if this renders as `P1M` |
 
 ## Privacy Labels
 
@@ -30,6 +32,7 @@ Recommended App Privacy posture: answer from Apple's definitions in App Store Co
 | Speech recognition | Disclose permission purpose, not collected data unless ASC asks differently | Confirmed in `Info.plist` via speech recognition usage description |
 | Location | Optional location macro only | Confirmed in `Info.plist` and `LocationManager`; uses When In Use authorization, no Always authorization found |
 | User content in iCloud | Explain user-controlled storage | Confirmed in iCloud entitlements and privacy policy; verify App Privacy wording because developer does not receive the data |
+| Purchase data | Apple/StoreKit processed | Confirmed StoreKit usage; MacroMark reads entitlement transactions only and does not receive card details |
 
 Suggested review note:
 
@@ -40,15 +43,15 @@ MacroMark records dictated or typed notes, optionally expands a location macro w
 | URL | Status |
 | --- | --- |
 | `https://dfakkeldy.github.io/MacroMark/privacy.html` | Verified HTTP 200 on 2026-07-03 |
-| `https://dfakkeldy.github.io/MacroMark/#support` | Verify before submission |
-| `https://dfakkeldy.github.io/MacroMark/` | Verify before submission |
+| `https://dfakkeldy.github.io/MacroMark/#support` | Root page verified HTTP 200 on 2026-07-03; verify anchor manually before submission |
+| `https://dfakkeldy.github.io/MacroMark/` | Verified HTTP 200 on 2026-07-03 |
 | Terms page `https://dfakkeldy.github.io/MacroMark/terms.html` | Verified HTTP 200 on 2026-07-03 |
 
 The scanned privacy and terms pages do not hardcode the new `$9.99`, `$16.99`, or `$24.99` prices. If pricing is later added to those pages, update it before submission.
 
 ## Accessibility Nutrition Labels
 
-Accessibility labels are an App Store Connect declaration and should be filled only after testing.
+Accessibility labels are an App Store Connect declaration and should be filled only after testing. Apple's evaluation rule is that users must be able to complete all common tasks with the feature before the app claims support.
 
 | Feature | Recommended status |
 | --- | --- |
@@ -92,6 +95,8 @@ Recommended answer: no non-exempt encryption based on current code. Dan should s
 4. Include the IAP review screenshots from fake/demo data.
 5. Confirm TestFlight smoke testing before review submission.
 6. Confirm the lifetime launch intro price schedule before release.
+7. Confirm the paywall does not display developer-facing trial text such as `P1M`.
+8. Confirm StoreKit gate testing was done on a non-auto-entitled build or physical device, not only the current simulator default.
 
 ## Dan-Only Tasks And Estimates
 

@@ -5,8 +5,8 @@
     {
       "id": "com.macromark.subscription.annual",
       "type": "autoRenewable",
-      "displayName": "MacroMark Annual",
-      "description": "Unlock unlimited macros, default macro editing, and folder customization.",
+      "displayName": "MacroMark Pro Annual",
+      "description": "Unlock unlimited macros, default macro editing, and folder customization. Capture stays free.",
       "price": 9.99,
       "subscription": {
         "subscriptionPeriod": "P1Y",
@@ -19,8 +19,8 @@
     {
       "id": "com.macromark.lifetime",
       "type": "nonConsumable",
-      "displayName": "MacroMark Lifetime",
-      "description": "One-time purchase. Unlock everything forever.",
+      "displayName": "MacroMark Pro Lifetime",
+      "description": "One-time unlock for unlimited macros, default macro editing, and folder customization. Capture stays free.",
       "price": 24.99
     }
   ],

@@ -8,6 +8,8 @@ Use fake demo content only. Do not capture personal notes, real routes, private 
 
 Use manual Simulator capture for watchOS screenshots under launch pressure. The current Fastlane screenshot setup targets iPhone and iPad devices in `fastlane/Snapfile` and the `ios screenshots` lane; no paired watchOS screenshot lane is configured. Manual Simulator capture is faster and lower-risk for a solo launch unless a dedicated watch screenshot lane is added later.
 
+Apple requires Apple Watch screenshots for Apple Watch apps, and the same Apple Watch screenshot size must be used consistently across all localizations. Upload PNG or JPG files only.
+
 ## Required Watch Shots
 
 1. Mid-dictation capture
@@ -33,16 +35,18 @@ Use manual Simulator capture for watchOS screenshots under launch pressure. The 
 
 ## Screenshot Sizes
 
-Use one watch screenshot size consistently across all localizations. Current App Store Connect accepted Apple Watch screenshot sizes include:
+Use one watch screenshot size consistently across all localizations. Apple lists these current App Store Connect Apple Watch screenshot sizes:
 
 | Device family | Size |
 | --- | --- |
-| Apple Watch Ultra 3 | 422 x 514 |
-| Large Apple Watch | 410 x 502 or 416 x 496 |
-| Standard Apple Watch | 396 x 484 |
-| Smaller Apple Watch | 368 x 448 or 312 x 390 |
+| Apple Watch Ultra 3 | 422 x 514 pixels |
+| Apple Watch Ultra 2 and Ultra | 410 x 502 pixels |
+| Apple Watch Series 11 and Series 10 | 416 x 496 pixels |
+| Apple Watch Series 9, Series 8, and Series 7 | 396 x 484 pixels |
+| Apple Watch Series 6, Series 5, Series 4, SE 3, and SE | 368 x 448 pixels |
+| Apple Watch Series 3 | 312 x 390 pixels |
 
-Preferred capture target: Apple Watch Ultra 3 at `422 x 514`, because it satisfies the largest current watch screenshot slot and gives the best room for readable text.
+Preferred capture target: Apple Watch Ultra 3 at `422 x 514`, because it satisfies the largest current watch screenshot slot and gives the best room for readable text. If the installed Xcode Simulator does not expose Ultra 3, use Ultra 2 at `410 x 502` and keep that exact size for every watch localization.
 
 ## Capture Steps
 
@@ -64,6 +68,7 @@ Recapture iPhone/iPad screenshots if any current screenshot shows:
 - A Pro-gated macro limit message.
 - Subscription trial copy.
 - Lifetime purchase copy.
+- Trial copy rendered as `P1M` or any other developer-facing period string.
 
 The annual price is now $9.99/year with a 1-month free trial, and the lifetime standard price is now $24.99 with a $16.99 launch intro in App Store Connect. If the existing iPhone/iPad screenshot set does not show pricing or paywall surfaces, no pricing-specific recapture is required.
 
