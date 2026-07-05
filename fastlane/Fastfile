@@ -76,6 +76,10 @@ def truthy_value?(value)
   %w[1 true yes].include?(value.to_s.downcase)
 end
 
+def ci_environment?
+  ENV["CI"].to_s.casecmp("true").zero?
+end
+
 def ci_app_store_connect_api_key
   key_data = parsed_ci_api_key_json
   key_id = first_present(ENV["APP_STORE_CONNECT_API_KEY_KEY_ID"], key_data["key_id"], key_data["keyId"], key_data["KEY_ID"])
@@ -202,6 +206,8 @@ platform :ios do
   end
 
   private_lane :prepare_app_store_signing do
+    setup_ci if ci_environment?
+
     match(
       type: "appstore",
       app_identifier: SIGNING_IDENTIFIERS,
@@ -261,6 +267,10 @@ platform :ios do
       app_identifier: APP_IDENTIFIER,
       skip_waiting_for_build_processing: false,
       changelog: "MacroMark #{channel} build uploaded via fastlane.",
+      beta_app_description: "MacroMark is a quick Apple Watch and iPhone capture tool that turns dictated or typed notes into Markdown daily notes in iCloud Drive.",
+      beta_app_feedback_email: "dan@kinnokilabs.com",
+      demo_account_required: false,
+      uses_non_exempt_encryption: false,
       distribute_external: external
     }
 

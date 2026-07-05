@@ -63,10 +63,11 @@ bundle exec fastlane release_train channel:weekly
 bundle exec fastlane release_train channel:appstore
 ```
 
-As of 2026-07-02, the GitHub Actions release workflow is intentionally narrowed
-to the `nightly` internal TestFlight train. The `weekly` and `appstore` Fastlane
-paths remain in the Fastfile for manual/local use or future workflow restoration,
-but hosted CI only exposes the nightly channel.
+As of 2026-07-05, the scheduled GitHub Actions release workflow is intentionally
+narrowed to the `nightly` internal TestFlight train. Manual dispatch also exposes
+a `weekly` channel for external TestFlight attempts; it builds the current
+`nightly` branch because the long-lived `weekly` branch may not contain the
+latest v1 release candidate.
 
 CI expects App Store Connect API key credentials plus `MATCH_PASSWORD`,
 `MATCH_GIT_SSH_KEY`, and `MATCH_GIT_URL` to be present before uploading.
@@ -84,6 +85,10 @@ comma-separated list, for example:
 ```bash
 TESTFLIGHT_EXTERNAL_GROUPS="External Testers"
 ```
+
+CI release lanes call `setup_ci` before `match` so signing keys are imported into
+a noninteractive temporary keychain. Without that, a headless runner can hang
+during archive signing while waiting for a keychain permission dialog.
 
 App Store submissions use manual release after approval by default. Set
 `APP_STORE_AUTOMATIC_RELEASE=true` only if approved builds should release

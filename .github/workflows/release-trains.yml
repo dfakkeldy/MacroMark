@@ -14,6 +14,7 @@ on:
         type: choice
         options:
           - nightly
+          - weekly
 
 permissions:
   contents: read
@@ -50,8 +51,13 @@ jobs:
                 branch="nightly"
                 reason="Manual nightly internal TestFlight train"
                 ;;
+              weekly)
+                channel="weekly"
+                branch="nightly"
+                reason="Manual weekly external TestFlight train from current nightly"
+                ;;
               *)
-                echo "::error title=Unknown release train::Expected nightly. Got '$REQUESTED_CHANNEL'."
+                echo "::error title=Unknown release train::Expected nightly or weekly. Got '$REQUESTED_CHANNEL'."
                 exit 1
                 ;;
             esac
@@ -90,7 +96,7 @@ jobs:
     needs: resolve
     if: needs.resolve.outputs.should_run == 'true'
     runs-on: macos-26
-    timeout-minutes: 90
+    timeout-minutes: 150
     concurrency:
       group: release-trains-${{ needs.resolve.outputs.channel }}
       cancel-in-progress: false
@@ -239,6 +245,7 @@ jobs:
           MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
           RELEASE_CHANNEL: ${{ needs.resolve.outputs.channel }}
+          TESTFLIGHT_EXTERNAL_GROUPS: ${{ vars.TESTFLIGHT_EXTERNAL_GROUPS || 'External Testers' }}
           TESTFLIGHT_INTERNAL_GROUPS: ${{ vars.TESTFLIGHT_INTERNAL_GROUPS || 'Nightly' }}
         run: |
           set -euo pipefail
