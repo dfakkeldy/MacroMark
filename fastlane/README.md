@@ -65,9 +65,9 @@ bundle exec fastlane release_train channel:appstore
 
 As of 2026-07-05, the scheduled GitHub Actions release workflow is intentionally
 narrowed to the `nightly` internal TestFlight train. Manual dispatch also exposes
-a `weekly` channel for external TestFlight attempts; it builds the current
-`nightly` branch because the long-lived `weekly` branch may not contain the
-latest v1 release candidate.
+a `weekly` channel for external TestFlight attempts; it builds the workflow ref
+that was dispatched. Dispatch it from the release-candidate branch, usually
+`nightly` after any upload-blocker fixes are merged.
 
 CI expects App Store Connect API key credentials plus `MATCH_PASSWORD`,
 `MATCH_GIT_SSH_KEY`, and `MATCH_GIT_URL` to be present before uploading.
