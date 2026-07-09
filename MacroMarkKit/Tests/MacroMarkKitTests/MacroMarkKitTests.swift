@@ -99,6 +99,57 @@ struct ProductIdentifiersTests {
     }
 }
 
+struct StoreAccessPolicyTests {
+
+    @Test
+    func paywallDisabledForTestingGrantsEntitlementWithoutPurchase() async throws {
+        #expect(StoreAccessPolicy.paywallDisabled)
+        #expect(
+            StoreAccessPolicy.isEntitled(
+                isSubscribed: false,
+                hasLifetimeUnlock: false,
+                simulateEntitled: false
+            )
+        )
+    }
+
+    @Test
+    func paidAndSimulatedEntitlementsStillWorkWhenHiatusEnds() async throws {
+        #expect(
+            !StoreAccessPolicy.isEntitled(
+                isSubscribed: false,
+                hasLifetimeUnlock: false,
+                simulateEntitled: false,
+                paywallDisabled: false
+            )
+        )
+        #expect(
+            StoreAccessPolicy.isEntitled(
+                isSubscribed: true,
+                hasLifetimeUnlock: false,
+                simulateEntitled: false,
+                paywallDisabled: false
+            )
+        )
+        #expect(
+            StoreAccessPolicy.isEntitled(
+                isSubscribed: false,
+                hasLifetimeUnlock: true,
+                simulateEntitled: false,
+                paywallDisabled: false
+            )
+        )
+        #expect(
+            StoreAccessPolicy.isEntitled(
+                isSubscribed: false,
+                hasLifetimeUnlock: false,
+                simulateEntitled: true,
+                paywallDisabled: false
+            )
+        )
+    }
+}
+
 struct MacroProcessorTests {
 
     @Test
