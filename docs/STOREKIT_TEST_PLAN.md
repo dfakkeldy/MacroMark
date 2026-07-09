@@ -1,6 +1,6 @@
 # StoreKit Test Plan
 
-Last updated: 2026-07-03.
+Last updated: 2026-07-08.
 
 Use this plan for local StoreKit testing before App Store Connect submission. Local StoreKit tests prove MacroMark code paths and UI behavior only; they do not prove App Store Connect products exist, prices are approved, or production purchases work.
 
@@ -15,6 +15,7 @@ Before each test, use a clean simulator install or clear the StoreKit test sessi
 
 ## Preflight Risks From The Current Code
 
+- `StoreAccessPolicy.paywallDisabled` is currently `true` so internal testing can move past the Pro paywall while App Store Connect and StoreKit setup are unfinished. Flip it back to `false` before final StoreKit gate testing, App Review screenshots, or App Store submission.
 - Simulator builds currently auto-enable Pro in `EntitlementManager.simulateEntitled` via `#if targetEnvironment(simulator)`. That means a normal simulator run cannot prove the unentitled free-tier gates or paywall-trigger behavior. Use a physical iPhone run from Xcode with the StoreKit configuration for those gate tests, or make a small Dan-approved code change before relying on simulator-only results.
 - The paywall terms copy uses `introOffer.period.debugDescription`. If the UI shows `P1M` instead of user-friendly copy like `1-month free trial`, mark the test failed and file a pre-submission UI fix before taking App Review screenshots.
 - These tests prove local StoreKit behavior only. They do not prove that App Store Connect products exist, that ASC pricing is approved, or that production purchases work.
