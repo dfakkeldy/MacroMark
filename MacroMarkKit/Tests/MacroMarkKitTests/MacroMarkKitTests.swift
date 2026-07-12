@@ -89,6 +89,85 @@ struct FolderSettingsTests {
     }
 }
 
+struct DailyLogFilePathTests {
+
+    @Test
+    func acceptsMarkdownFilesInsideNestedDailyFolders() async throws {
+        #expect(DailyLogFilePath.isSafeRelativeMarkdownPath("2026/07/2026-07-12.md"))
+        #expect(DailyLogFilePath.isSafeRelativeMarkdownPath("2026-07/2026-07-12.md"))
+        #expect(DailyLogFilePath.isSafeRelativeMarkdownPath("2026-07-12.md"))
+        #expect(DailyLogFilePath.isSafeRelativeMarkdownPath("2026-07-12.MD"))
+    }
+
+    @Test
+    func rejectsUnsafeAndNonMarkdownPaths() async throws {
+        for path in [
+            "",
+            "../private.md",
+            "/private.md",
+            "./private.md",
+            "2026//private.md",
+            "2026/../private.md",
+            "2026\\private.md",
+            "2026-07-12.txt",
+        ] {
+            #expect(!DailyLogFilePath.isSafeRelativeMarkdownPath(path))
+        }
+    }
+
+    @Test
+    func resolvesOnlySafePathsInsideBaseDirectory() throws {
+        let directory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        #expect(
+            DailyLogFilePath.resolvedURL(for: "2026/07/2026-07-12.md", in: directory)?.path
+                == directory.appending(path: "2026/07/2026-07-12.md").path
+        )
+        #expect(DailyLogFilePath.resolvedURL(for: "../private.md", in: directory) == nil)
+    }
+
+    @Test
+    func rejectsPathsEscapingThroughSymbolicLinks() throws {
+        let directory = try makeTemporaryDirectory()
+        let outsideDirectory = try makeTemporaryDirectory()
+        defer {
+            try? FileManager.default.removeItem(at: directory)
+            try? FileManager.default.removeItem(at: outsideDirectory)
+        }
+
+        let link = directory.appending(path: "outside")
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: outsideDirectory)
+
+        #expect(DailyLogFilePath.resolvedURL(for: "outside/private.md", in: directory) == nil)
+    }
+
+    @Test
+    func listsOnlyMarkdownFilesInDescendingPathOrder() throws {
+        let directory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let firstFile = directory.appending(path: "2026-07-01.md")
+        let secondFile = directory.appending(path: "2026/07/2026-07-12.md")
+        try Data().write(to: firstFile)
+        try FileManager.default.createDirectory(at: secondFile.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data().write(to: secondFile)
+        try Data().write(to: directory.appending(path: ".hidden.md"))
+        try Data().write(to: directory.appending(path: "ignore.txt"))
+
+        #expect(DailyLogFilePath.markdownFilePaths(in: directory) == [
+            "2026/07/2026-07-12.md",
+            "2026-07-01.md",
+        ])
+    }
+
+    private func makeTemporaryDirectory() throws -> URL {
+        let directory = URL.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        return directory
+    }
+}
+
 struct ProductIdentifiersTests {
 
     @Test
