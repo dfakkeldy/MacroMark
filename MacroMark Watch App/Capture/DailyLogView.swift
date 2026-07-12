@@ -52,10 +52,14 @@ struct DailyLogView: View {
             index.paths.contains(path) ? path : nil
         }
         todayPath = availableTodayPath
-        selectedPath = availableTodayPath
 
-        if let path = availableTodayPath {
-            await loadFile(at: path, includesPendingContent: true)
+        // A user can enter the browser while the initial index request is in flight.
+        // Preserve a file they selected instead of overwriting it with today's path.
+        let initialPath = selectedPath ?? availableTodayPath
+        selectedPath = initialPath
+
+        if let path = initialPath {
+            await loadFile(at: path, includesPendingContent: path == availableTodayPath)
         } else {
             await loadTodayFallback()
         }
