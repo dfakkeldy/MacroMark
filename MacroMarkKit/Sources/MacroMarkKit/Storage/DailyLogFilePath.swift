@@ -66,7 +66,11 @@ public enum DailyLogFilePath {
             }
 
             let relativePath = String(fileURL.standardizedFileURL.path.dropFirst(baseDirectory.path.count + 1))
-            guard isSafeRelativeMarkdownPath(relativePath) else { continue }
+            guard isSafeRelativeMarkdownPath(relativePath),
+                  resolvedURL(for: relativePath, in: baseDirectory) != nil
+            else {
+                continue
+            }
             paths.append(relativePath)
         }
 

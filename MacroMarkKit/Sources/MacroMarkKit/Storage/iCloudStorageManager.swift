@@ -233,35 +233,57 @@ public final class iCloudStorageManager {
 
     nonisolated public func readText(for date: Date = Date()) -> String? {
         let baseDir = resolvedBaseDirectory().url
-        let isSecurityScoped = UserDefaults.standard.data(forKey: UserDefaultsKey.customSaveBookmark.rawValue) != nil
         let settings = folderSettings
-
-        var didStartSecurityScope = false
-        if isSecurityScoped {
-            guard baseDir.startAccessingSecurityScopedResource() else {
-                Logger.storage.error("Could not access the selected read folder security scope")
-                return nil
-            }
-            didStartSecurityScope = true
-        }
-
-        defer {
-            if didStartSecurityScope {
-                baseDir.stopAccessingSecurityScopedResource()
-            }
-        }
-
         let fileURL = Self.fileURL(for: date, settings: settings, base: baseDir, createDirectories: false)
+        return readText(at: fileURL, baseDirectory: baseDir)
+    }
 
-        var fileContent: String?
-        var error: NSError?
-        NSFileCoordinator().coordinate(readingItemAt: fileURL, options: [], error: &error) { url in
-            fileContent = try? String(contentsOf: url, encoding: .utf8)
-        }
-        if let error {
-            Logger.storage.error("File coordinator read error: \(error.localizedDescription, privacy: .public)")
-        }
+    /// Lists only safe relative Markdown paths under the configured export directory.
+    /// Absolute paths never cross the iPhone/Watch boundary.
+    nonisolated public func dailyLogFilePaths() -> [String] {
+        let baseDir = resolvedBaseDirectory().url
+        return withReadAccess(to: baseDir) {
+            DailyLogFilePath.markdownFilePaths(in: baseDir)
+        } ?? []
+    }
 
-        return fileContent
+    nonisolated public func dailyLogRelativePath(for date: Date = Date()) -> String {
+        folderSettings.relativePath(for: date)
+    }
+
+    nonisolated public func readText(relativePath: String) -> String? {
+        let baseDir = resolvedBaseDirectory().url
+        guard let fileURL = DailyLogFilePath.resolvedURL(for: relativePath, in: baseDir) else {
+            return nil
+        }
+        return readText(at: fileURL, baseDirectory: baseDir)
+    }
+
+    nonisolated private func readText(at fileURL: URL, baseDirectory: URL) -> String? {
+        withReadAccess(to: baseDirectory) {
+            var fileContent: String?
+            var error: NSError?
+            NSFileCoordinator().coordinate(readingItemAt: fileURL, options: [], error: &error) { url in
+                fileContent = try? String(contentsOf: url, encoding: .utf8)
+            }
+            if let error {
+                Logger.storage.error("File coordinator read error: \(error.localizedDescription, privacy: .public)")
+            }
+            return fileContent
+        } ?? nil
+    }
+
+    nonisolated private func withReadAccess<T>(to baseDirectory: URL, operation: () -> T) -> T? {
+        let isSecurityScoped = UserDefaults.standard.data(forKey: UserDefaultsKey.customSaveBookmark.rawValue) != nil
+        guard !isSecurityScoped || baseDirectory.startAccessingSecurityScopedResource() else {
+            Logger.storage.error("Could not access the selected read folder security scope")
+            return nil
+        }
+        defer {
+            if isSecurityScoped {
+                baseDirectory.stopAccessingSecurityScopedResource()
+            }
+        }
+        return operation()
     }
 }

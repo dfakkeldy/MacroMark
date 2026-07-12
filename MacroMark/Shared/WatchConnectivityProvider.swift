@@ -366,6 +366,89 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
         }
     }
 
+#if os(watchOS)
+    func fetchDailyLogFileIndex() async -> (paths: [String], todayPath: String?) {
+        guard let session else { return ([], nil) }
+
+        for _ in 0..<10 {
+            if session.activationState == .activated { break }
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        guard session.activationState == .activated else { return ([], nil) }
+
+        return await withCheckedContinuation { continuation in
+            let timeout = ContinuationTimeout()
+            let timeoutTask = Task {
+                try? await Task.sleep(for: .seconds(15))
+                if await timeout.complete() {
+                    continuation.resume(returning: ([], nil))
+                }
+            }
+
+            session.sendMessage(["request": "dailyLogFilePaths"], replyHandler: { @Sendable reply in
+                let paths = (reply["paths"] as? [String] ?? [])
+                    .filter(DailyLogFilePath.isSafeRelativeMarkdownPath)
+                let todayPath = (reply["todayPath"] as? String)
+                    .flatMap { DailyLogFilePath.isSafeRelativeMarkdownPath($0) ? $0 : nil }
+                Task {
+                    if await timeout.complete() {
+                        timeoutTask.cancel()
+                        continuation.resume(returning: (paths, todayPath))
+                    }
+                }
+            }, errorHandler: { @Sendable _ in
+                Task {
+                    if await timeout.complete() {
+                        timeoutTask.cancel()
+                        continuation.resume(returning: ([], nil))
+                    }
+                }
+            })
+        }
+    }
+
+    func fetchDailyFile(relativePath: String) async -> String {
+        guard DailyLogFilePath.isSafeRelativeMarkdownPath(relativePath),
+              let session
+        else {
+            return ""
+        }
+
+        for _ in 0..<10 {
+            if session.activationState == .activated { break }
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        guard session.activationState == .activated else { return "" }
+
+        return await withCheckedContinuation { continuation in
+            let timeout = ContinuationTimeout()
+            let timeoutTask = Task {
+                try? await Task.sleep(for: .seconds(15))
+                if await timeout.complete() {
+                    continuation.resume(returning: "")
+                }
+            }
+
+            session.sendMessage(["request": "dailyLogFile", "path": relativePath], replyHandler: { @Sendable reply in
+                let content = reply["content"] as? String ?? ""
+                Task {
+                    if await timeout.complete() {
+                        timeoutTask.cancel()
+                        continuation.resume(returning: content)
+                    }
+                }
+            }, errorHandler: { @Sendable _ in
+                Task {
+                    if await timeout.complete() {
+                        timeoutTask.cancel()
+                        continuation.resume(returning: "")
+                    }
+                }
+            })
+        }
+    }
+#endif
+
     // MARK: - Message Handler
 
     nonisolated func session(_ session: WCSession, didReceiveMessage message: [String : Any], replyHandler: @escaping ([String : Any]) -> Void) {
@@ -379,16 +462,41 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
             return
         }
 
-        if let request = message["request"] as? String, request == "dailyFile" {
-            let timestamp = message["date"] as? TimeInterval ?? Date().timeIntervalSince1970
-            let date = Date(timeIntervalSince1970: timestamp)
-            // readText is nonisolated, so we read and reply synchronously in this
-            // delegate's own isolation region — no need to send the non-Sendable
-            // replyHandler across an actor boundary.
-            if let content = iCloudStorageManager.shared.readText(for: date) {
+        if let request = message["request"] as? String {
+            switch request {
+            case "dailyLogFilePaths":
+                replyHandler([
+                    "paths": iCloudStorageManager.shared.dailyLogFilePaths(),
+                    "todayPath": iCloudStorageManager.shared.dailyLogRelativePath(),
+                ])
+                return
+
+            case "dailyLogFile":
+                guard let path = message["path"] as? String,
+                      DailyLogFilePath.isSafeRelativeMarkdownPath(path),
+                      let content = iCloudStorageManager.shared.readText(relativePath: path)
+                else {
+                    replyHandler(["available": false])
+                    return
+                }
                 replyHandler(["content": content, "available": true])
-            } else {
-                replyHandler(["available": false])
+                return
+
+            case "dailyFile":
+                let timestamp = message["date"] as? TimeInterval ?? Date().timeIntervalSince1970
+                let date = Date(timeIntervalSince1970: timestamp)
+                // readText is nonisolated, so we read and reply synchronously in this
+                // delegate's own isolation region — no need to send the non-Sendable
+                // replyHandler across an actor boundary.
+                if let content = iCloudStorageManager.shared.readText(for: date) {
+                    replyHandler(["content": content, "available": true])
+                } else {
+                    replyHandler(["available": false])
+                }
+                return
+
+            default:
+                break
             }
         }
 #endif
