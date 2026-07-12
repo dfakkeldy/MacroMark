@@ -65,6 +65,12 @@ struct DailyLogView: View {
         }
 
         didLoadInitialFile = true
+
+        // A browser selection can arrive while the initial file request is in flight.
+        // Reconcile it after that request completes so the chosen file always loads.
+        if selectedPath != initialPath {
+            await loadSelectedFile()
+        }
     }
 
     private func loadSelectedFile() async {
