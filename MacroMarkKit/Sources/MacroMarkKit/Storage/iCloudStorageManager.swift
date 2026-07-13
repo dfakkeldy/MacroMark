@@ -240,11 +240,12 @@ public final class iCloudStorageManager {
 
     /// Lists only safe relative Markdown paths under the configured export directory.
     /// Absolute paths never cross the iPhone/Watch boundary.
-    nonisolated public func dailyLogFilePaths() -> [String] {
+    /// Returns `nil` when the security scope cannot be started.
+    nonisolated public func dailyLogFilePaths() -> [String]? {
         let baseDir = resolvedBaseDirectory().url
         return withReadAccess(to: baseDir) {
             DailyLogFilePath.markdownFilePaths(in: baseDir)
-        } ?? []
+        }
     }
 
     nonisolated public func dailyLogRelativePath(for date: Date = Date()) -> String {
@@ -252,24 +253,35 @@ public final class iCloudStorageManager {
     }
 
     nonisolated public func readText(relativePath: String) -> String? {
+        guard let data = readData(relativePath: relativePath) else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
+    /// Reads a validated file as raw bytes for bounded WatchConnectivity chunks.
+    nonisolated public func readData(relativePath: String) -> Data? {
         let baseDir = resolvedBaseDirectory().url
         guard let fileURL = DailyLogFilePath.resolvedURL(for: relativePath, in: baseDir) else {
             return nil
         }
-        return readText(at: fileURL, baseDirectory: baseDir)
+        return readData(at: fileURL, baseDirectory: baseDir)
     }
 
     nonisolated private func readText(at fileURL: URL, baseDirectory: URL) -> String? {
+        guard let data = readData(at: fileURL, baseDirectory: baseDirectory) else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
+    nonisolated private func readData(at fileURL: URL, baseDirectory: URL) -> Data? {
         withReadAccess(to: baseDirectory) {
-            var fileContent: String?
+            var fileData: Data?
             var error: NSError?
             NSFileCoordinator().coordinate(readingItemAt: fileURL, options: [], error: &error) { url in
-                fileContent = try? String(contentsOf: url, encoding: .utf8)
+                fileData = try? Data(contentsOf: url)
             }
             if let error {
                 Logger.storage.error("File coordinator read error: \(error.localizedDescription, privacy: .public)")
             }
-            return fileContent
+            return fileData
         } ?? nil
     }
 

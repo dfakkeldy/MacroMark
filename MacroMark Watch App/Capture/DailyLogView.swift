@@ -5,6 +5,7 @@ struct DailyLogView: View {
     @State private var todayPath: String?
     @State private var selectedPath: String?
     @State private var logContent: String?
+    @State private var loadError: DailyLogFetchError?
     @State private var isLoading = true
     @State private var didLoadInitialFile = false
     @State private var loadedPath: String?
@@ -22,7 +23,11 @@ struct DailyLogView: View {
                 .buttonStyle(.plain)
                 .accessibilityHint("Browse saved daily log files.")
 
-                DailyLogBody(isLoading: isLoading, logContent: logContent)
+                DailyLogBody(
+                    isLoading: isLoading,
+                    logContent: logContent,
+                    loadError: loadError
+                )
             }
             .padding(.horizontal, 2)
         }
@@ -44,77 +49,82 @@ struct DailyLogView: View {
 
     private func loadInitialFile() async {
         guard !didLoadInitialFile else { return }
+        isLoading = true
+        loadError = nil
 
-        let index = await WatchConnectivityProvider.shared.fetchDailyLogFileIndex()
-        guard !Task.isCancelled else { return }
+        do {
+            let index = try await WatchConnectivityProvider.shared.fetchDailyLogFileIndex()
+            guard !Task.isCancelled else { return }
 
-        let availableTodayPath = index.todayPath.flatMap { path in
-            index.paths.contains(path) ? path : nil
-        }
-        todayPath = availableTodayPath
+            let availableTodayPath = index.todayPath.flatMap { path in
+                index.paths.contains(path) ? path : nil
+            }
+            todayPath = availableTodayPath
 
-        // A user can enter the browser while the initial index request is in flight.
-        // Preserve a file they selected instead of overwriting it with today's path.
-        let initialPath = selectedPath ?? availableTodayPath
-        selectedPath = initialPath
+            // A user can enter the browser while the initial index request is in flight.
+            // Preserve a file they selected instead of overwriting it with today's path.
+            let initialPath = selectedPath ?? availableTodayPath
+            selectedPath = initialPath
 
-        if let path = initialPath {
-            await loadFile(at: path, includesPendingContent: path == availableTodayPath)
-        } else {
-            await loadTodayFallback()
-        }
+            if let path = initialPath {
+                await loadFile(at: path, includesPendingContent: path == availableTodayPath)
+            } else {
+                let pending = pendingContent()
+                logContent = pending.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : pending
+                isLoading = false
+            }
 
-        didLoadInitialFile = true
+            didLoadInitialFile = true
 
-        // A browser selection can arrive while the initial file request is in flight.
-        // Reconcile it after that request completes so the chosen file always loads.
-        if selectedPath != initialPath {
-            await loadSelectedFile()
+            // A browser selection can arrive while the initial file request is in flight.
+            // Reconcile it after that request completes so the chosen file always loads.
+            if selectedPath != initialPath {
+                await loadSelectedFile()
+            }
+        } catch let error as DailyLogFetchError {
+            guard !Task.isCancelled else { return }
+            loadError = error
+            isLoading = false
+            didLoadInitialFile = true
+        } catch {
+            guard !Task.isCancelled else { return }
+            loadError = .transportFailure
+            isLoading = false
+            didLoadInitialFile = true
         }
     }
 
     private func loadSelectedFile() async {
-        guard let selectedPath else {
-            await loadTodayFallback()
-            return
-        }
-
+        guard let selectedPath else { return }
         await loadFile(at: selectedPath, includesPendingContent: selectedPath == todayPath)
     }
 
     private func loadFile(at path: String, includesPendingContent: Bool) async {
         loadedPath = path
         isLoading = true
+        loadError = nil
         defer {
             if selectedPath == path {
                 isLoading = false
             }
         }
 
-        var content = await WatchConnectivityProvider.shared.fetchDailyFile(relativePath: path)
-        guard !Task.isCancelled, selectedPath == path else { return }
+        do {
+            var content = try await WatchConnectivityProvider.shared.fetchDailyFile(relativePath: path)
+            guard !Task.isCancelled, selectedPath == path else { return }
 
-        if includesPendingContent {
-            content += pendingContent()
-        }
-
-        logContent = content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : content
-    }
-
-    private func loadTodayFallback() async {
-        loadedPath = nil
-        isLoading = true
-        defer {
-            if selectedPath == nil {
-                isLoading = false
+            if includesPendingContent {
+                content += pendingContent()
             }
+
+            logContent = content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : content
+        } catch let error as DailyLogFetchError {
+            guard !Task.isCancelled, selectedPath == path else { return }
+            loadError = error
+        } catch {
+            guard !Task.isCancelled, selectedPath == path else { return }
+            loadError = .transportFailure
         }
-
-        var content = await WatchConnectivityProvider.shared.fetchDailyFile()
-        guard !Task.isCancelled, selectedPath == nil else { return }
-
-        content += pendingContent()
-        logContent = content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : content
     }
 
     private func pendingContent() -> String {
@@ -149,11 +159,16 @@ struct DailyLogView: View {
 private struct DailyLogBody: View {
     let isLoading: Bool
     let logContent: String?
+    let loadError: DailyLogFetchError?
 
     var body: some View {
         Group {
             if isLoading {
                 ProgressView("Fetching from iPhone...")
+                    .padding()
+            } else if let loadError {
+                Text(loadError.message)
+                    .foregroundStyle(.secondary)
                     .padding()
             } else if let logContent {
                 Text(logContent)

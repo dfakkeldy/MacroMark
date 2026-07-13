@@ -168,6 +168,56 @@ struct DailyLogFilePathTests {
     }
 }
 
+struct DailyLogTransferTests {
+
+    @Test
+    func pagesPathsWithoutDroppingOrRepeatingEntries() async throws {
+        let paths = ["c.md", "b.md", "a.md"]
+
+        #expect(DailyLogTransfer.page(paths, offset: 0, limit: 2).paths == ["c.md", "b.md"])
+        #expect(DailyLogTransfer.page(paths, offset: 0, limit: 2).nextOffset == 2)
+        #expect(DailyLogTransfer.page(paths, offset: 2, limit: 2).paths == ["a.md"])
+        #expect(DailyLogTransfer.page(paths, offset: 2, limit: 2).nextOffset == nil)
+    }
+
+    @Test
+    func rejectsInvalidPageOffsetsAndTerminates() async throws {
+        let paths = ["b.md", "a.md"]
+
+        #expect(DailyLogTransfer.page(paths, offset: -1, limit: 0).paths.isEmpty)
+        #expect(DailyLogTransfer.page(paths, offset: -1, limit: 0).nextOffset == nil)
+        #expect(DailyLogTransfer.page(paths, offset: 5, limit: 2).paths.isEmpty)
+        #expect(DailyLogTransfer.page(paths, offset: 5, limit: 2).nextOffset == nil)
+    }
+
+    @Test
+    func chunksRawUTF8DataAtBoundedByteOffsets() async throws {
+        let data = Data("A🙂e\u{0301}Z".utf8)
+        // 9 bytes: A(1) + 🙂(4) + é(3) + Z(1)
+        var chunks: [Data] = []
+        var offset = 0
+
+        while true {
+            let chunk = DailyLogTransfer.chunk(data, offset: offset, maximumByteCount: 3)
+            chunks.append(chunk.data)
+            guard let nextOffset = chunk.nextOffset else { break }
+            offset = nextOffset
+        }
+
+        #expect(chunks.map(\.count) == [3, 3, 3])
+        #expect(String(data: chunks.reduce(into: Data()) { $0.append($1) }, encoding: .utf8) == "A🙂éZ")
+    }
+
+    @Test
+    func rejectsChunkRequestsOutsideTheDataRange() async throws {
+        let data = Data("hello".utf8)
+
+        #expect(DailyLogTransfer.chunk(data, offset: 5, maximumByteCount: 2).data.isEmpty)
+        #expect(DailyLogTransfer.chunk(data, offset: 5, maximumByteCount: 2).nextOffset == nil)
+        #expect(DailyLogTransfer.chunk(data, offset: -1, maximumByteCount: 2).data.isEmpty)
+    }
+}
+
 struct ProductIdentifiersTests {
 
     @Test

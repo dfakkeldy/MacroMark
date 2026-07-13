@@ -6,12 +6,16 @@ struct DailyLogFileBrowserView: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var filePaths: [String] = []
+    @State private var loadError: DailyLogFetchError?
     @State private var isLoading = false
 
     var body: some View {
         List {
             if isLoading {
                 ProgressView("Fetching files...")
+            } else if let loadError {
+                Text(loadError.message)
+                    .foregroundStyle(.secondary)
             } else if filePaths.isEmpty {
                 Text("No saved daily log files.")
                     .foregroundStyle(.secondary)
@@ -39,11 +43,20 @@ struct DailyLogFileBrowserView: View {
         .navigationTitle("Daily Files")
         .task {
             isLoading = true
+            loadError = nil
             defer { isLoading = false }
 
-            let index = await WatchConnectivityProvider.shared.fetchDailyLogFileIndex()
-            guard !Task.isCancelled else { return }
-            filePaths = index.paths
+            do {
+                let index = try await WatchConnectivityProvider.shared.fetchDailyLogFileIndex()
+                guard !Task.isCancelled else { return }
+                filePaths = index.paths
+            } catch let error as DailyLogFetchError {
+                guard !Task.isCancelled else { return }
+                loadError = error
+            } catch {
+                guard !Task.isCancelled else { return }
+                loadError = .transportFailure
+            }
         }
     }
 }
