@@ -10,17 +10,23 @@ enum CaptureMode: Hashable {
 struct ContentView: View {
     @AppStorage(UserDefaultsKey.captureMode.rawValue) private var captureMode: String = "audio"
     @State private var navigationPath = [CaptureMode]()
-    @State private var selectedDate = Date()
+    @State private var selectedDate = Calendar.autoupdatingCurrent.startOfDay(for: Date())
+
+    private var today: Date {
+        Calendar.autoupdatingCurrent.startOfDay(for: Date())
+    }
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
             VStack(spacing: 8) {
-                DatePicker("Date", selection: $selectedDate, displayedComponents: .date)
-                    .labelsHidden()
+                Text(today, format: .dateTime.month(.abbreviated).day().year())
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel("Today")
 
                 GlassEffectContainer(spacing: 8) {
                     HStack(spacing: 8) {
                         Button(action: {
+                            resetToToday()
                             navigationPath.append(.instant)
                         }) {
                             Image(systemName: "mic.fill")
@@ -34,6 +40,7 @@ struct ContentView: View {
                         .accessibilityInputLabels(["Instant capture", "Audio capture", "Record note"])
 
                         Button(action: {
+                            resetToToday()
                             navigationPath.append(.system)
                         }) {
                             Image(systemName: "keyboard.fill")
@@ -49,6 +56,7 @@ struct ContentView: View {
                     .frame(height: 70)
 
                     Button(action: {
+                        resetToToday()
                         navigationPath.append(.dailyLog)
                     }) {
                         Text("Daily Log")
@@ -77,12 +85,14 @@ struct ContentView: View {
                 case .system:
                     SystemCaptureView(targetDate: selectedDate)
                 case .dailyLog:
-                    DailyLogView(selectedDate: $selectedDate)
+                    DailyLogView()
                 }
             }
         }
+        .onAppear(perform: resetToToday)
         .onOpenURL { url in
             navigationPath.removeAll()
+            resetToToday()
             if url == AppRoute.instantCaptureURL {
                 navigationPath.append(.instant)
             } else if url == AppRoute.systemCaptureURL {
@@ -91,7 +101,13 @@ struct ContentView: View {
         }
     }
 
+    private func resetToToday() {
+        selectedDate = today
+    }
+
     private func navigateToDefaultCapture() {
+        resetToToday()
+
         switch captureMode {
         case "audio":
             navigationPath.append(.instant)

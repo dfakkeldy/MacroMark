@@ -233,35 +233,69 @@ public final class iCloudStorageManager {
 
     nonisolated public func readText(for date: Date = Date()) -> String? {
         let baseDir = resolvedBaseDirectory().url
-        let isSecurityScoped = UserDefaults.standard.data(forKey: UserDefaultsKey.customSaveBookmark.rawValue) != nil
         let settings = folderSettings
-
-        var didStartSecurityScope = false
-        if isSecurityScoped {
-            guard baseDir.startAccessingSecurityScopedResource() else {
-                Logger.storage.error("Could not access the selected read folder security scope")
-                return nil
-            }
-            didStartSecurityScope = true
-        }
-
-        defer {
-            if didStartSecurityScope {
-                baseDir.stopAccessingSecurityScopedResource()
-            }
-        }
-
         let fileURL = Self.fileURL(for: date, settings: settings, base: baseDir, createDirectories: false)
+        return readText(at: fileURL, baseDirectory: baseDir)
+    }
 
-        var fileContent: String?
-        var error: NSError?
-        NSFileCoordinator().coordinate(readingItemAt: fileURL, options: [], error: &error) { url in
-            fileContent = try? String(contentsOf: url, encoding: .utf8)
+    /// Lists only safe relative Markdown paths under the configured export directory.
+    /// Absolute paths never cross the iPhone/Watch boundary.
+    /// Returns `nil` when the security scope cannot be started.
+    nonisolated public func dailyLogFilePaths() -> [String]? {
+        let baseDir = resolvedBaseDirectory().url
+        return withReadAccess(to: baseDir) {
+            DailyLogFilePath.markdownFilePaths(in: baseDir)
         }
-        if let error {
-            Logger.storage.error("File coordinator read error: \(error.localizedDescription, privacy: .public)")
-        }
+    }
 
-        return fileContent
+    nonisolated public func dailyLogRelativePath(for date: Date = Date()) -> String {
+        folderSettings.relativePath(for: date)
+    }
+
+    nonisolated public func readText(relativePath: String) -> String? {
+        guard let data = readData(relativePath: relativePath) else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
+    /// Reads a validated file as raw bytes for bounded WatchConnectivity chunks.
+    nonisolated public func readData(relativePath: String) -> Data? {
+        let baseDir = resolvedBaseDirectory().url
+        guard let fileURL = DailyLogFilePath.resolvedURL(for: relativePath, in: baseDir) else {
+            return nil
+        }
+        return readData(at: fileURL, baseDirectory: baseDir)
+    }
+
+    nonisolated private func readText(at fileURL: URL, baseDirectory: URL) -> String? {
+        guard let data = readData(at: fileURL, baseDirectory: baseDirectory) else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
+    nonisolated private func readData(at fileURL: URL, baseDirectory: URL) -> Data? {
+        withReadAccess(to: baseDirectory) {
+            var fileData: Data?
+            var error: NSError?
+            NSFileCoordinator().coordinate(readingItemAt: fileURL, options: [], error: &error) { url in
+                fileData = try? Data(contentsOf: url)
+            }
+            if let error {
+                Logger.storage.error("File coordinator read error: \(error.localizedDescription, privacy: .public)")
+            }
+            return fileData
+        } ?? nil
+    }
+
+    nonisolated private func withReadAccess<T>(to baseDirectory: URL, operation: () -> T) -> T? {
+        let isSecurityScoped = UserDefaults.standard.data(forKey: UserDefaultsKey.customSaveBookmark.rawValue) != nil
+        guard !isSecurityScoped || baseDirectory.startAccessingSecurityScopedResource() else {
+            Logger.storage.error("Could not access the selected read folder security scope")
+            return nil
+        }
+        defer {
+            if isSecurityScoped {
+                baseDirectory.stopAccessingSecurityScopedResource()
+            }
+        }
+        return operation()
     }
 }

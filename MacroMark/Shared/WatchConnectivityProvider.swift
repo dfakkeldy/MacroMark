@@ -307,64 +307,230 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
 
     // MARK: - Daily File Fetch
 
-    private func dailyLogCacheKey(for date: Date) -> String {
-        let day = date.formatted(Date.ISO8601FormatStyle(timeZone: .current).year().month().day().dateSeparator(.dash))
-        return "\(UserDefaultsKey.cachedDailyLog.rawValue)-\(day)"
+    /// Routes the legacy date‑based request through the bounded file protocol.
+    func fetchDailyFile(for date: Date = Date()) async -> String {
+#if os(watchOS)
+        let path = iCloudStorageManager.shared.dailyLogRelativePath(for: date)
+        guard DailyLogFilePath.isSafeRelativeMarkdownPath(path) else { return "" }
+        return (try? await fetchDailyFile(relativePath: path)) ?? ""
+#else
+        // iOS: read directly from the phone's storage.
+        let path = iCloudStorageManager.shared.dailyLogRelativePath(for: date)
+        guard DailyLogFilePath.isSafeRelativeMarkdownPath(path),
+              let data = iCloudStorageManager.shared.readData(relativePath: path),
+              data.count <= DailyLogTransfer.maximumFileByteCount,
+              let text = String(data: data, encoding: .utf8)
+        else { return "" }
+        return text
+#endif
     }
 
-    func fetchDailyFile(for date: Date = Date()) async -> String {
-        let cacheKey = dailyLogCacheKey(for: date)
+#if os(watchOS)
+    func fetchDailyLogFileIndex() async throws -> DailyLogFileIndex {
+        var paths: [String] = []
+        var offset = 0
+        var todayPath: String?
 
-        guard let session = session else {
-            return UserDefaults.standard.string(forKey: cacheKey) ?? ""
+        for _ in 0..<DailyLogTransfer.maximumIndexPageCount {
+            try Task.checkCancellation()
+            let page = try await fetchDailyLogFileIndexPage(offset: offset)
+            if todayPath == nil {
+                todayPath = page.todayPath
+            }
+
+            guard page.paths.allSatisfy(DailyLogFilePath.isSafeRelativeMarkdownPath),
+                  !page.paths.contains(where: paths.contains)
+            else {
+                throw DailyLogFetchError.invalidResponse
+            }
+            if page.isTruncated {
+                throw DailyLogFetchError.indexTruncated
+            }
+
+            paths.append(contentsOf: page.paths)
+            guard paths.count <= DailyLogTransfer.maximumIndexPathCount else {
+                throw DailyLogFetchError.indexTruncated
+            }
+
+            guard let nextOffset = page.nextOffset else {
+                return DailyLogFileIndex(paths: paths, todayPath: todayPath)
+            }
+            guard nextOffset > offset, !page.paths.isEmpty else {
+                throw DailyLogFetchError.invalidResponse
+            }
+            offset = nextOffset
         }
 
-        for _ in 0..<10 {
-            if session.activationState == .activated { break }
-            try? await Task.sleep(for: .milliseconds(100))
+        throw DailyLogFetchError.indexTruncated
+    }
+
+    func fetchDailyFile(relativePath: String) async throws -> String {
+        guard DailyLogFilePath.isSafeRelativeMarkdownPath(relativePath) else {
+            throw DailyLogFetchError.invalidResponse
         }
 
-        guard session.activationState == .activated else {
-            return UserDefaults.standard.string(forKey: cacheKey) ?? ""
+        var content = Data()
+        var offset = 0
+        var expectedTotalBytes: Int?
+
+        while true {
+            try Task.checkCancellation()
+            let chunk = try await fetchDailyLogFileChunk(path: relativePath, offset: offset)
+
+            if let expectedTotalBytes, expectedTotalBytes != chunk.totalBytes {
+                throw DailyLogFetchError.invalidResponse
+            }
+            expectedTotalBytes = chunk.totalBytes
+
+            guard chunk.totalBytes <= DailyLogTransfer.maximumFileByteCount,
+                  chunk.data.count <= DailyLogTransfer.maximumChunkByteCount,
+                  content.count + chunk.data.count <= DailyLogTransfer.maximumFileByteCount
+            else {
+                throw DailyLogFetchError.tooLarge
+            }
+            content.append(chunk.data)
+
+            guard let nextOffset = chunk.nextOffset else {
+                guard content.count == chunk.totalBytes else {
+                    throw DailyLogFetchError.invalidResponse
+                }
+                guard let text = String(data: content, encoding: .utf8) else {
+                    throw DailyLogFetchError.invalidUTF8
+                }
+                return text
+            }
+            guard nextOffset > offset, nextOffset == content.count else {
+                throw DailyLogFetchError.invalidResponse
+            }
+            offset = nextOffset
+        }
+    }
+
+    private func fetchDailyLogFileIndexPage(
+        offset: Int
+    ) async throws -> DailyLogFileIndexPage {
+        guard let session = try await activatedSession() else {
+            throw DailyLogFetchError.unavailable
         }
 
-        return await withCheckedContinuation { continuation in
+        return try await withCheckedThrowingContinuation { continuation in
             let timeout = ContinuationTimeout()
-            
             let timeoutTask = Task {
                 try? await Task.sleep(for: .seconds(15))
                 if await timeout.complete() {
-                    let cached = UserDefaults.standard.string(forKey: cacheKey) ?? ""
-                    continuation.resume(returning: cached)
+                    continuation.resume(throwing: DailyLogFetchError.transportFailure)
                 }
             }
-            
-            session.sendMessage(["request": "dailyFile", "date": date.timeIntervalSince1970], replyHandler: { @Sendable reply in
-                let contentAvailable = (reply["available"] as? Bool) ?? (reply["content"] != nil)
-                let content = reply["content"] as? String ?? ""
+
+            session.sendMessage([
+                "request": "dailyLogFileIndexPage",
+                "offset": offset,
+                "limit": DailyLogTransfer.defaultPathPageLimit,
+            ], replyHandler: { @Sendable reply in
+                let error = reply["error"] as? String
+                let paths = reply["paths"] as? [String]
+                let nextOffset = reply["nextOffset"] as? Int
+                let todayPath = reply["todayPath"] as? String
+                let isTruncated = reply["isTruncated"] as? Bool
                 Task {
-                    if await timeout.complete() {
-                        timeoutTask.cancel()
-                        if contentAvailable {
-                            UserDefaults.standard.set(content, forKey: cacheKey)
-                            continuation.resume(returning: content)
-                        } else {
-                            let cached = UserDefaults.standard.string(forKey: cacheKey) ?? ""
-                            continuation.resume(returning: cached)
-                        }
+                    guard await timeout.complete() else { return }
+                    timeoutTask.cancel()
+                    if let error {
+                        continuation.resume(throwing: self.dailyLogFetchError(from: error))
+                        return
                     }
+                    guard let paths,
+                          let isTruncated,
+                          nextOffset.map({ $0 >= 0 }) ?? true,
+                          todayPath.map(DailyLogFilePath.isSafeRelativeMarkdownPath) ?? true
+                    else {
+                        continuation.resume(throwing: DailyLogFetchError.invalidResponse)
+                        return
+                    }
+                    continuation.resume(returning: DailyLogFileIndexPage(
+                        paths: paths,
+                        nextOffset: nextOffset,
+                        todayPath: todayPath,
+                        isTruncated: isTruncated
+                    ))
                 }
             }, errorHandler: { @Sendable _ in
                 Task {
-                    if await timeout.complete() {
-                        timeoutTask.cancel()
-                        let cached = UserDefaults.standard.string(forKey: cacheKey) ?? ""
-                        continuation.resume(returning: cached)
-                    }
+                    guard await timeout.complete() else { return }
+                    timeoutTask.cancel()
+                    continuation.resume(throwing: DailyLogFetchError.transportFailure)
                 }
             })
         }
     }
+
+    private func fetchDailyLogFileChunk(
+        path: String,
+        offset: Int
+    ) async throws -> (data: Data, nextOffset: Int?, totalBytes: Int) {
+        guard let session = try await activatedSession() else {
+            throw DailyLogFetchError.unavailable
+        }
+
+        return try await withCheckedThrowingContinuation { continuation in
+            let timeout = ContinuationTimeout()
+            let timeoutTask = Task {
+                try? await Task.sleep(for: .seconds(15))
+                if await timeout.complete() {
+                    continuation.resume(throwing: DailyLogFetchError.transportFailure)
+                }
+            }
+
+            session.sendMessage([
+                "request": "dailyLogFileChunk",
+                "path": path,
+                "offset": offset,
+                "maximumByteCount": DailyLogTransfer.defaultChunkByteCount,
+            ], replyHandler: { @Sendable reply in
+                let error = reply["error"] as? String
+                let data = reply["data"] as? Data
+                let nextOffset = reply["nextOffset"] as? Int
+                let totalBytes = reply["totalBytes"] as? Int
+                Task {
+                    guard await timeout.complete() else { return }
+                    timeoutTask.cancel()
+                    if let error {
+                        continuation.resume(throwing: self.dailyLogFetchError(from: error))
+                        return
+                    }
+                    guard let data, let totalBytes else {
+                        continuation.resume(throwing: DailyLogFetchError.invalidResponse)
+                        return
+                    }
+                    continuation.resume(returning: (data, nextOffset, totalBytes))
+                }
+            }, errorHandler: { @Sendable _ in
+                Task {
+                    guard await timeout.complete() else { return }
+                    timeoutTask.cancel()
+                    continuation.resume(throwing: DailyLogFetchError.transportFailure)
+                }
+            })
+        }
+    }
+
+    nonisolated private func dailyLogFetchError(from replyError: String) -> DailyLogFetchError {
+        switch replyError {
+        case "unavailable": .unavailable
+        case "tooLarge": .tooLarge
+        default: .invalidResponse
+        }
+    }
+
+    private func activatedSession() async throws -> WCSession? {
+        guard let session else { return nil }
+        for _ in 0..<10 {
+            if session.activationState == .activated { return session }
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        return session.activationState == .activated ? session : nil
+    }
+#endif
 
     // MARK: - Message Handler
 
@@ -379,16 +545,87 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
             return
         }
 
-        if let request = message["request"] as? String, request == "dailyFile" {
-            let timestamp = message["date"] as? TimeInterval ?? Date().timeIntervalSince1970
-            let date = Date(timeIntervalSince1970: timestamp)
-            // readText is nonisolated, so we read and reply synchronously in this
-            // delegate's own isolation region — no need to send the non-Sendable
-            // replyHandler across an actor boundary.
-            if let content = iCloudStorageManager.shared.readText(for: date) {
+        if let request = message["request"] as? String {
+            switch request {
+            case "dailyLogFileIndexPage":
+                let offset = message["offset"] as? Int ?? -1
+                let limit = message["limit"] as? Int ?? DailyLogTransfer.defaultPathPageLimit
+                guard let paths = iCloudStorageManager.shared.dailyLogFilePaths() else {
+                    replyHandler(["error": "unavailable"])
+                    return
+                }
+                let boundedPaths = DailyLogTransfer.boundedPaths(paths)
+                let page = DailyLogTransfer.page(boundedPaths.paths, offset: offset, limit: limit)
+                let todayPath = iCloudStorageManager.shared.dailyLogRelativePath()
+
+                var reply: [String: Any] = [
+                    "paths": page.paths,
+                    "isTruncated": boundedPaths.isTruncated,
+                ]
+                if let nextOffset = page.nextOffset {
+                    reply["nextOffset"] = nextOffset
+                }
+                if DailyLogFilePath.isSafeRelativeMarkdownPath(todayPath) {
+                    reply["todayPath"] = todayPath
+                }
+                replyHandler(reply)
+                return
+
+            case "dailyLogFileChunk":
+                guard let path = message["path"] as? String,
+                      DailyLogFilePath.isSafeRelativeMarkdownPath(path),
+                      let offset = message["offset"] as? Int,
+                      let maximumByteCount = message["maximumByteCount"] as? Int,
+                      let fileData = iCloudStorageManager.shared.readData(relativePath: path)
+                else {
+                    replyHandler(["error": "unavailable"])
+                    return
+                }
+
+                guard fileData.count <= DailyLogTransfer.maximumFileByteCount else {
+                    replyHandler(["error": "tooLarge"])
+                    return
+                }
+
+                let chunk = DailyLogTransfer.chunk(
+                    fileData,
+                    offset: offset,
+                    maximumByteCount: maximumByteCount
+                )
+                var reply: [String: Any] = [
+                    "data": chunk.data,
+                    "totalBytes": fileData.count,
+                ]
+                if let nextOffset = chunk.nextOffset {
+                    reply["nextOffset"] = nextOffset
+                }
+                replyHandler(reply)
+                return
+
+            case "dailyFile":
+                let timestamp = message["date"] as? TimeInterval ?? Date().timeIntervalSince1970
+                let date = Date(timeIntervalSince1970: timestamp)
+                // readText is nonisolated, so we read and reply synchronously in this
+                // delegate's own isolation region — no need to send the non-Sendable
+                // replyHandler across an actor boundary.
+                // Route through the same bounded file protocol for consistency.
+                let path = iCloudStorageManager.shared.dailyLogRelativePath(for: date)
+                guard DailyLogFilePath.isSafeRelativeMarkdownPath(path),
+                      let fileData = iCloudStorageManager.shared.readData(relativePath: path),
+                      fileData.count <= DailyLogTransfer.maximumFileByteCount
+                else {
+                    replyHandler(["available": false])
+                    return
+                }
+                guard let content = String(data: fileData, encoding: .utf8) else {
+                    replyHandler(["available": false])
+                    return
+                }
                 replyHandler(["content": content, "available": true])
-            } else {
-                replyHandler(["available": false])
+                return
+
+            default:
+                break
             }
         }
 #endif
