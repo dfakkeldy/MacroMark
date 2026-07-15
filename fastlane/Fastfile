@@ -199,6 +199,8 @@ platform :ios do
   end
 
   private_lane :prepare_app_store_signing do
+    setup_ci if ci_environment?
+
     match(
       type: "appstore",
       app_identifier: SIGNING_IDENTIFIERS,
