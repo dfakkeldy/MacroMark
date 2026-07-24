@@ -74,6 +74,10 @@ def truthy_value?(value)
   %w[1 true yes].include?(value.to_s.downcase)
 end
 
+def ci_environment?
+  ENV["CI"].to_s.casecmp("true").zero?
+end
+
 def ci_app_store_connect_api_key
   key_data = parsed_ci_api_key_json
   key_id = first_present(ENV["APP_STORE_CONNECT_API_KEY_KEY_ID"], key_data["key_id"], key_data["keyId"], key_data["KEY_ID"])
