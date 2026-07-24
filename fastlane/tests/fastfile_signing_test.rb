@@ -23,6 +23,25 @@ class FastfileSigningTest < Minitest::Test
                     "setup_ci must run before match installs signing certificates"
   end
 
+  def test_signing_lane_helpers_are_defined_in_the_fastfile
+    # The lane calls `ci_environment?`; if the helper is only defined on
+    # another branch, fastlane aborts at runtime with
+    # "Could not find action, lane or variable 'ci_environment?'".
+    # Asserting the call exists is not enough — assert the definition does too.
+    fastfile = File.read(FASTFILE)
+
+    called = fastfile.scan(/^\s*setup_ci if (\w+\??)$/).flatten.uniq
+
+    refute_empty called, "expected the signing lane to guard setup_ci with a helper"
+
+    called.each do |helper|
+      # No \b here: helper names may end in `?`, and `?` followed by a
+      # newline is two non-word characters, so a word boundary never matches.
+      assert fastfile.match?(/^def #{Regexp.escape(helper)}(\s|\(|$)/),
+             "Fastfile calls `#{helper}` but never defines it"
+    end
+  end
+
   def test_hosted_ci_runs_the_signing_regression
     workflow = File.read(CI_WORKFLOW)
 
