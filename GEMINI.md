@@ -1,14 +1,12 @@
 # Gemini Startup Guide for MacroMark
 
-Read `AGENTS.md` first. It is the canonical repo-wide instruction file for MacroMark and contains the Swift, SwiftUI, SwiftData, reliability, build, and Xcode MCP rules.
+Read `AGENTS.md` first; it is the canonical repository guide. Read `CLAUDE.md`
+only for its concise product context.
 
-Then read `CLAUDE.md` for the higher-level workflow notes: product context, the durability-first capture pipeline, documentation sync expectations, branch guidance, and preferred build/test commands.
-
-## Session Checklist
-
-- Preserve MacroMark's core reliability guarantee: no watch-side note or recording should be ACKed or deleted until the iPhone has durably processed it and exported it, or has safely queued it for retry.
-- Check `ARCHITECTURE.md` before major refactors.
-- Check `CODE_AUDIT.md`, `REMEDIATION_PLAN.md`, and `IMPLEMENTATION_PLAN.md` before touching sync, storage, macro processing, StoreKit/entitlements, logging, or watch transfer behavior.
-- Use Swift 6.2+ patterns, SwiftUI with `@Observable`, async/await, `Task.sleep(for:)`, `FormatStyle`, and `os.Logger`.
-- Avoid third-party dependencies unless the user explicitly approves them.
-- Build the relevant iOS and watchOS schemes, and run focused tests when the change touches core logic.
+- Preserve the ACK and deletion durability invariant for every capture.
+- Read `ARCHITECTURE.md` for major architecture work and the audit/remediation
+  documents only when their reliability areas are in scope.
+- Follow established Swift, SwiftUI, and concurrency patterns in touched code.
+- Do not add third-party dependencies without explicit authorization.
+- Run the relevant build or focused tests for code changes; instruction-only
+  edits do not require an app build.
