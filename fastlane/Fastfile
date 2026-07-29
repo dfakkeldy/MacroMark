@@ -51,6 +51,14 @@ SIGNING_TARGETS       = {
     sdk: "watchos*"
   }
 }.freeze
+BETA_APP_LOCALIZED_INFO = {
+  "en-US" => {
+    feedback_email: "dan@kinnokilabs.com",
+    marketing_url: "https://dfakkeldy.github.io/MacroMark/",
+    privacy_policy_url: "https://dfakkeldy.github.io/MacroMark/privacy.html",
+    description: "MacroMark is a quick Apple Watch and iPhone capture tool that turns dictated or typed notes into Markdown daily notes in iCloud Drive."
+  }
+}.freeze
 
 def first_present(*values)
   values
@@ -264,6 +272,7 @@ platform :ios do
       app_identifier: APP_IDENTIFIER,
       skip_waiting_for_build_processing: false,
       changelog: "MacroMark #{channel} build uploaded via fastlane.",
+      localized_app_info: BETA_APP_LOCALIZED_INFO,
       distribute_external: external
     }
 
@@ -360,11 +369,34 @@ platform :ios do
   # ── Metadata ──────────────────────────────────────────────────────────────
   desc "Download existing App Store metadata for editing locally"
   lane :refresh_meta do
+    require_api_key!
+
     deliver(
+      api_key: @api_key,
       overwrite_screenshots: false,
       ignore_language_directory_validation: true,
       force: true
     )
+  end
+
+  desc "Upload App Store metadata without uploading a binary or screenshots"
+  lane :upload_metadata do
+    require_api_key!
+
+    upload_to_app_store(
+      api_key: @api_key,
+      app_identifier: APP_IDENTIFIER,
+      skip_binary_upload: true,
+      skip_screenshots: true,
+      run_precheck_before_submit: false,
+      force: true
+    )
+  end
+
+  desc "Verify App Store Connect API key configuration"
+  lane :test_auth do
+    require_api_key!
+    UI.success("App Store Connect API key loaded successfully.")
   end
 
   # ── Code signing (Match) ──────────────────────────────────────────────────
