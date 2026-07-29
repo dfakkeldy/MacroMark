@@ -23,6 +23,7 @@ require "json"
 # ───────────────────────────────────────────────────────────────────────────────
 
 default_platform(:ios)
+skip_docs
 
 # ---------------------------------------------------------------------------
 # Shared configuration
@@ -394,12 +395,22 @@ platform :ios do
   lane :refresh_meta do
     require_api_key!
 
-    deliver(
-      api_key: @api_key,
-      overwrite_screenshots: false,
-      ignore_language_directory_validation: true,
-      force: true
-    )
+    Dir.chdir(File.expand_path("..", __dir__)) do
+      sh(
+        "bundle",
+        "exec",
+        "fastlane",
+        "deliver",
+        "download_metadata",
+        "--api_key_path",
+        "fastlane/api_key.json",
+        "--app_identifier",
+        APP_IDENTIFIER,
+        "--metadata_path",
+        "fastlane/metadata",
+        "--force"
+      )
+    end
   end
 
   desc "Upload App Store metadata without uploading a binary or screenshots"
