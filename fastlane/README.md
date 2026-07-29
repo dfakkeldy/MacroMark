@@ -64,6 +64,11 @@ bundle exec fastlane release_train channel:weekly
 bundle exec fastlane release_train channel:appstore
 ```
 
+Each TestFlight upload creates or updates a complete `en-US` beta app
+localization with the beta description, feedback email, marketing URL, and
+privacy-policy URL. Keep those values in `BETA_APP_LOCALIZED_INFO` in the
+`Fastfile`; App Store listing copy remains in `fastlane/metadata/en-US/`.
+
 As of 2026-07-01, the GitHub Actions release workflow on `main` is intentionally narrowed to the `nightly` internal TestFlight train. The `weekly` and `appstore` Fastlane paths remain in the Fastfile for manual/local use or future workflow restoration, but hosted CI only exposes the nightly channel.
 
 CI expects App Store Connect API key credentials plus `MATCH_PASSWORD`,
