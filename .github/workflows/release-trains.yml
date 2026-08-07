@@ -177,7 +177,6 @@ jobs:
           MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
           RELEASE_CHANNEL: ${{ needs.resolve.outputs.channel }}
-          TESTFLIGHT_INTERNAL_GROUPS: ${{ vars.TESTFLIGHT_INTERNAL_GROUPS || 'Nightly' }}
         run: |
           set -euo pipefail
 

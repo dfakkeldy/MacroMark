@@ -47,4 +47,18 @@ class FastfileSigningTest < Minitest::Test
 
     assert_includes workflow, "ruby fastlane/tests/fastfile_signing_test.rb"
   end
+
+  def test_internal_testflight_does_not_pass_groups
+    fastfile = File.read(FASTFILE)
+    upload_lane = fastfile[
+      /private_lane :upload_testflight_train do \|options\|(?<body>.*?)^  end$/m,
+      :body
+    ]
+
+    refute_nil upload_lane, "upload_testflight_train lane was not found"
+    assert_match(/if external.*upload_options\[:groups\]/m, upload_lane)
+    assert_equal 1, upload_lane.scan(/upload_options\[:groups\]/).length,
+                 "only the external path may pass a group to Fastlane"
+    refute_includes fastfile, "testflight_internal_groups"
+  end
 end
