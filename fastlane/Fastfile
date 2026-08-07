@@ -147,15 +147,6 @@ def testflight_external_groups
   groups
 end
 
-def testflight_internal_groups
-  groups = ENV.fetch("TESTFLIGHT_INTERNAL_GROUPS", "Nightly")
-    .split(",")
-    .map(&:strip)
-    .reject(&:empty?)
-
-  groups
-end
-
 def app_store_automatic_release?
   %w[1 true yes].include?(ENV["APP_STORE_AUTOMATIC_RELEASE"].to_s.downcase)
 end
@@ -279,9 +270,6 @@ platform :ios do
     if external
       upload_options[:groups] = testflight_external_groups
       upload_options[:notify_external_testers] = true
-    else
-      internal_groups = testflight_internal_groups
-      upload_options[:groups] = internal_groups unless internal_groups.empty?
     end
 
     upload_to_testflight(**upload_options)

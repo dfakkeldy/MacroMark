@@ -78,8 +78,11 @@ the component secrets `APP_STORE_CONNECT_API_KEY_KEY_ID`,
 `APP_STORE_CONNECT_API_KEY_ISSUER_ID`, and `APP_STORE_CONNECT_API_KEY_KEY`.
 Missing secrets leave the release-train workflow in compile-only mode.
 
-Nightly internal TestFlight uses `TESTFLIGHT_INTERNAL_GROUPS`, defaulting to
-`Nightly`.
+Nightly internal TestFlight deliberately omits Fastlane's `groups` option.
+Fastlane treats any explicit group as a reason to submit the build for external
+Beta App Review, even when `distribute_external` is false. Eligible builds remain
+available to App Store Connect users and internal groups configured for automatic
+distribution; other internal groups can add the processed build in App Store Connect.
 
 Weekly external TestFlight requires `TESTFLIGHT_EXTERNAL_GROUPS` as a
 comma-separated list, for example:
