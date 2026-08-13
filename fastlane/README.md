@@ -1,8 +1,9 @@
-fastlane documentation
-----
+# Fastlane for MacroMark
 
 This directory contains the `fastlane` configuration for automating screenshots,
 metadata, and App Store Connect deployments for MacroMark.
+
+## Setup
 
 Use Bundler from the repository root so CI and local lanes run the same Fastlane version:
 
@@ -63,11 +64,16 @@ bundle exec fastlane release_train channel:weekly
 bundle exec fastlane release_train channel:appstore
 ```
 
-As of 2026-07-05, the scheduled GitHub Actions release workflow is intentionally
-narrowed to the `nightly` internal TestFlight train. Manual dispatch also exposes
-a `weekly` channel for external TestFlight attempts; it builds the workflow ref
-that was dispatched. Dispatch it from the release-candidate branch, usually
-`nightly` after any upload-blocker fixes are merged.
+Each TestFlight upload creates or updates a complete `en-US` beta app
+localization with the beta description, feedback email, marketing URL, and
+privacy-policy URL. Keep those values in `BETA_APP_LOCALIZED_INFO` in the
+`Fastfile`; App Store listing copy remains in `fastlane/metadata/en-US/`.
+
+The scheduled GitHub Actions release workflow ships only the `nightly`
+internal TestFlight train. Manual dispatch also exposes a `weekly` channel for
+external TestFlight; it builds the workflow ref that was dispatched, so
+dispatch it from the release-candidate branch, usually `weekly` after a
+promotion. The `appstore` Fastlane path remains manual/local only.
 
 CI expects App Store Connect API key credentials plus `MATCH_PASSWORD`,
 `MATCH_GIT_SSH_KEY`, and `MATCH_GIT_URL` to be present before uploading.
@@ -76,8 +82,11 @@ the component secrets `APP_STORE_CONNECT_API_KEY_KEY_ID`,
 `APP_STORE_CONNECT_API_KEY_ISSUER_ID`, and `APP_STORE_CONNECT_API_KEY_KEY`.
 Missing secrets leave the release-train workflow in compile-only mode.
 
-Nightly internal TestFlight uses `TESTFLIGHT_INTERNAL_GROUPS`, defaulting to
-`Nightly`.
+Nightly internal TestFlight deliberately omits Fastlane's `groups` option.
+Fastlane treats any explicit group as a reason to submit the build for external
+Beta App Review, even when `distribute_external` is false. Eligible builds remain
+available to App Store Connect users and internal groups configured for automatic
+distribution; other internal groups can add the processed build in App Store Connect.
 
 Weekly external TestFlight requires `TESTFLIGHT_EXTERNAL_GROUPS` as a
 comma-separated list, for example:
@@ -96,7 +105,8 @@ automatically.
 
 ### 4. Current Release Blockers
 
-- No processed TestFlight build has been verified yet.
-- App Store distribution profiles must cover the iOS app, Watch app, and widget extension.
+- Nightly internal TestFlight is shipping: builds upload and distribute to
+  internal testers on the scheduled train (1.0 (22) on 2026-08-13). External
+  TestFlight distribution has not run yet.
 - StoreKit annual/lifetime purchase and restore flows still need local verification.
 - Screenshots, privacy answers, Accessibility Nutrition Labels, and paired-device smoke testing remain pre-submission gates.
