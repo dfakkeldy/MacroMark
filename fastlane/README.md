@@ -1,50 +1,103 @@
 # Fastlane for MacroMark
 
-This directory contains the `fastlane` configuration for automating screenshots, metadata, and App Store Connect deployments for MacroMark.
+This directory contains the `fastlane` configuration for automating screenshots,
+metadata, and App Store Connect deployments for MacroMark.
 
 ## Setup
 
-1. **Install Fastlane**:
-   Ensure you have fastlane installed (usually via Bundler or Homebrew):
-   ```bash
-   brew install fastlane
-   ```
-2. **Initialize Fastlane** (if not already done):
-   ```bash
-   fastlane init
-   ```
+Use Bundler from the repository root so CI and local lanes run the same Fastlane version:
+
+```bash
+bundle install
+bundle exec fastlane ios test_auth
+```
+
+Local App Store Connect access uses a git-ignored `fastlane/api_key.json`. CI can use either `APP_STORE_CONNECT_API_KEY_JSON` or the component secrets `APP_STORE_CONNECT_API_KEY_KEY_ID`, `APP_STORE_CONNECT_API_KEY_ISSUER_ID`, and `APP_STORE_CONNECT_API_KEY_KEY`.
 
 ## Workflows
 
-### 1. App Store Optimization (ASO) Metadata
-You can manage your App Store metadata locally. We recommend using the `app-store-aso` AI skill to generate optimized metadata:
-- **Title**: MacroMark: Zero-Friction Notes
-- **Subtitle**: Append voice memos to Markdown with accurate timestamps
-- **Keywords**: pkm,markdown,voice,dictation,obsidian,logseq,apple watch,capture,liquid glass
+### 1. App Store Optimization Metadata
 
-Put these generated strings into `fastlane/metadata/en-US/` and run:
+You can manage App Store metadata locally in `fastlane/metadata/en-US/`.
+Kickstart/App Store Connect refresh on 2026-07-01 reports an ASO score of
+89/100, with one `en-US` localization and these current keywords:
+`notes, dictation, watch, obsidian, logseq, daily, journal, memo, transcribe,
+vault, shortcut, inbox, quick`.
+
+Upload metadata without a binary or screenshots with:
+
 ```bash
-fastlane deliver
+bundle exec fastlane ios upload_metadata
 ```
 
-### 2. Screenshots (Snapshot)
-To automate screenshot generation for both iOS and watchOS:
-1. Run `fastlane snapshot init`.
-2. Add the generated `SnapshotHelper.swift` to your UI Test targets.
-3. Configure your `Snapfile` to point to the `MacroMark` scheme.
-4. Run:
-   ```bash
-   fastlane snapshot
-   ```
+Run `bundle exec fastlane ios refresh_meta` before editing if App Store Connect
+may contain newer metadata than the repository.
 
-### 3. Automated Beta Deployment
+### 2. Screenshots
 
-The `beta` lane accepts a release-train channel and uploads to TestFlight:
+The repository includes a `Snapfile` and screenshot lane. Capture screenshots with:
+
 ```bash
-bundle exec fastlane beta channel:nightly
-bundle exec fastlane beta channel:weekly
+bundle exec fastlane ios screenshots
 ```
 
-CI expects `APP_STORE_CONNECT_API_KEY_JSON`, `MATCH_PASSWORD`,
+Upload already-generated screenshots with:
+
+```bash
+bundle exec fastlane ios upload_screenshots
+```
+
+Use `bundle exec fastlane ios screenshot_release` to capture and upload in one run.
+
+### 3. Release Train Deployment
+
+The `release_train` lane accepts a release-train channel and ships it to the
+expected destination:
+
+- `nightly` uploads to internal TestFlight only.
+- `weekly` uploads to external TestFlight groups.
+- `appstore` uploads the main build and submits it to App Store Review.
+
+```bash
+bundle exec fastlane release_train channel:nightly
+bundle exec fastlane release_train channel:weekly
+bundle exec fastlane release_train channel:appstore
+```
+
+Each TestFlight upload creates or updates a complete `en-US` beta app
+localization with the beta description, feedback email, marketing URL, and
+privacy-policy URL. Keep those values in `BETA_APP_LOCALIZED_INFO` in the
+`Fastfile`; App Store listing copy remains in `fastlane/metadata/en-US/`.
+
+As of 2026-07-01, the GitHub Actions release workflow on `main` is intentionally narrowed to the `nightly` internal TestFlight train. The `weekly` and `appstore` Fastlane paths remain in the Fastfile for manual/local use or future workflow restoration, but hosted CI only exposes the nightly channel.
+
+CI expects App Store Connect API key credentials plus `MATCH_PASSWORD`,
 `MATCH_GIT_SSH_KEY`, and `MATCH_GIT_URL` to be present before uploading.
+The API key can be provided either as `APP_STORE_CONNECT_API_KEY_JSON` or as
+the component secrets `APP_STORE_CONNECT_API_KEY_KEY_ID`,
+`APP_STORE_CONNECT_API_KEY_ISSUER_ID`, and `APP_STORE_CONNECT_API_KEY_KEY`.
 Missing secrets leave the release-train workflow in compile-only mode.
+
+Nightly internal TestFlight deliberately omits Fastlane's `groups` option.
+Fastlane treats any explicit group as a reason to submit the build for external
+Beta App Review, even when `distribute_external` is false. Eligible builds remain
+available to App Store Connect users and internal groups configured for automatic
+distribution; other internal groups can add the processed build in App Store Connect.
+
+Weekly external TestFlight requires `TESTFLIGHT_EXTERNAL_GROUPS` as a
+comma-separated list, for example:
+
+```bash
+TESTFLIGHT_EXTERNAL_GROUPS="External Testers"
+```
+
+App Store submissions use manual release after approval by default. Set
+`APP_STORE_AUTOMATIC_RELEASE=true` only if approved builds should release
+automatically.
+
+### 4. Current Release Blockers
+
+- Kickstart refresh on 2026-07-01 still reports zero processed TestFlight builds.
+- App Store distribution profiles must cover the iOS app, Watch app, and widget extension.
+- StoreKit annual/lifetime purchase and restore flows still need local verification.
+- Screenshots, privacy answers, Accessibility Nutrition Labels, and paired-device smoke testing remain pre-submission gates.

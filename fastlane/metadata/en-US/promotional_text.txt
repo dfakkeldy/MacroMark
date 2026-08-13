@@ -1,0 +1,1 @@
+Capture thoughts from your Apple Watch and send them to Markdown daily notes in iCloud Drive, ready for Obsidian, Logseq, or your favorite notes workflow.
