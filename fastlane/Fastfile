@@ -54,6 +54,14 @@ SIGNING_TARGETS       = {
     sdk: "watchos*"
   }
 }.freeze
+BETA_APP_LOCALIZED_INFO = {
+  "en-US" => {
+    feedback_email: "dan@kinnokilabs.com",
+    marketing_url: "https://dfakkeldy.github.io/MacroMark/",
+    privacy_policy_url: "https://dfakkeldy.github.io/MacroMark/privacy.html",
+    description: "MacroMark is a quick Apple Watch and iPhone capture tool that turns dictated or typed notes into Markdown daily notes in iCloud Drive."
+  }
+}.freeze
 
 def first_present(*values)
   values
@@ -138,15 +146,6 @@ def testflight_external_groups
   if groups.empty?
     UI.user_error!("Weekly external TestFlight requires TESTFLIGHT_EXTERNAL_GROUPS, for example 'External Testers'.")
   end
-
-  groups
-end
-
-def testflight_internal_groups
-  groups = ENV.fetch("TESTFLIGHT_INTERNAL_GROUPS", "Nightly")
-    .split(",")
-    .map(&:strip)
-    .reject(&:empty?)
 
   groups
 end
@@ -268,19 +267,13 @@ platform :ios do
       app_identifier: APP_IDENTIFIER,
       skip_waiting_for_build_processing: false,
       changelog: "MacroMark #{channel} build uploaded via fastlane.",
-      beta_app_description: "MacroMark is a quick Apple Watch and iPhone capture tool that turns dictated or typed notes into Markdown daily notes in iCloud Drive.",
-      beta_app_feedback_email: "dan@kinnokilabs.com",
-      demo_account_required: false,
-      uses_non_exempt_encryption: false,
+      localized_app_info: BETA_APP_LOCALIZED_INFO,
       distribute_external: external
     }
 
     if external
       upload_options[:groups] = testflight_external_groups
       upload_options[:notify_external_testers] = true
-    else
-      internal_groups = testflight_internal_groups
-      upload_options[:groups] = internal_groups unless internal_groups.empty?
     end
 
     upload_to_testflight(**upload_options)
