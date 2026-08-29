@@ -1,6 +1,6 @@
 # MacroMark App Store Readiness
 
-Last synchronized: 2026-07-02
+Last synchronized: 2026-08-29
 
 This is the current shipping checklist for getting MacroMark from repository state to App Store submission. It combines live Kickstart/App Store Connect refresh data, the repository release ladder, and the App Store pre-flight gates.
 
@@ -12,7 +12,7 @@ This is the current shipping checklist for getting MacroMark from repository sta
 - Kickstart progress: 9/107 tasks complete
 - ASO score: 89/100
 - Localizations: `en-US` only, 83% complete
-- TestFlight: `buildCount: 0`, `feedbackCount: 0`
+- TestFlight: Fastlane release trains are on `main` (PRs #105, #107). Processed-build count was not re-read on 2026-08-29; omit a count until App Store Connect or Kickstart is refreshed. The 2026-07-01 snapshot (`buildCount: 0`) is not current fact.
 - Reviews: 0
 - Editorial nominations: 0
 - Accessibility Nutrition Labels: 0 declarations
@@ -22,8 +22,8 @@ This is the current shipping checklist for getting MacroMark from repository sta
 
 ## Next Ten Steps
 
-1. **Land the reconciliation PR.** Bring the release automation/docs line from `origin/main` together with the v1 product line from `origin/nightly`, then promote through `weekly` and `main` when the release ladder is ready.
-2. **Produce the first visible internal TestFlight build.** Dispatch the nightly release train after secrets/profiles are confirmed, then verify Fastlane logs show upload, processing, and internal distribution success. Kickstart must refresh from `buildCount: 0` to at least one processed build.
+1. **Keep the release ladder current.** Main-side TestFlight CI through #107 is already flowed into `nightly` via #108. Promote through `weekly` and `main` when the ladder is ready; do not treat nightly-only product as shipping on `main`.
+2. **Re-check App Store Connect TestFlight state.** Confirm in ASC whether a processed build is visible after Fastlane upload. Do not treat the 2026-07-01 `buildCount: 0` snapshot as current, and do not quote a build number without a fresh ASC read.
 3. **Validate signing and Fastlane secrets.** Confirm `APP_STORE_CONNECT_API_KEY_JSON` or component API-key secrets, `MATCH_PASSWORD`, `MATCH_GIT_SSH_KEY`, `MATCH_GIT_URL`, and App Store profiles for the iOS app, Watch app, and widget extension.
 4. **Finish StoreKit verification.** Confirm the annual subscription and lifetime non-consumable exist in App Store Connect, flip `StoreAccessPolicy.paywallDisabled` back to `false`, then test local purchase, restore, entitlement persistence, free-tier limits, and Pro gates.
 5. **Complete privacy submission fields.** Match the app privacy answers to the privacy manifests and actual runtime behavior. Confirm microphone, speech recognition, location, UserDefaults, file timestamp, and iCloud/file access disclosures are correct.
