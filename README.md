@@ -31,7 +31,7 @@ The full roadmap is in [docs/V1_ROADMAP.md](docs/V1_ROADMAP.md). It turns the co
 7. Transcription integrity.
 8. Launch monetization and App Store readiness.
 
-Status notes as of 2026-07-02: Kickstart is tracking App Store ID `6785081218`, GitHub Pages serves from `main /docs`, and App Store optimization metadata scores 89/100. No processed TestFlight build has been verified yet. Accessibility Nutrition Labels have zero declarations, and StoreKit purchase/restore, screenshots, privacy answers, and paired iPhone/Watch smoke testing still need release verification before v1.0 can be submitted. The current readiness checklist lives in [docs/APP_STORE_READINESS.md](docs/APP_STORE_READINESS.md).
+Status notes as of 2026-08-29: Kickstart is tracking App Store ID `6785081218`, GitHub Pages serves from `main /docs`, and App Store optimization metadata scored 89/100 on the 2026-07-01 refresh. Fastlane TestFlight CI exists on `main` (PRs #105 and #107). App Store Connect processing state was not re-read here; do not treat the 2026-07-01 `buildCount: 0` snapshot as current. Accessibility Nutrition Labels had zero declarations on that refresh, and StoreKit purchase/restore, screenshots, privacy answers, and paired iPhone/Watch smoke testing still need release verification before v1.0 can be submitted. The current readiness checklist lives in [docs/APP_STORE_READINESS.md](docs/APP_STORE_READINESS.md).
 
 ## Installation
 
