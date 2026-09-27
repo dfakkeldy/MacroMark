@@ -1,104 +1,53 @@
-# Agent Guide for MacroMark
+# MacroMark
 
-MacroMark is a zero-friction Apple Watch and iPhone capture tool. Dictated or
-typed captures become Markdown daily notes through a durability-first pipeline.
+MIT-licensed Apple Watch and iPhone capture tool. Dictated or typed captures
+become Markdown daily notes. The watch queues each capture durably in
+`LocalStore` and sends it over WatchConnectivity; the phone transcribes,
+expands macros, records, and exports it.
 
-## Project context
+## Layout
 
-- App targets live in `MacroMark.xcodeproj`: iOS, watchOS, widget/complication,
-  and tests.
-- `MacroMarkKit` contains shared models, macro processing, storage, logging,
-  export, and StoreKit support.
-- Preserve the current Xcode deployment settings (iOS 26.5 and watchOS 26.5)
-  unless the user asks to change them. The package currently declares iOS 26,
-  watchOS 11, and macOS 14.
-- Read `ARCHITECTURE.md` for major architectural changes. Consult
-  `CODE_AUDIT.md`, `REMEDIATION_PLAN.md`, and `IMPLEMENTATION_PLAN.md` only when
-  the task touches the audited reliability areas they describe.
-
-## Reliability invariants
-
-- Never acknowledge or delete a watch-side capture until the iPhone has durably
-  processed it and export has succeeded or is safely queued for retry.
-- Preserve idempotency across replayed notes, audio files, transfers, and ACKs.
-- If an iCloud file is unavailable, retain a retryable state instead of dropping
-  the capture.
-- Keep `MacroProcessor` deterministic and thread-safe. Macro mutations must
-  invalidate cached regex state.
-- Treat restoring defaults and other destructive macro operations as confirmed
-  user actions; never silently remove custom macros.
-- Bound location and transcription continuations so WAL replay cannot hang.
-
-## Implementation guidance
-
-- Use the project's Swift 6 concurrency and observation settings. Prefer
-  structured concurrency, avoid blocking cooperative threads, and keep
-  production logging in `os.Logger`.
-- Follow existing architecture in the touched subsystem. Prefer concrete
-  constructor or closure injection; add protocols only for real alternative
-  implementations or wired test doubles.
-- Keep SwiftUI views focused on UI and lightweight interaction. Put durability,
-  processing, persistence, and sync behavior in testable services or models.
-- Preserve the existing SwiftData model unless schema work is explicitly in
-  scope. Respect CloudKit model constraints wherever CloudKit is configured.
-- Prefer current APIs available at the deployment target, but do not broaden a
-  focused task into nearby modernization.
-- Do not introduce a third-party framework without user authorization.
-- Never commit secrets, credentials, or personal signing artifacts.
-- Update documentation only when the change makes existing architecture, setup,
-  durability, release, or user-workflow documentation inaccurate.
-
-## Source map
-
-- `MacroMark/`: iOS app, views, transcription, location, and phone-side transfer.
-- `MacroMark Watch App/`: capture UI, recordings, local queue, and watch lifecycle.
-- `MacroMarkKit/Sources/MacroMarkKit/`: shared processing and storage.
+- `MacroMark/`: iOS app. `MacroMark Watch App/`: watch capture and queue.
+- `MacroMarkKit/`: shared models, macro processing, storage, export, StoreKit.
 - `MacroMarkWidget/`: widgets and complications.
-- `MacroMarkTests/` and `MacroMarkKit/Tests/`: preferred unit-test locations.
+- Tests: `MacroMarkTests/` and `MacroMarkKit/Tests/`.
+- `ARCHITECTURE.md` describes the design. `CODE_AUDIT.md`,
+  `REMEDIATION_PLAN.md`, and `IMPLEMENTATION_PLAN.md` cover known reliability
+  work.
 
-## Verification
-
-Use the narrowest relevant gate:
+## Commands
 
 ```bash
-xcodebuild -project MacroMark.xcodeproj -scheme "MacroMark" -configuration Debug -destination 'generic/platform=iOS' build
-xcodebuild -project MacroMark.xcodeproj -scheme "MacroMark Watch App" -configuration Debug -destination 'generic/platform=watchOS' build
 swift test --package-path MacroMarkKit
+xcodebuild -project MacroMark.xcodeproj -scheme "MacroMark" -destination 'generic/platform=iOS' build
+xcodebuild -project MacroMark.xcodeproj -scheme "MacroMark Watch App" -destination 'generic/platform=watchOS' build
 ```
 
-Use focused tests for durability, retry, ACK, export, and macro-engine changes.
-Device-only behavior follows the optional testing policy below; do not turn it
-into a user checklist. Instruction-only edits do not require an app build.
+## Reliability rules
 
-## Repository workflow
+- Never ACK or delete a watch capture until the phone has durably processed it
+  and export has succeeded or is safely queued for retry.
+- Replayed notes, audio files, transfers, and ACKs must be idempotent.
+- If an iCloud file is unavailable, keep a retryable state; never drop the
+  capture.
+- `MacroProcessor` stays deterministic and thread-safe; macro edits must
+  invalidate its cached regexes.
+- Never silently remove custom macros; restoring defaults is a confirmed user
+  action.
+- Location and transcription continuations must be bounded so WAL replay
+  cannot hang.
+- Changes to durability, retry, ACK, export, or the macro engine need focused
+  tests.
 
-- MacroMark uses `feature/* -> nightly -> weekly -> main`.
-- Normal feature work branches from and opens a PR to `nightly`. Promotions are
-  separate PRs and should be opened only when requested.
-- Hotfixes branch from and PR to `main`, then flow back to `weekly` and `nightly`.
-- Never push directly to protected branches.
-- Inspect branch, upstream, and working tree before editing; preserve unrelated
-  changes and user-owned history.
-- Use coherent Conventional Commits; do not auto-rebase or force-push as a
-  standing rule.
-- Requested repository changes finish with a ready PR and auto-merge on green
-  required CI, using the supported merge method and respecting branch protections.
-  If native auto-merge is unavailable, merge the verified PR head normally after
-  reported checks pass. If CI is absent or blocked, leave the ready PR and report
-  that limitation once. Do not ask for another merge approval for ordinary work.
-- Report local verification and hosted CI as separate states.
+## Conventions
 
-## Device testing and nightly delivery
+- Use concrete types with constructor or closure injection; add a protocol only
+  for a second real implementation. Log with `os.Logger`.
+- Leave the SwiftData schema alone unless the task is about it.
+- Ask before adding a third-party dependency.
 
-Routine native changes finish with the PR and green-CI merge; the established
-nightly pipeline handles delivery to the Nightly TestFlight group. The user relies
-on automatic updates and tests when convenient, possibly days or weeks later.
-Do not request device verification, append manual acceptance checklists, send
-reminders, or block subsequent changes because earlier builds remain untested.
-Run proportionate automated/simulator checks and fix device issues when reported.
-Overnight iPhone testing is optional, only when the user offers it for that session.
+## Branches
 
-Do not claim device behavior or installation was verified without evidence.
-Explicitly requested device investigations may need specific device evidence;
-ordinary uncertainty is not a completion gate. Weekly/stable promotion and public
-release remain separate, explicitly requested work.
+`feature/*` → `nightly` → `weekly` → `main`. Feature PRs target `nightly`.
+Hotfixes branch from `main` and are merged back down. Open promotion PRs only
+when asked.
