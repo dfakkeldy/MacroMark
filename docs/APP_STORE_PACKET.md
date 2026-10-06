@@ -71,7 +71,7 @@ at handoff. Review contacts belong privately in ASC, not this repository.
 | English description | Unlimited macros and custom folders yearly. | Unlimited macros and custom folders forever. |
 | Review image | Current unentitled paywall with annual card | Current unentitled paywall with lifetime card |
 
-Descriptions fit the 55-character localization limit. The app loads product
+Descriptions fit the 45-character localization limit. The app loads product
 IDs directly without a group ID. Inspect the existing group first; use the
 suggested reference `MacroMark Pro` only if one must be created.
 
