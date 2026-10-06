@@ -121,7 +121,7 @@ struct NoteDetailView: View {
                 note.isExported = true
                 note.exportTarget = ExportTarget.iCloud.rawValue
                 note.exportStatus = .exported
-                note.exportStatusMessage = "Saved to \(ExportTarget.iCloud.rawValue)."
+                note.exportStatusMessage = "Saved to the daily Markdown file."
                 note.lastExportedAt = .now
                 try? note.modelContext?.save()
             } else {

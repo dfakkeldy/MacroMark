@@ -696,7 +696,7 @@ struct MacroMarkApp: App {
         note.isExported = true
         note.exportTarget = target.rawValue
         note.exportStatus = .exported
-        note.exportStatusMessage = "Saved to \(target.rawValue)."
+        note.exportStatusMessage = "Saved to the daily Markdown file."
         note.lastExportedAt = .now
         try context.save()
     }
@@ -926,7 +926,7 @@ struct MacroMarkApp: App {
             note.isExported = true
             note.exportTarget = ExportTarget.iCloud.rawValue
             note.exportStatus = .exported
-            note.exportStatusMessage = "Saved to \(ExportTarget.iCloud.rawValue)."
+            note.exportStatusMessage = "Saved to the daily Markdown file."
             note.lastExportedAt = .now
         case .deferred:
             note.exportStatus = .deferred
