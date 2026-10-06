@@ -47,6 +47,8 @@ MacroMark treats captured notes and recordings as user data, not transient messa
 4. Export status tracks whether the configured target appended successfully, deferred safely, or needs attention.
 5. Watch-side data is acknowledged only after iPhone-side durability and export safety are established.
 
+Initial processing, export retry, and audio WAL recovery share one reservation per capture source UUID. A path acquires it before starting work and releases it when that work ends, so a retry or recovery pass cannot append or retranscribe a capture while another path still owns it. A successful export reports that the note was saved to the daily Markdown file.
+
 The public UI mirrors this model through inbox status, needs-attention filtering, note detail status, retry actions, partial transcription warnings, and destination setup proof. Any future sync/storage work must preserve idempotency: replayed notes, audio files, and ACK messages must not duplicate user-visible Markdown exports.
 
 ## 5. Product And Monetization Boundaries

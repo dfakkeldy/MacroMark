@@ -95,10 +95,12 @@ placement/coverage is a separate check from ASC privacy answers.
 | IAP review | Free launch | No new purchase review image is required for this launch |
 | Icons | iOS/Watch: 1024 × 1024 RGB PNGs, no alpha | Validate promoted archive; no new artwork required |
 
-Local screenshots are not versioned release assets. The lead Inbox image has
-an Incomplete warning and developer launch-task text, also present in current
-demo seeds. Recapture useful neutral notes, inspect every image, and preserve
-SHA/build/device/date/dimensions. Suggested content: `## Idea: Try a new walk`,
+Local screenshots are not versioned release assets. The June 27 lead Inbox
+image has an Incomplete warning and developer launch-task text. PR #114
+replaced the developer launch-task demo seeds with everyday site/project
+notes; one seeded idea note is still marked partial, so the Inbox shows an
+Incomplete warning by design. Recapture useful neutral notes, inspect every
+image, and preserve SHA/build/device/date/dimensions. Suggested content: `## Idea: Try a new walk`,
 `- [ ] Pick up groceries`, `## Reading: Find the author's next book`. No real
 contacts, locations or private captures. Suggested captions: “Capture the
 thought”, “Find it in your daily note”, “Speak Markdown”, “See where notes go”.
