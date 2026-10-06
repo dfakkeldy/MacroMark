@@ -38,7 +38,6 @@ public enum DailyLogFilePath {
     public static func markdownFilePaths(in directory: URL) -> [String] {
         let baseDirectory = directory.standardizedFileURL
         let keys: Set<URLResourceKey> = [
-            .contentModificationDateKey,
             .isHiddenKey,
             .isRegularFileKey,
             .isSymbolicLinkKey,

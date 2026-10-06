@@ -121,6 +121,11 @@ struct MacroManagerView: View {
                     }
                 }
 
+                Section("Privacy") {
+                    Link("Privacy Policy", destination: URL(string: "https://dfakkeldy.github.io/MacroMark/privacy.html")!)
+                        .accessibilityIdentifier("settings.privacy-policy")
+                }
+
                 // MARK: Macros
                 Section {
                     ForEach(displayedMacros) { macro in

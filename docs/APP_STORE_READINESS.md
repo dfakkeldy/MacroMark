@@ -41,12 +41,12 @@ backport features or change protections/pipelines to obtain green CI.
 | Gate | Current evidence / next action | State |
 | --- | --- | --- |
 | Purchase-controlled Pro | `StoreAccessPolicy.paywallDisabled = true` is the deliberate, tested beta hiatus | **Release-policy gate**, not a spontaneous bug; confirm intended paid candidate policy before changing it |
-| In-app privacy / subscription terms | No privacy or Terms link found in Swift views; paywall has Restore but no legal links | **Blocker** under Apple privacy/subscription requirements |
+| In-app privacy / subscription terms | Settings now exposes Privacy Policy; paywall exposes existing Privacy and Terms URLs (HTTP 200 on 6 Oct) | **Implemented; candidate UI visibility and link-opening acceptance pending** |
 | Real StoreKit gating | Simulator auto-entitles; trial uses `introOffer.period.debugDescription` whenever an offer exists | **Unverified**; readable eligible trial copy and unentitled purchase/restore/expiry gates need tests |
 | Lifetime revocation | Lifetime flag/keychain is set and never cleared on revocation, although Apple excludes revoked transactions from current entitlements | **Confirmed source defect** masked by beta bypass; repair and verify live-update/relaunch cases before paid release |
-| Manifest coverage | Four manifests: empty collection, tracking false; app/Watch/package UserDefaults `CA92.1`; package requests `.contentModificationDateKey` without FileTimestamp reason | **Source blocker**; Apple lists this key as FileTimestamp; select a reason matching actual container/user-picked file use and validate the archive |
+| Manifest coverage | Four manifests: empty collection, tracking false; app/Watch/package UserDefaults `CA92.1`; unused `.contentModificationDateKey` request removed; filename order/filtering preserved | **Source coverage gap removed; final linked-API/archive report still pending** |
 | Core capture → durable Markdown | WAL, retry, deduplication, original timestamps and visible export status in source | **Configured / partly automated**; no fresh paired physical-device acceptance in this audit |
-| Screenshots | Twelve ignored local June 27 phone/iPad shots; no final Watch or IAP review images found | **Pending**; current neutral demo recapture and visual inspection |
+| Screenshots | Current neutral phone/iPad simulator drafts captured and inspected; Watch/IAP finals incomplete | **Draft assets**; clean status bars and candidate/device coverage before store upload |
 | ASC configuration | Annual/lifetime IDs and local test prices exist | **Pending**; current product, questionnaire, review, agreements and version associations need direct ASC inspection |
 
 Open June issues #79–#86 are not automatically eight current blockers. The
@@ -105,3 +105,14 @@ Re-checked October 6: [App Review Guidelines](https://developer.apple.com/app-st
 [API category definitions](https://developer.apple.com/documentation/bundleresources/app-privacy-configuration/nsprivacyaccessedapitypes/nsprivacyaccessedapitype),
 [screenshot specifications](https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications/),
 [upcoming requirements](https://developer.apple.com/news/upcoming-requirements/).
+
+## 6 October continuation
+
+The legal-link and unused timestamp-request diffs passed independent source
+review. The local package test attempt failed at ad-hoc signing of a generated
+test bundle with Finder/resource-fork metadata; no test assertion ran in that
+attempt and no signing credentials/settings were changed. Fresh exact-head
+hosted package/app/Watch CI remains the validation source for this patch. Trial
+eligibility/presentation and lifetime revocation remain unresolved agent-owned
+source defects; no purchase policy or beta bypass changed. No release action
+was performed.
