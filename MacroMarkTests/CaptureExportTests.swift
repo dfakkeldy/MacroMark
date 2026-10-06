@@ -41,7 +41,7 @@ struct CaptureExportTests {
         await initial.value
         #expect(fixture.acknowledgedNotes.isEmpty)
         #expect(PendingExportStore.read(from: fixture.defaults)[id] != nil)
-        #expect(fixture.defaults.data(forKey: UserDefaultsKey.pendingProcessing.rawValue) != nil)
+        #expect(try fixture.walContains(id: id, key: .pendingProcessing))
         for task in fixture.app.retryDeferredExports(container: fixture.container) { await task.value }
         #expect(sink.calls.count == 2)
         #expect(sink.successfulEntries.count == 1)
@@ -81,6 +81,8 @@ struct CaptureExportTests {
         await initial.value
         #expect(fixture.transcriptionCount == 1)
         #expect(fixture.acknowledgedFiles.isEmpty)
+        #expect(try fixture.walContains(id: id, key: .pendingAudioIn))
+        #expect(FileManager.default.fileExists(atPath: fixture.runtime.pendingAudioDirectory.appendingPathComponent("\(id.uuidString).m4a").path))
         let firstRetry = try #require(fixture.app.retryDeferredExports(container: fixture.container).first)
         #expect(await sink.waitForHeldEntry(orCompletionOf: firstRetry))
         for task in fixture.app.reprocessPendingItems(container: fixture.container) { await task.value }
@@ -200,6 +202,12 @@ private final class CaptureExportFixture {
             let entries = try JSONSerialization.jsonObject(with: data) as? [String: Any]
             #expect(entries?[id.uuidString] == nil, sourceLocation: sourceLocation)
         }
+    }
+
+    func walContains(id: UUID, key: UserDefaultsKey) throws -> Bool {
+        let data = defaults.data(forKey: key.rawValue) ?? Data("{}".utf8)
+        let entries = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        return entries?[id.uuidString] != nil
     }
 
     func cleanup() {

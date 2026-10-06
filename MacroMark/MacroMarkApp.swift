@@ -46,7 +46,6 @@ final class CaptureRuntime {
     let managesBackgroundTasks: Bool
     var usingInMemoryStore = false
     var inFlightIDs: Set<UUID> = []
-    var retryingExportIDs: Set<UUID> = []
     var cachedProcessedIDs: Set<UUID>?
     var cachedProcessedIDOrder: [UUID]?
 
@@ -350,20 +349,20 @@ struct MacroMarkApp: App {
         var bgTask = UIBackgroundTaskIdentifier.invalid
         var processingTask: Task<Void, Never>?
         if captureRuntime.managesBackgroundTasks {
-        bgTask = UIApplication.shared.beginBackgroundTask(withName: name) {
-            // Background task expiring — the raw text/audio is already saved in the
-            // write-ahead log, so it will be reprocessed on next launch.
-#if DEBUG
-            print("MacroMark: Background task '\(name)' expiring for note \(noteId)")
-#endif
-            Task { @MainActor in
-                processingTask?.cancel()
-                if bgTask != .invalid {
-                    UIApplication.shared.endBackgroundTask(bgTask)
-                    bgTask = .invalid
+            bgTask = UIApplication.shared.beginBackgroundTask(withName: name) {
+                // Background task expiring — the raw text/audio is already saved in the
+                // write-ahead log, so it will be reprocessed on next launch.
+    #if DEBUG
+                print("MacroMark: Background task '\(name)' expiring for note \(noteId)")
+    #endif
+                Task { @MainActor in
+                    processingTask?.cancel()
+                    if bgTask != .invalid {
+                        UIApplication.shared.endBackgroundTask(bgTask)
+                        bgTask = .invalid
+                    }
                 }
             }
-        }
         }
 #endif
 
@@ -813,14 +812,13 @@ struct MacroMarkApp: App {
                 continue
             }
 
-            // Skip entries already being retried by a prior tick — prevents the
-            // periodic timer from spawning a second retry Task for the same id
-            // while the first is still awaiting `performExport` (which would
-            // double-append the note to the daily file).
-            guard !captureRuntime.retryingExportIDs.contains(id) else { continue }
-            captureRuntime.retryingExportIDs.insert(id)
+            // Initial processing, audio recovery and export retry must share
+            // ownership while an append suspends. Acquire before spawning work.
+            guard !captureRuntime.inFlightIDs.contains(entry.noteId) else { continue }
+            captureRuntime.inFlightIDs.insert(entry.noteId)
 
             let task = Task { @MainActor in
+                defer { captureRuntime.inFlightIDs.remove(entry.noteId) }
                 let storedNote = Self.fetchStoredNote(in: context, matching: entry)
                 let note: ProcessedNote
                 if let storedNote {
@@ -833,7 +831,6 @@ struct MacroMarkApp: App {
                             print("MacroMark: failed to remove exported pending export \(id): \(error)")
 #endif
                         }
-                        captureRuntime.retryingExportIDs.remove(id)
                         return
                     }
                     note = storedNote
@@ -853,7 +850,6 @@ struct MacroMarkApp: App {
 #if DEBUG
                         print("MacroMark: failed to restore pending-export note \(entry.noteId): \(error)")
 #endif
-                        captureRuntime.retryingExportIDs.remove(id)
                         return
                     }
                 }
@@ -866,7 +862,6 @@ struct MacroMarkApp: App {
                     rawTarget: entry.targetRawValue,
                     context: context
                 )
-                captureRuntime.retryingExportIDs.remove(id)
 
                 if outcome == .appended || outcome == .savedInInbox {
                     // Durable-terminal-state cleanup. This is the symmetric
