@@ -72,7 +72,7 @@ Use one subscription group. MacroMark has one paid entitlement tier, so a single
     category; do not choose a legal/tax answer from this guide.
 13. Add the `en-US` localization:
     - Display Name: `MacroMark Pro Annual`
-    - Description: `Unlimited macros and folder customization for one year.`
+    - Description: `Unlimited macros and custom folders yearly.`
 14. Add an App Review screenshot showing the MacroMark paywall with fake/demo content only.
 
 ## 4. Add The Annual 1-Month Free Trial
@@ -117,7 +117,7 @@ Do not choose Pay As You Go for this trial. Apple treats free trial, pay up fron
     category; do not choose a legal/tax answer from this guide.
 18. Add the `en-US` localization:
     - Display Name: `MacroMark Pro Lifetime`
-    - Description: `Unlimited macros and folder customization, forever.`
+    - Description: `Unlimited macros and custom folders forever.`
 19. Add an App Review screenshot showing the lifetime option with fake/demo content only.
 
 Non-consumable IAPs do not use subscription introductory offers. The launch intro must be implemented as a temporary or scheduled App Store Connect price change, then returned to the standard `$24.99` price. Apple documents In-App Purchase price changes as supporting definite start and end dates or permanent changes, so this is the right ASC mechanism for the $16.99 launch intro.
@@ -171,3 +171,5 @@ Program enrollment is optional; it does not block basic release preparation.
 - Apple: [Submit an In-App Purchase](https://developer.apple.com/help/app-store-connect/manage-submissions-to-app-review/submit-an-in-app-purchase/)
 - Apple: [In-App Purchase information](https://developer.apple.com/help/app-store-connect/reference/in-app-purchases-and-subscriptions/in-app-purchase-information/)
 - Apple: [App Store Small Business Program](https://developer.apple.com/app-store/small-business-program/)
+
+Localized IAP display names are limited to 30 characters and descriptions to 45. The prepared annual/lifetime descriptions above fit those limits; this copy change does not verify ASC setup or change product IDs, prices, trial or entitlement policy. [Apple field reference](https://developer.apple.com/help/app-store-connect/reference/in-app-purchases-and-subscriptions/in-app-purchase-information).

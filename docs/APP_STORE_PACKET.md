@@ -68,7 +68,7 @@ at handoff. Review contacts belong privately in ASC, not this repository.
 | ID | `com.macromark.subscription.annual` | `com.macromark.lifetime` |
 | Reference / display name | MacroMark Pro Annual | MacroMark Pro Lifetime |
 | Duration | 1 year | Permanent entitlement subject to StoreKit status |
-| English description | Unlimited macros and folder customization for one year. | Unlimited macros and folder customization, forever. |
+| English description | Unlimited macros and custom folders yearly. | Unlimited macros and custom folders forever. |
 | Review image | Current unentitled paywall with annual card | Current unentitled paywall with lifetime card |
 
 Descriptions fit the 55-character localization limit. The app loads product
@@ -151,3 +151,5 @@ Re-checked October 6: [App Review Guidelines](https://developer.apple.com/app-st
 [submit IAPs](https://developer.apple.com/help/app-store-connect/manage-submissions-to-app-review/submit-an-in-app-purchase/),
 [App Privacy Details](https://developer.apple.com/app-store/app-privacy-details/),
 [screenshots](https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications/).
+
+Localized IAP display names are limited to 30 characters and descriptions to 45. The prepared annual/lifetime descriptions above fit those limits; this copy change does not verify ASC setup or change product IDs, prices, trial or entitlement policy. [Apple field reference](https://developer.apple.com/help/app-store-connect/reference/in-app-purchases-and-subscriptions/in-app-purchase-information).
