@@ -11,6 +11,14 @@ final class MacroMarkScreenshotUITests: XCTestCase {
         app = XCUIApplication()
         setupSnapshot(app)
         app.configureForMacroMarkScreenshots()
+        // Preserve Fastlane's configured locale; use Canadian English for a
+        // standalone local capture that has no Snapshot language/locale files.
+        if !app.launchArguments.contains("-AppleLanguages") {
+            app.launchArguments += ["-AppleLanguages", "(en)"]
+        }
+        if !app.launchArguments.contains("-AppleLocale") {
+            app.launchArguments += ["-AppleLocale", "en_CA"]
+        }
         app.launch()
         XCUIDevice.shared.orientation = .portrait
     }
