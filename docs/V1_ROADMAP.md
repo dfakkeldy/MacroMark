@@ -1,7 +1,13 @@
 # MacroMark v1.0 Roadmap
 
 Generated: 2026-06-25
-Last synchronized: 2026-08-29
+Last synchronized: 2026-10-06
+
+> Current release gate: [App Store readiness](APP_STORE_READINESS.md). The
+> August implementation snapshot below is historical. Internal `1.0 (75)`
+> shipped October 5, but purchase bypass/legal links/manifest coverage and
+> paid-flow verification remain; nightly product has not reached weekly/main.
+> Do not infer release acceptance from the completed milestones.
 
 MacroMark v1.0 is the trust-and-capture release: Apple Watch quick capture for Markdown daily notes, with enough reliability, visibility, setup proof, and launch polish that users can trust it with fleeting thoughts.
 

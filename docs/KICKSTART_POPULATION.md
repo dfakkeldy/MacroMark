@@ -1,5 +1,11 @@
 # MacroMark — Kickstart Population Package
 
+> Historical June/July population record. Re-checked 2026-10-06: internal
+> `1.0 (75)` upload/processing/distribution is verified. Do not reuse old
+> launch dates, zero-build counts, task/ASO counts or price declarations as
+> current facts. Use [readiness](APP_STORE_READINESS.md) and
+> [prepared store packet](APP_STORE_PACKET.md); account data stays private.
+
 > **Status:** ✅ APPLIED 2026-06-20; refreshed 2026-07-01. The project was created manually in the Kickstart app
 > (the MCP `create_project` endpoint was failing — 7/7 connection drops; all other write
 > endpoints worked fine). Launch date set to **Aug 4, 2026**. Applied: project record +
@@ -10,7 +16,7 @@
 > 20 competitors, and one `en-US` App Store localization. Still open: first visible
 > TestFlight build, Accessibility Nutrition Labels, pricing/free-vs-paid confirmation, and
 > final competitor screenshot/copy review.
-> This file remains the source of truth for App Store Connect / fastlane metadata.
+> This historical population file does not establish current ASC fields.
 >
 > Data sourced from: repo (`README.md`, `MacroMarkKit/Configuration.storekit`,
 > `fastlane/README.md`, `MacroMark.xcodeproj/project.pbxproj`), the developer's existing

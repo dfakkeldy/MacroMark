@@ -1,6 +1,10 @@
 # MacroMark Marketing Plan
 
-Last synchronized: 2026-07-01
+Last synchronized: 2026-10-06
+
+> Promotion hold: [App Store readiness](APP_STORE_READINESS.md) and the
+> [prepared packet](APP_STORE_PACKET.md) hold current evidence. Prepare copy
+> and assets now; publish no launch claims until the accepted build is live.
 
 MacroMark is a pre-launch freemium/subscription productivity utility: free Apple Watch and iPhone capture for Markdown daily notes, with MacroMark Pro planned for power-user limits and customization. This plan is intentionally light on high-contact social work and heavy on reusable assets, App Store readiness, and a calm weekly public record.
 
@@ -10,11 +14,11 @@ MacroMark is a pre-launch freemium/subscription productivity utility: free Apple
 | --- | --- |
 | Category | Productivity |
 | Platforms | iOS and watchOS |
-| Lifecycle stage | Pre-launch, planned launch 2026-08-04 |
+| Lifecycle stage | Release preparation; the old August 4 date has passed, no new date authorized |
 | Monetization | Free download; Pro annual subscription planned at $9.99/year with 1-month free trial; lifetime unlock planned at $24.99 with $16.99 launch intro |
 | Audience | Markdown daily-note users, Apple Watch users, Obsidian/Logseq users, field workers, walkers/commuters, PKM power users |
-| Current traction | No TestFlight builds or customer reviews visible in the 2026-07-01 Kickstart refresh |
-| Current ASO | 89/100 score; one `en-US` localization; title short; no Custom Product Pages, In-App Events, or Promoted IAP configured |
+| Current traction | Internal `1.0 (75)` upload/processing/distribution verified October 5; public availability and current customer reviews unverified |
+| Current ASO | English metadata prepared; July 1 ASO/marketing-tool snapshot is historical, not current ASC evidence |
 
 ## Positioning
 

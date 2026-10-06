@@ -1,6 +1,8 @@
 # Watch Screenshots Plan
 
-Last updated: 2026-07-03.
+Re-checked: 2026-10-06. No final Watch or IAP review images were found.
+The local phone/iPad images are June 27 drafts, not approved release assets.
+Use [the current packet](APP_STORE_PACKET.md) for the asset inventory.
 
 Use fake demo content only. Do not capture personal notes, real routes, private locations, contact names, account identifiers, or production customer data.
 
@@ -39,14 +41,14 @@ Use one watch screenshot size consistently across all localizations. Apple lists
 
 | Device family | Size |
 | --- | --- |
-| Apple Watch Ultra 3 | 422 x 514 pixels |
+| Apple Watch Ultra 4 and Ultra 3 | 422 x 514 pixels |
 | Apple Watch Ultra 2 and Ultra | 410 x 502 pixels |
-| Apple Watch Series 11 and Series 10 | 416 x 496 pixels |
+| Apple Watch Series 12, Series 11 and Series 10 | 416 x 496 pixels |
 | Apple Watch Series 9, Series 8, and Series 7 | 396 x 484 pixels |
 | Apple Watch Series 6, Series 5, Series 4, SE 3, and SE | 368 x 448 pixels |
-| Apple Watch Series 3 | 312 x 390 pixels |
+| Apple Watch Series 3, Series 2 and Series 1 | 312 x 390 pixels |
 
-Preferred capture target: Apple Watch Ultra 3 at `422 x 514`, because it satisfies the largest current watch screenshot slot and gives the best room for readable text. If the installed Xcode Simulator does not expose Ultra 3, use Ultra 2 at `410 x 502` and keep that exact size for every watch localization.
+Preferred capture target: Apple Watch Ultra 4 or Ultra 3 at `422 x 514`, because it satisfies the largest current watch screenshot slot and gives the best room for readable text. If the installed Xcode Simulator does not expose Ultra 3, use Ultra 2 at `410 x 502` and keep that exact size for every watch localization.
 
 ## Capture Steps
 
@@ -70,7 +72,13 @@ Recapture iPhone/iPad screenshots if any current screenshot shows:
 - Lifetime purchase copy.
 - Trial copy rendered as `P1M` or any other developer-facing period string.
 
-The annual price is now $9.99/year with a 1-month free trial, and the lifetime standard price is now $24.99 with a $16.99 launch intro in App Store Connect. If the existing iPhone/iPad screenshot set does not show pricing or paywall surfaces, no pricing-specific recapture is required.
+Local planning values are $9.99/year with a one-month trial and $24.99
+lifetime; the proposed $16.99 launch price needs owner confirmation. No ASC
+price or offer has been verified here. The current iPhone required category is Dynamic Island medium (1179 × 2556
+or 1206 × 2622 portrait). Verify actual ASC scaling/acceptance before relying
+on an older large-device set. The current lead Inbox draft shows an Incomplete
+warning and developer task text; recapture neutral core-flow images on the
+final candidate even when no price is visible.
 
 ## References
 

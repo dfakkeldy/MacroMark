@@ -18,7 +18,7 @@ MacroMark is a zero-friction, voice-to-text capture tool designed for personal k
 
 ## v1.0 Roadmap
 
-MacroMark v1.0 is the trust-and-capture release: Apple Watch quick capture for Markdown daily notes, with visible sync/export state, setup proof, daily-note review by date, App Intents, safer transcription waits, and App Store-ready privacy and metadata artifacts.
+MacroMark v1.0 is the trust-and-capture release: Apple Watch quick capture for Markdown daily notes, with visible sync/export state, setup proof, daily-note review by date, App Intents, safer transcription waits, and privacy pages and draft store metadata.
 
 The full roadmap is in [docs/V1_ROADMAP.md](docs/V1_ROADMAP.md). It turns the competitor-review research in [docs/competitive-analysis.md](docs/competitive-analysis.md) into eight v1.0 milestones:
 
@@ -31,7 +31,7 @@ The full roadmap is in [docs/V1_ROADMAP.md](docs/V1_ROADMAP.md). It turns the co
 7. Transcription integrity.
 8. Launch monetization and App Store readiness.
 
-Status notes as of 2026-08-29: Kickstart is tracking App Store ID `6785081218`, GitHub Pages serves from `main /docs`, and App Store optimization metadata scored 89/100 on the 2026-07-01 refresh. Fastlane TestFlight CI exists on `main` (PRs #105 and #107). App Store Connect processing state was not re-read here; do not treat the 2026-07-01 `buildCount: 0` snapshot as current. Accessibility Nutrition Labels had zero declarations on that refresh, and StoreKit purchase/restore, screenshots, privacy answers, and paired iPhone/Watch smoke testing still need release verification before v1.0 can be submitted. The current readiness checklist lives in [docs/APP_STORE_READINESS.md](docs/APP_STORE_READINESS.md).
+Status re-checked 2026-10-06: internal TestFlight `1.0 (75)` uploaded, processed and distributed on October 5 from nightly `80455834`, using main `59b96a15` automation. Weekly/main remain 43 nightly commits behind. Hold App Store submission for purchase-policy, in-app legal-link and privacy-manifest blockers, paid-flow checks and candidate assets. This is not App Review or public-release proof. See [readiness](docs/APP_STORE_READINESS.md) and [prepared packet](docs/APP_STORE_PACKET.md).
 
 ## Installation
 
