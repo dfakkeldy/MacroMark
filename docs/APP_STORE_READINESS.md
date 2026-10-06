@@ -47,7 +47,7 @@ backport features or change protections/pipelines to obtain green CI.
 | Lifetime revocation | Lifetime flag/keychain is set and never cleared on revocation, although Apple excludes revoked transactions from current entitlements | **Legacy paid-path finding**; full free access does not depend on cached ownership; review before any future paid policy |
 | Manifest coverage | Four manifests: empty collection, tracking false; app/Watch/package UserDefaults `CA92.1`; unused `.contentModificationDateKey` request removed; filename order/filtering preserved | **Source coverage gap removed; final linked-API/archive report still pending** |
 | Core capture → durable Markdown | WAL, retry, deduplication, original timestamps and visible export status in source | **Configured / partly automated**; no fresh paired physical-device acceptance in this audit |
-| Screenshots | Current neutral phone/iPad simulator drafts captured and inspected; Watch/IAP finals incomplete | **Draft assets**; clean status bars and candidate/device coverage before store upload |
+| Screenshots | Current neutral phone/iPad simulator drafts captured and inspected; Watch finals incomplete | **Draft assets**; clean status bars and candidate/device coverage before store upload |
 | ASC configuration | Free launch; existing annual draft is preserved | **Pending** final candidate selection, listing/assets and current questionnaires; no IAP attachment for this free launch |
 
 Open June issues #79–#86 are not automatically eight current blockers. The
@@ -86,7 +86,7 @@ current shipping evidence; reproduce on the candidate before closing issues.
 1. Review prepared docs/copy and resolve scoped source blockers on nightly
    with focused tests and independent review. The [repair plan](RELEASE_REPAIR_PLAN.md)
    separates defects from beta policy and unobserved tests.
-2. Serially capture phone/iPad/Watch and IAP images; verify core capture,
+2. Serially capture phone/iPad/Watch images; verify core capture,
    deferred retry and replay against a current candidate, without cosmetic
    expansion or unrelated features.
 3. At the next sign-in, inspect existing ASC fields/products before entering
