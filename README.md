@@ -29,9 +29,14 @@ The full roadmap is in [docs/V1_ROADMAP.md](docs/V1_ROADMAP.md). It turns the co
 5. Destination setup proof.
 6. Daily note formatting.
 7. Transcription integrity.
-8. Launch monetization and App Store readiness.
+8. Free launch and App Store readiness.
 
-Status re-checked 2026-10-06: internal TestFlight `1.0 (75)` uploaded, processed and distributed on October 5 from nightly `80455834`, using main `59b96a15` automation. Weekly/main remain 43 nightly commits behind. Hold App Store submission for purchase-policy, in-app legal-link and privacy-manifest blockers, paid-flow checks and candidate assets. This is not App Review or public-release proof. See [readiness](docs/APP_STORE_READINESS.md) and [prepared packet](docs/APP_STORE_PACKET.md).
+Status re-checked 2026-10-06: MacroMark launches fully free, including custom
+macros, default-macro editing and folder customization. Existing ownership and
+product IDs are preserved. Internal TestFlight `1.0 (75)` shipped October 5;
+final candidate checks/assets and the weekly/main ladder still need evidence.
+Hold App Review submission and public release. See [readiness](docs/APP_STORE_READINESS.md)
+and the [prepared packet](docs/APP_STORE_PACKET.md).
 
 ## Installation
 

@@ -91,7 +91,7 @@ current shipping evidence; reproduce on the candidate before closing issues.
    expansion or unrelated features.
 3. At the next sign-in, inspect existing ASC fields/products before entering
    prepared material. The operator can do data entry; owner decides legal,
-   business, paid offer, rights and release scope.
+   business, free availability, rights and release scope.
 4. When authorized, promote through weekly external acceptance and main.
    `release` and `release_train channel:appstore` upload **and submit**; they
    are not harmless archive-only commands. Use manual public release unless
@@ -116,7 +116,6 @@ attempt and no signing credentials/settings were changed. Exact source-head `cc2
 Watch compilation and 50 package tests; nine app tests were skipped because no
 iPhone simulator was available on that runner. Previous documentation head
 `cba47d32` passed those nine app tests, which does not substitute for patch-head
-execution. Local native builds remain resource-gated until pressure allows them. Trial
-eligibility/presentation and lifetime revocation remain unresolved agent-owned
-source defects; no purchase policy or beta bypass changed. No release action
-was performed.
+execution. Local native builds remain resource-gated. These receipts preceded the free-launch
+decision. Historical trial/lifetime findings are future paid-policy concerns,
+not free-launch blockers; existing ownership and store records remain intact.

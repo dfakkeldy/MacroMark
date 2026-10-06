@@ -1,7 +1,7 @@
 # MacroMark prepared App Store packet
 
 Prepared: 2026-10-06 against nightly `80455834`. Draft fields for the intended
-v1 release, not proof of saved ASC metadata or accepted paid products. See
+v1 release, not proof of saved ASC metadata or accepted release. See
 [readiness](APP_STORE_READINESS.md) before using the packet.
 
 ## Listing fields
@@ -78,7 +78,7 @@ or simulator entitlement flags.
 | Rights / license | MIT source, system frameworks, repo branding/demo assets; Obsidian/Logseq compatibility mentions | Owner confirms asset/mark/content rights and intended EULA |
 | Encryption | `ITSAppUsesNonExemptEncryption=false`; no custom crypto found | Owner confirms legal determination for final build |
 | Accessibility | System/SwiftUI controls | Optional labels only after common-task tests |
-| Business / availability | No current public evidence | Owner confirms notices/agreements, paid offer, storefronts, DSA trader status and release setting |
+| Business / availability | No current public evidence | Owner confirms notices/agreements, free launch availability, DSA trader status and release setting |
 
 Apple separates developer collection from on-device-only processing and its
 own service collection. Privacy policy already discloses Apple's Speech
