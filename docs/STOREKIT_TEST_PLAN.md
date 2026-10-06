@@ -12,7 +12,7 @@ Local config:
 - Lifetime product ID: `com.macromark.lifetime`, $24.99
 - Free tier: unlimited capture and daily-note append, up to 3 custom macros
 
-Before each test, use a clean simulator install or clear the StoreKit test session transactions in Xcode's StoreKit Transaction Manager.
+For this authorized preparation, preserve the existing isolated fixtures and app data. Do not erase, reset, uninstall or clear transactions. The destructive fresh-install steps below are future acceptance cases and are not authorized in this run.
 
 ## Preflight Risks From The Current Code
 
@@ -22,8 +22,9 @@ Before each test, use a clean simulator install or clear the StoreKit test sessi
 - These tests prove local StoreKit behavior only. They do not prove that App Store Connect products exist, that ASC pricing is approved, or that production purchases work.
 
 Before final screenshots, confirm accessible in-app Terms/Privacy links and
-trial eligibility/readable duration; no links are present in the audited
-paywall. Local StoreKit tests must be followed by ASC sandbox checks using
+trial eligibility/readable duration. The preparation patch implements existing
+Privacy/Terms URLs in the paywall and an always-accessible Settings privacy link;
+visibility and actual opening on the selected candidate remain acceptance checks. Local StoreKit tests must be followed by ASC sandbox checks using
 real configured products before paid review.
 
 ## 1. Annual Purchase And Trial

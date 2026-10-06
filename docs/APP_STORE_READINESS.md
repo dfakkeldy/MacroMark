@@ -111,8 +111,11 @@ Re-checked October 6: [App Review Guidelines](https://developer.apple.com/app-st
 The legal-link and unused timestamp-request diffs passed independent source
 review. The local package test attempt failed at ad-hoc signing of a generated
 test bundle with Finder/resource-fork metadata; no test assertion ran in that
-attempt and no signing credentials/settings were changed. Fresh exact-head
-hosted package/app/Watch CI remains the validation source for this patch. Trial
+attempt and no signing credentials/settings were changed. Exact source-head `cc2cd9c` hosted CI 37410745965 passed iOS build-for-testing,
+Watch compilation and 50 package tests; nine app tests were skipped because no
+iPhone simulator was available on that runner. Previous documentation head
+`cba47d32` passed those nine app tests, which does not substitute for patch-head
+execution. Local native builds remain resource-gated until pressure allows them. Trial
 eligibility/presentation and lifetime revocation remain unresolved agent-owned
 source defects; no purchase policy or beta bypass changed. No release action
 was performed.

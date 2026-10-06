@@ -7,8 +7,8 @@ copy, product localizations, review instructions and declaration mappings.
 ## Prepare before sign-in
 
 - [ ] Confirm the intended paid candidate policy before changing the deliberate
-  beta bypass. Repair in-app privacy/Terms links, lifetime revocation and trial
-  eligibility/copy on nightly; validate annual expiry separately.
+  beta bypass. Verify the implemented privacy/Terms links. Repair lifetime
+  revocation and trial eligibility/copy on nightly; validate annual expiry separately.
 - [ ] Review file-timestamp manifest coverage and final archive privacy report.
 - [ ] Test purchase, restore, expiry/revocation and free-tier gates using an
   unentitled path; normal simulator auto-entitlement cannot prove them.
@@ -18,8 +18,9 @@ copy, product localizations, review instructions and declaration mappings.
 - [x] Prepare English listing, URLs, product localizations and review instructions.
 - [x] Verify public homepage/support/privacy/terms: HTTP 200, October 6.
 
-No source changes, builds, uploads, account changes or promotions were made
-by this documentation audit. Device behavior, ASC declarations, source
+The preparation patch adds existing legal links and removes an unused timestamp
+request. iOS/Watch builds and package tests passed; no upload, account change or
+promotion occurred. Device behavior, ASC declarations, source
 configuration and upload processing are separate states.
 
 ## At the next ASC session
