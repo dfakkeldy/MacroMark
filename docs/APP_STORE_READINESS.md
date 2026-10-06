@@ -5,7 +5,7 @@ receipts, public URLs, and prepared materials. It does not authorize promotion,
 upload, submission, pricing changes, or agreement acceptance.
 
 **Hold App Store submission.** Internal TestFlight shipping is verified. Paid
-release has source blockers, and the current product has not passed the weekly
+release has source blockers and an unresolved beta-policy decision, and the current product has not passed the weekly
 and main ladder. Use the [prepared packet](APP_STORE_PACKET.md) and
 [submission checklist](ASC_SUBMISSION_CHECKLIST.md).
 
@@ -40,10 +40,10 @@ backport features or change protections/pipelines to obtain green CI.
 
 | Gate | Current evidence / next action | State |
 | --- | --- | --- |
-| Purchase-controlled Pro | `StoreAccessPolicy.paywallDisabled = true` grants Pro everywhere | **Blocker**; restore intended release policy in a separately reviewed source change |
+| Purchase-controlled Pro | `StoreAccessPolicy.paywallDisabled = true` is the deliberate, tested beta hiatus | **Release-policy gate**, not a spontaneous bug; confirm intended paid candidate policy before changing it |
 | In-app privacy / subscription terms | No privacy or Terms link found in Swift views; paywall has Restore but no legal links | **Blocker** under Apple privacy/subscription requirements |
 | Real StoreKit gating | Simulator auto-entitles; trial uses `introOffer.period.debugDescription` whenever an offer exists | **Unverified**; readable eligible trial copy and unentitled purchase/restore/expiry gates need tests |
-| Lifetime revocation | Lifetime flag/keychain is set and never cleared on revocation | **Source risk**; verify and fix revoked-purchase access before paid release |
+| Lifetime revocation | Lifetime flag/keychain is set and never cleared on revocation, although Apple excludes revoked transactions from current entitlements | **Confirmed source defect** masked by beta bypass; repair and verify live-update/relaunch cases before paid release |
 | Manifest coverage | Four manifests: empty collection, tracking false; app/Watch/package UserDefaults `CA92.1`; package requests `.contentModificationDateKey` without FileTimestamp reason | **Source blocker**; Apple lists this key as FileTimestamp; select a reason matching actual container/user-picked file use and validate the archive |
 | Core capture → durable Markdown | WAL, retry, deduplication, original timestamps and visible export status in source | **Configured / partly automated**; no fresh paired physical-device acceptance in this audit |
 | Screenshots | Twelve ignored local June 27 phone/iPad shots; no final Watch or IAP review images found | **Pending**; current neutral demo recapture and visual inspection |
@@ -83,7 +83,8 @@ current shipping evidence; reproduce on the candidate before closing issues.
 ## Next execution sequence
 
 1. Review prepared docs/copy and resolve scoped source blockers on nightly
-   with focused tests and independent review.
+   with focused tests and independent review. The [repair plan](RELEASE_REPAIR_PLAN.md)
+   separates defects from beta policy and unobserved tests.
 2. Serially capture phone/iPad/Watch and IAP images; verify core capture,
    deferred retry and replay against a current candidate, without cosmetic
    expansion or unrelated features.

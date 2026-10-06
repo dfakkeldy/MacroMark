@@ -56,7 +56,8 @@ note server, ads, tracking or third-party analytics SDK.
 ```
 
 Verify navigation labels, actual device behavior and paid gates on the final
-build first. Remove the testing paywall bypass. Add tested device/OS details
+build first. Confirm the paid candidate policy; the testing paywall bypass is deliberate
+beta configuration, not an accidental defect. Add tested device/OS details
 at handoff. Review contacts belong privately in ASC, not this repository.
 
 ## IAP field sheet

@@ -6,8 +6,9 @@ copy, product localizations, review instructions and declaration mappings.
 
 ## Prepare before sign-in
 
-- [ ] Resolve testing paywall bypass, in-app privacy/Terms links, entitlement
-  expiry/revocation and readable eligible-trial copy on nightly.
+- [ ] Confirm the intended paid candidate policy before changing the deliberate
+  beta bypass. Repair in-app privacy/Terms links, lifetime revocation and trial
+  eligibility/copy on nightly; validate annual expiry separately.
 - [ ] Review file-timestamp manifest coverage and final archive privacy report.
 - [ ] Test purchase, restore, expiry/revocation and free-tier gates using an
   unentitled path; normal simulator auto-entitlement cannot prove them.
