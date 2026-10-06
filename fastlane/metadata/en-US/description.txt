@@ -18,7 +18,7 @@ MacroMark is for note-takers, writers, field workers, Obsidian and Logseq users,
 
 Questions or feedback? Use the support link on this App Store page.
 
-Capture and daily-note append are free. MacroMark Pro offers annual subscription or lifetime access to unlimited custom macros, default macro editing, and folder customization. Prices and any trial are shown in the app. Restore Purchases is available on the paywall.
+MacroMark is free. Capture, daily-note append, unlimited custom macros, default macro editing, and folder customization do not require a purchase.
 
 Terms of Use: https://dfakkeldy.github.io/MacroMark/terms.html
 Privacy Policy: https://dfakkeldy.github.io/MacroMark/privacy.html

@@ -231,7 +231,7 @@ struct ProductIdentifiersTests {
 struct StoreAccessPolicyTests {
 
     @Test
-    func paywallDisabledForTestingGrantsEntitlementWithoutPurchase() async throws {
+    func freeLaunchGrantsEntitlementWithoutPurchase() async throws {
         #expect(StoreAccessPolicy.paywallDisabled)
         #expect(
             StoreAccessPolicy.isEntitled(
@@ -243,7 +243,7 @@ struct StoreAccessPolicyTests {
     }
 
     @Test
-    func paidAndSimulatedEntitlementsStillWorkWhenHiatusEnds() async throws {
+    func legacyPaidAndSimulatedEntitlementsRemainCompatible() async throws {
         #expect(
             !StoreAccessPolicy.isEntitled(
                 isSubscribed: false,

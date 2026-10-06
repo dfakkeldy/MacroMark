@@ -42,54 +42,29 @@ file. Watch captures can queue while iPhone is unavailable. Apple Speech
 depends on device, language and network support. Microphone/speech permission
 is requested for voice capture. Location is optional for location macros.
 
-Capture and daily-note append remain free. Pro unlocks unlimited custom
-macros, editing default macros and folder customization. Intended paid
-options are annual auto-renewable access and a lifetime non-consumable.
-Add a fourth custom macro in the Macros tab or select a Pro-gated control to
-reach the paywall. Restore Purchases is on the paywall. See products attached
-to this version for approved prices and any introductory offer. Declining
-upgrade leaves capture available.
+MacroMark is free. Capture, daily-note append, unlimited custom macros,
+editing default macros and folder customization do not require a purchase.
+No paid product needs to be attached to this free launch.
 
 MacroMark uses local storage, the user's iCloud/document destination,
 WatchConnectivity, Apple Speech and StoreKit. It has no developer-operated
 note server, ads, tracking or third-party analytics SDK.
 ```
 
-Verify navigation labels, actual device behavior and paid gates on the final
-build first. Confirm the paid candidate policy; the testing paywall bypass is deliberate
-beta configuration, not an accidental defect. Add tested device/OS details
-at handoff. Review contacts belong privately in ASC, not this repository.
+Verify navigation labels and actual device behavior on the final build.
+Add tested device/OS details at handoff. Review contacts belong privately in
+ASC, not this repository.
 
-## IAP field sheet
+## Legacy purchase compatibility
 
-| Field | Annual | Lifetime |
-| --- | --- | --- |
-| Type | Auto-renewable subscription | Non-consumable |
-| ID | `com.macromark.subscription.annual` | `com.macromark.lifetime` |
-| Reference / display name | MacroMark Pro Annual | MacroMark Pro Lifetime |
-| Duration | 1 year | Permanent entitlement subject to StoreKit status |
-| English description | Unlimited macros and custom folders yearly. | Unlimited macros and custom folders forever. |
-| Review image | Current unentitled paywall with annual card | Current unentitled paywall with lifetime card |
-
-Descriptions fit the 45-character localization limit. The app loads product
-IDs directly without a group ID. Inspect the existing group first; use the
-suggested reference `MacroMark Pro` only if one must be created.
-
-Local test configuration has $9.99/year with a one-month trial and $24.99
-lifetime. Older plans propose a $16.99 lifetime launch discount. These are
-planning values, not ASC evidence or current price authorization. Do not reuse
-the expired September 1 price-change date. Prices, trial dates, territories,
-tax category, Family Sharing and agreements require exact owner decisions.
-First-time IAPs must be associated with the candidate version for review.
-
-Prepared IAP review note:
-
-```text
-Open the Macros tab and add a fourth custom macro or enter a Pro-gated macro
-or folder control. The paywall offers annual and lifetime access to the same
-Pro features. Capture and daily-note append do not require a purchase.
-Restore Purchases is on the paywall.
-```
+The approved October 6 launch is free. `StoreAccessPolicy.paywallDisabled`
+remains true for release, rather than being a temporary beta policy.
+Existing identifiers `com.macromark.subscription.annual` and
+`com.macromark.lifetime`, transaction handling and prior ownership are
+preserved. Do not create, remove, reprice, or attach legacy products as part
+of this free launch. Historical paid setup/test plans are not current release
+requirements. All macro and folder controls are accessible without ownership
+or simulator entitlement flags.
 
 ## Declaration worksheet — owner accepts final answers
 
@@ -117,7 +92,7 @@ placement/coverage is a separate check from ASC privacy answers.
 | iPhone | Ignored June 27 PNGs: 1320 × 2868 and 1170 × 2532 | Current required Dynamic Island medium category: 1179 × 2556 or 1206 × 2622; verify ASC scaling if reusing another category |
 | iPad | Ignored June 27 PNGs: 2064 × 2752 | Current 13-inch layout: successful Inbox, note detail, macro output, destination proof |
 | Watch | No final images / no Watch Fastlane lane | Capture, saved/queued confirmation, daily-log review, complication; one accepted size across locales |
-| IAP review | No final images found | Actual cards with readable eligible trial, Restore/legal links and no testing bypass |
+| IAP review | Free launch | No new purchase review image is required for this launch |
 | Icons | iOS/Watch: 1024 × 1024 RGB PNGs, no alpha | Validate promoted archive; no new artwork required |
 
 Local screenshots are not versioned release assets. The lead Inbox image has
@@ -152,4 +127,4 @@ Re-checked October 6: [App Review Guidelines](https://developer.apple.com/app-st
 [App Privacy Details](https://developer.apple.com/app-store/app-privacy-details/),
 [screenshots](https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications/).
 
-Localized IAP display names are limited to 30 characters and descriptions to 45. The prepared annual/lifetime descriptions above fit those limits; this copy change does not verify ASC setup or change product IDs, prices, trial or entitlement policy. [Apple field reference](https://developer.apple.com/help/app-store-connect/reference/in-app-purchases-and-subscriptions/in-app-purchase-information).
+Historical localized IAP fields remain subject to Apple's limits. This free-launch update preserves existing product IDs, ownership and store records. [Apple field reference](https://developer.apple.com/help/app-store-connect/reference/in-app-purchases-and-subscriptions/in-app-purchase-information).

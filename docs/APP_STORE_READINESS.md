@@ -4,9 +4,10 @@ Re-checked: 2026-10-06. This audit covers source, GitHub checks and shipping
 receipts, public URLs, and prepared materials. It does not authorize promotion,
 upload, submission, pricing changes, or agreement acceptance.
 
-**Hold App Store submission.** Internal TestFlight shipping is verified. Paid
-release has source blockers and an unresolved beta-policy decision, and the current product has not passed the weekly
-and main ladder. Use the [prepared packet](APP_STORE_PACKET.md) and
+**Hold App Store submission.** The October 6 owner decision is a fully free
+launch. Full macro/folder access remains enabled for all users; legacy
+StoreKit ownership is preserved. The current candidate still needs the
+nightly, weekly and main ladder and final candidate evidence. Use the [prepared packet](APP_STORE_PACKET.md) and
 [submission checklist](ASC_SUBMISSION_CHECKLIST.md).
 
 ## Verified release state
@@ -40,14 +41,14 @@ backport features or change protections/pipelines to obtain green CI.
 
 | Gate | Current evidence / next action | State |
 | --- | --- | --- |
-| Purchase-controlled Pro | `StoreAccessPolicy.paywallDisabled = true` is the deliberate, tested beta hiatus | **Release-policy gate**, not a spontaneous bug; confirm intended paid candidate policy before changing it |
+| Free-launch access | `StoreAccessPolicy.paywallDisabled = true` grants all macro/folder features without purchases | **Approved free release policy**; preserve existing product IDs and ownership |
 | In-app privacy / subscription terms | Settings now exposes Privacy Policy; paywall exposes existing Privacy and Terms URLs (HTTP 200 on 6 Oct) | **Implemented; candidate UI visibility and link-opening acceptance pending** |
-| Real StoreKit gating | Simulator auto-entitles; trial uses `introOffer.period.debugDescription` whenever an offer exists | **Unverified**; readable eligible trial copy and unentitled purchase/restore/expiry gates need tests |
-| Lifetime revocation | Lifetime flag/keychain is set and never cleared on revocation, although Apple excludes revoked transactions from current entitlements | **Confirmed source defect** masked by beta bypass; repair and verify live-update/relaunch cases before paid release |
+| Legacy StoreKit UI | Simulator auto-entitles; historical trial UI remains behind inaccessible purchase gates during free launch | **Not a free-launch gate**; no new paid offer or purchase claim in listing |
+| Lifetime revocation | Lifetime flag/keychain is set and never cleared on revocation, although Apple excludes revoked transactions from current entitlements | **Legacy paid-path finding**; full free access does not depend on cached ownership; review before any future paid policy |
 | Manifest coverage | Four manifests: empty collection, tracking false; app/Watch/package UserDefaults `CA92.1`; unused `.contentModificationDateKey` request removed; filename order/filtering preserved | **Source coverage gap removed; final linked-API/archive report still pending** |
 | Core capture → durable Markdown | WAL, retry, deduplication, original timestamps and visible export status in source | **Configured / partly automated**; no fresh paired physical-device acceptance in this audit |
 | Screenshots | Current neutral phone/iPad simulator drafts captured and inspected; Watch/IAP finals incomplete | **Draft assets**; clean status bars and candidate/device coverage before store upload |
-| ASC configuration | Annual/lifetime IDs and local test prices exist | **Pending**; current product, questionnaire, review, agreements and version associations need direct ASC inspection |
+| ASC configuration | Free launch; existing annual draft is preserved | **Pending** final candidate selection, listing/assets and current questionnaires; no IAP attachment for this free launch |
 
 Open June issues #79–#86 are not automatically eight current blockers. The
 intended bookmark cleanup, WAL ordering, duplicate-audio/retry guards, mixed

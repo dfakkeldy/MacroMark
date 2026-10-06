@@ -93,7 +93,7 @@ struct MacroManagerView: View {
                     }
                 }
 
-                // MARK: Folder Structure (Paid)
+                // MARK: Folder Structure
                 Section {
                     Button {
                         if entitlements.canCustomizeFolderStructure {

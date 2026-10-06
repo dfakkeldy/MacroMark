@@ -1,5 +1,9 @@
 # App Store Connect IAP Setup
 
+> October 6 release decision: MacroMark launches fully free. This historical
+> paid-product plan is retained for compatibility reference and does not
+> authorize creating products, offers, prices, or paid gates for this launch.
+
 Re-checked: 2026-10-06. Use [the prepared packet](APP_STORE_PACKET.md) for
 current copy, source blockers, and owner decisions. This navigation guide
 does not authorize store mutations, prices or agreements.

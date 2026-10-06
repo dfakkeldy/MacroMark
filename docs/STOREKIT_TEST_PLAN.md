@@ -1,5 +1,9 @@
 # StoreKit Test Plan
 
+> October 6 release decision: MacroMark launches fully free. This historical
+> paid-product plan is retained for compatibility reference and does not
+> authorize creating products, offers, prices, or paid gates for this launch.
+
 Re-checked: 2026-10-06. No purchase tests ran during the documentation audit.
 See [readiness](APP_STORE_READINESS.md) and [the packet](APP_STORE_PACKET.md).
 

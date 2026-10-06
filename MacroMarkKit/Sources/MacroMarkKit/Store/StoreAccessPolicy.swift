@@ -1,10 +1,9 @@
 import Foundation
 
 public enum StoreAccessPolicy {
-    /// Temporary testing hiatus for the MacroMark Pro paywall.
-    ///
-    /// Flip this back to `false` before App Store submission so StoreKit
-    /// purchases, restores, refunds, and subscription expiration control access.
+    /// The approved free launch gives every user full macro and folder access.
+    /// Existing StoreKit ownership and product identifiers remain compatible;
+    /// no purchase is required to use the app.
     public static let paywallDisabled = true
 
     public static func isEntitled(
