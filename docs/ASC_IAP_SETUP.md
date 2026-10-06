@@ -1,10 +1,20 @@
 # App Store Connect IAP Setup
 
-Last verified against Apple documentation: 2026-07-03.
+> October 6 release decision: MacroMark launches fully free. This historical
+> paid-product plan is retained for compatibility reference and does not
+> authorize creating products, offers, prices, or paid gates for this launch.
 
-This is a Dan-only App Store Connect checklist for MacroMark app ID `6785081218`. The repository can prepare product IDs and local StoreKit testing, but it cannot prove that App Store Connect products exist, are approved, or are attached to a submitted app version.
+Re-checked: 2026-10-06. Use [the prepared packet](APP_STORE_PACKET.md) for
+current copy, source blockers, and owner decisions. This navigation guide
+does not authorize store mutations, prices or agreements.
 
-Canonical product IDs:
+This is an authorized-operator App Store Connect checklist for MacroMark app ID `6785081218`. Inspect existing products before creating anything. Product IDs and local
+StoreKit testing cannot establish that ASC products exist, are approved, or
+are attached to a submitted version. The account owner handles agreement,
+business, price, territory and legal decisions; an operator can enter the
+prepared copy and assets after authorization.
+
+Canonical IDs and **planning prices requiring owner confirmation**:
 
 | Product | Type | Product ID | Price |
 | --- | --- | --- | --- |
@@ -62,10 +72,11 @@ Use one subscription group. MacroMark has one paid entitlement tier, so a single
 9. Set the starting United States price to `$9.99`.
 10. Leave generated comparable prices in other storefronts unless deliberately localizing prices.
 11. Open Availability and choose the launch storefronts.
-12. If App Store Connect asks for tax category, keep `App Store software` unless a tax advisor says otherwise.
+12. If App Store Connect asks for tax category, obtain the owner's approved
+    category; do not choose a legal/tax answer from this guide.
 13. Add the `en-US` localization:
     - Display Name: `MacroMark Pro Annual`
-    - Description: `Unlock unlimited macros, default macro editing, and folder customization for one year. Capture stays free.`
+    - Description: `Unlimited macros and custom folders yearly.`
 14. Add an App Review screenshot showing the MacroMark paywall with fake/demo content only.
 
 ## 4. Add The Annual 1-Month Free Trial
@@ -100,13 +111,17 @@ Do not choose Pay As You Go for this trial. Apple treats free trial, pay up fron
 11. Click Add Pricing.
 12. Select United States as the base country or region.
 13. For launch week, set the active price to `$16.99` if the launch intro is still intended to be live.
-14. Add or schedule the standard price change to `$24.99` effective September 1, 2026, or the first business day after launch week.
-15. If the launch intro is no longer active, set `$24.99` as the starting price immediately.
+14. Only with an approved future launch window, schedule the return to the
+    approved standard price. The old September 1, 2026 date has passed and
+    must not be reused; do not invent a replacement date.
+15. If no launch discount is authorized, ask the owner to confirm the standard
+    starting price; do not choose a price on their behalf.
 16. Leave Apple's comparable storefront prices in place unless deliberately localizing prices.
-17. If App Store Connect asks for tax category, keep `App Store software` unless a tax advisor says otherwise.
+17. If App Store Connect asks for tax category, obtain the owner's approved
+    category; do not choose a legal/tax answer from this guide.
 18. Add the `en-US` localization:
     - Display Name: `MacroMark Pro Lifetime`
-    - Description: `One-time unlock for unlimited macros, default macro editing, and folder customization. Capture stays free.`
+    - Description: `Unlimited macros and custom folders forever.`
 19. Add an App Review screenshot showing the lifetime option with fake/demo content only.
 
 Non-consumable IAPs do not use subscription introductory offers. The launch intro must be implemented as a temporary or scheduled App Store Connect price change, then returned to the standard `$24.99` price. Apple documents In-App Purchase price changes as supporting definite start and end dates or permanent changes, so this is the right ASC mechanism for the $16.99 launch intro.
@@ -133,7 +148,7 @@ Add one App Review screenshot for each product:
 2. Open the paywall so the annual and lifetime products are visible.
 3. Capture an iPhone or iPad screenshot that clearly shows the product being offered.
 4. Upload that image in each product's Review Information section.
-5. Add a short review note, for example: `Open Settings > Macros, add a fourth custom macro, then choose the annual or lifetime product on the paywall. Capture itself remains free.`
+5. Add a short review note, for example: `Open the Macros tab, add a fourth custom macro, then choose the annual or lifetime product on the paywall. Capture itself remains free.`
 
 Apple uses these screenshots for review only; they are not displayed on the App Store. The screenshot must meet one of the screenshot specifications supported by MacroMark. If the paywall shows `P1M` or any other developer-facing trial text, fix that before taking the final screenshots.
 
@@ -147,7 +162,8 @@ Apple uses these screenshots for review only; they are not displayed on the App 
 6. Submit the enrollment or confirm the current enrollment status from Apple's confirmation email/business notices.
 7. After approval, verify proceeds in Sales and Trends after Apple's stated processing window.
 
-Estimated Dan time: 10-20 minutes if agreements and account ownership are already settled.
+The Account Holder handles only unresolved agreement/business decisions.
+Program enrollment is optional; it does not block basic release preparation.
 
 ## References
 
@@ -159,3 +175,5 @@ Estimated Dan time: 10-20 minutes if agreements and account ownership are alread
 - Apple: [Submit an In-App Purchase](https://developer.apple.com/help/app-store-connect/manage-submissions-to-app-review/submit-an-in-app-purchase/)
 - Apple: [In-App Purchase information](https://developer.apple.com/help/app-store-connect/reference/in-app-purchases-and-subscriptions/in-app-purchase-information/)
 - Apple: [App Store Small Business Program](https://developer.apple.com/app-store/small-business-program/)
+
+Localized IAP display names are limited to 30 characters and descriptions to 45. The prepared annual/lifetime descriptions above fit those limits; this copy change does not verify ASC setup or change product IDs, prices, trial or entitlement policy. [Apple field reference](https://developer.apple.com/help/app-store-connect/reference/in-app-purchases-and-subscriptions/in-app-purchase-information).

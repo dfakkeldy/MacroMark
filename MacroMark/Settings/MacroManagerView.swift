@@ -93,7 +93,7 @@ struct MacroManagerView: View {
                     }
                 }
 
-                // MARK: Folder Structure (Paid)
+                // MARK: Folder Structure
                 Section {
                     Button {
                         if entitlements.canCustomizeFolderStructure {
@@ -119,6 +119,11 @@ struct MacroManagerView: View {
                     Button("Daily Note Formatting", systemImage: "text.alignleft") {
                         showingDailyNoteFormatting = true
                     }
+                }
+
+                Section("Privacy") {
+                    Link("Privacy Policy", destination: URL(string: "https://dfakkeldy.github.io/MacroMark/privacy.html")!)
+                        .accessibilityIdentifier("settings.privacy-policy")
                 }
 
                 // MARK: Macros

@@ -103,10 +103,18 @@ App Store submissions use manual release after approval by default. Set
 `APP_STORE_AUTOMATIC_RELEASE=true` only if approved builds should release
 automatically.
 
-### 4. Current Release Blockers
+### 4. Current release evidence and blockers
 
-- Nightly internal TestFlight is shipping: builds upload and distribute to
-  internal testers on the scheduled train (1.0 (22) on 2026-08-13). External
-  TestFlight distribution has not run yet.
-- StoreKit annual/lifetime purchase and restore flows still need local verification.
-- Screenshots, privacy answers, Accessibility Nutrition Labels, and paired-device smoke testing remain pre-submission gates.
+Re-checked: 2026-10-06. Scheduled run
+[37306349729](https://github.com/dfakkeldy/MacroMark/actions/runs/37306349729)
+uploaded/processed internal `1.0 (75)` from nightly `80455834`, with automation
+from main `59b96a15`. This does not prove external review, installation or
+App Store approval. Current nightly CI skipped app-hosted iOS tests; the
+active main ship workflow does not run them.
+
+Use [App Store readiness](../docs/APP_STORE_READINESS.md) and
+[the prepared packet](../docs/APP_STORE_PACKET.md). Paywall bypass, in-app
+privacy/Terms links, manifest coverage and paid-flow tests precede final
+screenshots and release. Metadata/screenshot upload lanes mutate ASC, and
+`appstore`/`release` upload and submit; no such lanes are authorized by a
+preparation-only request. Do not read/rotate credentials to audit readiness.
