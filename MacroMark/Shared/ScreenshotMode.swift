@@ -97,9 +97,9 @@ enum ScreenshotMode {
             ProcessedNote(
                 text: """
                 ## Standup
-                - Shipped App Store metadata
-                - Wire screenshot automation
-                - Verify iCloud daily note export
+                - Reviewed yesterday's field notes
+                - Plan tomorrow's site visit
+                - Confirm equipment pickup
                 """,
                 createdAt: today(hour: 16, minute: 5),
                 isExported: true,
@@ -108,8 +108,8 @@ enum ScreenshotMode {
             ProcessedNote(
                 text: """
                 Meeting follow-up
-                - [ ] Send beta invite
-                - [ ] Draft release notes
+                - [ ] Confirm the meeting time
+                - [ ] Share the project checklist
                 Decision: keep notes as plain Markdown.
                 """,
                 createdAt: today(hour: 11, minute: 20),
@@ -117,7 +117,7 @@ enum ScreenshotMode {
                 exportTarget: ExportTarget.iCloud.rawValue
             ),
             ProcessedNote(
-                text: "Idea: double tap on Apple Watch starts a durable audio capture.",
+                text: "Idea: capture site notes on Apple Watch, then review them on iPhone.",
                 createdAt: today(hour: 9, minute: 35),
                 isExported: false,
                 transcriptionPartial: true

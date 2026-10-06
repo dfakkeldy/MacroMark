@@ -11,6 +11,7 @@ final class MacroMarkScreenshotUITests: XCTestCase {
         app = XCUIApplication()
         setupSnapshot(app)
         app.configureForMacroMarkScreenshots()
+        app.launchArguments += ["-AppleLanguages", "(en)", "-AppleLocale", "en_CA"]
         app.launch()
         XCUIDevice.shared.orientation = .portrait
     }
