@@ -53,11 +53,15 @@ The public UI mirrors this model through inbox status, needs-attention filtering
 
 ## 5. Product And Monetization Boundaries
 
-The launch model is free download plus MacroMark Pro:
+The approved launch is fully free. Apple Watch/iPhone capture, daily-note append,
+review, unlimited custom macros, default macro editing and folder customization
+do not require a purchase. `StoreAccessPolicy.paywallDisabled = true` is the
+release policy, as recorded in `docs/APP_STORE_PACKET.md`.
 
-- Free tier: core Apple Watch/iPhone capture, daily-note append, and review.
-- Pro: unlimited macros, default macro editing, folder customization, and advanced formatting/customization where shipped.
-- StoreKit products: `com.macromark.subscription.annual` and `com.macromark.lifetime`.
+Existing `com.macromark.subscription.annual` and `com.macromark.lifetime`
+identifiers, transaction handling and prior ownership remain compatible. They
+are not new offers for this free launch; historical paid-tier plans do not
+change current access.
 
 The app has no account system and no third-party analytics in the v1.0 plan. Privacy disclosures, App Store metadata, and the website must stay consistent with that behavior.
 
