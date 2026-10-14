@@ -3,34 +3,46 @@ import Foundation
 public struct ExportManager {
     
     public static func url(for note: ProcessedNote, to target: ExportTarget) -> URL? {
-        guard let encodedText = note.text.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
-            return nil
-        }
-        
-        var urlString = ""
-        
+        var components = URLComponents()
+
         switch target {
         case .drafts:
-            // Drafts URL Scheme
-            urlString = "drafts://x-callback-url/create?text=\(encodedText)&tag=macromark"
+            components.scheme = "drafts"
+            components.host = "x-callback-url"
+            components.path = "/create"
+            components.queryItems = [
+                URLQueryItem(name: "text", value: note.text),
+                URLQueryItem(name: "tag", value: "macromark")
+            ]
             
         case .dayOne:
-            // Day One URL Scheme
-            urlString = "dayone://post?entry=\(encodedText)&tags=macromark"
+            components.scheme = "dayone"
+            components.host = "post"
+            components.queryItems = [
+                URLQueryItem(name: "entry", value: note.text),
+                URLQueryItem(name: "tags", value: "macromark")
+            ]
             
         case .obsidian:
-            // Obsidian URL Scheme
-            urlString = "obsidian://new?content=\(encodedText)"
+            components.scheme = "obsidian"
+            components.host = "new"
+            components.queryItems = [
+                URLQueryItem(name: "content", value: note.text)
+            ]
             
         case .bear:
-            // Bear URL Scheme
-            urlString = "bear://x-callback-url/create?text=\(encodedText)&tags=macromark"
+            components.scheme = "bear"
+            components.host = "x-callback-url"
+            components.path = "/create"
+            components.queryItems = [
+                URLQueryItem(name: "text", value: note.text),
+                URLQueryItem(name: "tags", value: "macromark")
+            ]
             
         case .iCloud, .shareSheet:
-            // Not handled by URL scheme
             return nil
         }
-        
-        return URL(string: urlString)
+
+        return components.url
     }
 }

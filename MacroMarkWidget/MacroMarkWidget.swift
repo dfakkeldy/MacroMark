@@ -1,5 +1,6 @@
 import WidgetKit
 import SwiftUI
+import MacroMarkKit
 
 struct InstantCaptureEntry: TimelineEntry {
     let date: Date
@@ -11,7 +12,10 @@ struct InstantCaptureWidgetView: View {
     var body: some View {
         Image(systemName: "mic.fill")
             .font(.title)
-            .widgetURL(URL(string: "macromark://capture/instant"))
+            .widgetURL(AppRoute.instantCaptureURL)
+            .accessibilityLabel("Instant capture")
+            .accessibilityHint("Starts an audio capture in MacroMark.")
+            .accessibilityAddTraits(.isButton)
     }
 }
 
@@ -21,7 +25,10 @@ struct SystemCaptureWidgetView: View {
     var body: some View {
         Image(systemName: "keyboard")
             .font(.title)
-            .widgetURL(URL(string: "macromark://capture/system"))
+            .widgetURL(AppRoute.systemCaptureURL)
+            .accessibilityLabel("System capture")
+            .accessibilityHint("Opens keyboard capture in MacroMark.")
+            .accessibilityAddTraits(.isButton)
     }
 }
 

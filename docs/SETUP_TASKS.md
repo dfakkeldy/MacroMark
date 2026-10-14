@@ -2,13 +2,14 @@
 
 Complete these steps in order after adding the local SPM package.
 
-> Status update, 2026-07-01: this file is an early project-setup checklist from
+> Status update, 2026-10-06: this file is an early project-setup checklist from
 > 2026-06-03. Keep it for historical Xcode setup context, but use
 > `docs/APP_STORE_READINESS.md` for current App Store/TestFlight release gates.
 > The App Store Connect app record now exists as `6785081218`; the remaining
-> release work is StoreKit verification, TestFlight upload/distribution,
-> screenshots, privacy answers, accessibility labels, and paired-device smoke
-> testing.
+> release work is the source blockers and ASC/candidate evidence in
+> `docs/APP_STORE_READINESS.md`; the October 5 internal `1.0 (75)` upload,
+> processing and distribution are already verified. Optional accessibility
+> claims require tests; avoid treating this historical checklist as current.
 
 ---
 
@@ -102,10 +103,12 @@ These new views were created and exist on disk but need Xcode target membership:
 
 - [x] Create App ID and listing in App Store Connect (`6785081218`)
 - [ ] Create **Auto-Renewable Subscription**: `com.macromark.subscription.annual`
-  - Price: $4.99 USD / year
+  - Price: $9.99 USD / year
   - Introductory Offer: 1-month free trial
 - [ ] Create **Non-Consumable IAP**: `com.macromark.lifetime`
-  - Price: $12.99 USD
+  - Price: $24.99 USD standard price
+  - Launch intro: $16.99 USD via App Store Connect temporary/scheduled price change; non-consumables do not support introductory offers
+- [ ] Follow the current detailed setup in `docs/ASC_IAP_SETUP.md`
 - [ ] Complete App Store privacy answers and Accessibility Nutrition Labels
 - [ ] Upload screenshots and metadata
 - [ ] Submit a processed TestFlight/App Store build for review

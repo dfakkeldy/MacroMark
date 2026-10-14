@@ -2,9 +2,9 @@
 
 Generated 2026-06-20. Scope: 43 Swift source files (~3,700 LOC) across 4 targets — `MacroMark` (iOS), `MacroMark Watch App`, `MacroMarkKit` (SPM), `MacroMarkWidget`. Excluded: `.git`, `.build`, `.swiftpm`, `MacroMarkKit/.build`, `MacroMarkKit/.swiftpm`, and the untracked scratch file `test.swift` at the repo root. No `Dead/` archive directory exists.
 
-> Status update, 2026-07-01: this audit is a historical snapshot. Several findings
-> were resolved on later branches, and the repository currently has a branch split
-> between release automation on `origin/main` and v1 product work on `origin/nightly`.
+> Status update, 2026-07-02: this audit is a historical snapshot. Several findings
+> were resolved on later branches, and the release reconciliation branch is bringing
+> together release automation from `origin/main` and v1 product work from `origin/nightly`.
 > Use `docs/V1_ROADMAP.md`, `docs/APP_STORE_READINESS.md`, and
 > `docs/BRANCH_WORKTREE_CLEANUP.md` before using this audit to decide current work.
 

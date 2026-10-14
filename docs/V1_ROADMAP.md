@@ -1,7 +1,13 @@
 # MacroMark v1.0 Roadmap
 
 Generated: 2026-06-25
-Last synchronized: 2026-07-01
+Last synchronized: 2026-10-06
+
+> Current release gate: [App Store readiness](APP_STORE_READINESS.md). The
+> approved October 6 launch is fully free; prior product IDs and ownership
+> remain compatible. The August milestones below describe historical paid
+> planning. Final candidate assets and weekly/main acceptance still need
+> evidence; do not infer them from completed milestones.
 
 MacroMark v1.0 is the trust-and-capture release: Apple Watch quick capture for Markdown daily notes, with enough reliability, visibility, setup proof, and launch polish that users can trust it with fleeting thoughts.
 
@@ -10,9 +16,9 @@ This roadmap is based on:
 - Reliability findings in `CODE_AUDIT.md`, `REMEDIATION_PLAN.md`, and `IMPLEMENTATION_PLAN.md`.
 - Current launch setup in `docs/KICKSTART_POPULATION.md` and `docs/SETUP_TASKS.md`.
 
-## Implementation Status - 2026-07-01
+## Implementation Status - 2026-08-29
 
-Implemented in the v1 integration line:
+Implemented in the reconciled v1 integration line:
 - Export status model and retryable pipeline state for processed notes.
 - Inbox export status, needs-attention filtering, detail status, and manual retry.
 - App Intents for instant capture, typed capture, daily-log review, and append text.
@@ -29,10 +35,10 @@ Verified so far:
 
 Still manual or pending before App Store submission:
 - StoreKit annual/lifetime product loading, purchase, and restore need local StoreKit verification.
-- Screenshots, App Store Connect privacy answers, Accessibility Nutrition Labels, and a paired iPhone/Apple Watch smoke test remain release gates.
-- Kickstart/App Store Connect refresh on 2026-07-01 shows App Store ID `6785081218`, optimization score 89/100, one `en-US` localization, zero Accessibility Nutrition Label declarations, zero customer reviews, zero editorial nominations, and zero processed TestFlight builds.
-- GitHub Pages is configured as `main /docs`. The homepage is live, but `privacy.html` returned 404 before this sync because the privacy and terms pages existed on `nightly` but had not reached `main`.
-- `origin/main` contains the current release-train automation through PR #90, while `origin/nightly` contains newer v1 product/docs work through PR #87. Reconcile this branch split before final release.
+- Screenshots, App Store Connect privacy answers, Accessibility Nutrition Labels, a current App Store Connect TestFlight check, and a paired iPhone/Apple Watch smoke test remain release gates.
+- Kickstart/App Store Connect refresh on 2026-07-01 shows App Store ID `6785081218`, optimization score 89/100, one `en-US` localization, zero Accessibility Nutrition Label declarations, zero customer reviews, and zero editorial nominations. That same refresh reported `buildCount: 0`; Fastlane TestFlight CI later landed on `main` (PRs #105, #107), so do not treat that zero-build count as current. Re-check ASC before quoting a processed-build count.
+- GitHub Pages is configured as `main /docs`. The homepage is live, and the privacy/support/terms URLs should be verified again after this reconciliation reaches the Pages branch.
+- Release-train automation from `main` (through #107) and the nightly v1 product/docs line are already reconciled on this branch via #108. Do not document nightly-only product as shipping on `main`.
 - The current App Store checklist and next ten shipping steps live in `docs/APP_STORE_READINESS.md`.
 
 ## v1.0 Positioning
@@ -337,11 +343,11 @@ v1.0 is not ready until all gates pass:
 - Package tests: passed on 2026-06-28 with `swift test --package-path MacroMarkKit`.
 - iOS generic build: passed on 2026-06-28 with the Debug `MacroMark` scheme.
 - watchOS generic build: passed on 2026-06-28 with the Debug `MacroMark Watch App` scheme.
-- Fastlane release automation: `origin/main` now contains the release-train API-key, signing-profile, and nightly-only internal TestFlight workflow fixes through PRs #88-#90. `origin/nightly` has not yet received those main-only release automation commits.
-- TestFlight visibility: Kickstart refresh on 2026-07-01 still reports `buildCount: 0`, so no processed TestFlight build is visible yet.
+- Fastlane release automation: `main` now includes TestFlight CI through PRs #105 and #107 (beta localization and internal-only distribution), flowed back into `nightly` via #108. PRs #88-#90 remain the earlier release-train API-key, signing-profile, and nightly-internal routing base.
+- TestFlight visibility: this note has no live App Store Connect read. The 2026-07-01 Kickstart `buildCount: 0` snapshot is stale; omit a count until ASC is re-checked.
 - StoreKit local purchase/restore test: not run yet; release remains blocked until annual, lifetime, purchase, restore, and free capture paths pass locally.
 - Paired-device smoke test: not run yet; release remains blocked until this passes on the tested iPhone and Apple Watch models.
-- Public GitHub Pages privacy/support/terms URLs: this sync brings the pages to the `main /docs` Pages source; verify live `privacy.html` and `terms.html` again after merge and rebuild.
+- Public GitHub Pages privacy/support/terms URLs: verify live `privacy.html` and `terms.html` again after merge and rebuild.
 - Known v1.1 deferrals: none selected yet.
 
 ## Deferred To v1.1+
