@@ -1,0 +1,189 @@
+# StoreKit Test Plan
+
+> October 6 release decision: MacroMark launches fully free. This historical
+> paid-product plan is retained for compatibility reference and does not
+> authorize creating products, offers, prices, or paid gates for this launch.
+
+Re-checked: 2026-10-06. No purchase tests ran during the documentation audit.
+See [readiness](APP_STORE_READINESS.md) and [the packet](APP_STORE_PACKET.md).
+
+Use this plan for local StoreKit testing before App Store Connect submission. Local StoreKit tests prove MacroMark code paths and UI behavior only; they do not prove App Store Connect products exist, prices are approved, or production purchases work.
+
+Local config:
+
+- StoreKit file: `MacroMarkKit/Configuration.storekit`
+- Annual product ID: `com.macromark.subscription.annual`, $9.99/year, 1-month free trial
+- Lifetime product ID: `com.macromark.lifetime`, $24.99
+- Free tier: unlimited capture and daily-note append, up to 3 custom macros
+
+For this authorized preparation, preserve the existing isolated fixtures and app data. Do not erase, reset, uninstall or clear transactions. The destructive fresh-install steps below are future acceptance cases and are not authorized in this run.
+
+## Preflight Risks From The Current Code
+
+- `StoreAccessPolicy.paywallDisabled` is currently `true` so internal testing can move past the Pro paywall while App Store Connect and StoreKit setup are unfinished. Flip it back to `false` before final StoreKit gate testing, App Review screenshots, or App Store submission.
+- Simulator builds currently auto-enable Pro in `EntitlementManager.simulateEntitled` via `#if targetEnvironment(simulator)`. That means a normal simulator run cannot prove the unentitled free-tier gates or paywall-trigger behavior. Use a physical iPhone run from Xcode with the StoreKit configuration for those gate tests, or use a separately reviewed unentitled test path before relying on simulator-only results.
+- The paywall terms copy uses `introOffer.period.debugDescription`. If the UI shows `P1M` instead of user-friendly copy like `1-month free trial`, mark the test failed and file a pre-submission UI fix before taking App Review screenshots.
+- These tests prove local StoreKit behavior only. They do not prove that App Store Connect products exist, that ASC pricing is approved, or that production purchases work.
+
+Before final screenshots, confirm accessible in-app Terms/Privacy links and
+trial eligibility/readable duration. The preparation patch implements existing
+Privacy/Terms URLs in the paywall and an always-accessible Settings privacy link;
+visibility and actual opening on the selected candidate remain acceptance checks. Local StoreKit tests must be followed by ASC sandbox checks using
+real configured products before paid review.
+
+## 1. Annual Purchase And Trial
+
+- [ ] Pass
+- [ ] Fail
+
+Steps:
+
+1. Launch the iOS app from Xcode using the MacroMark scheme and local StoreKit configuration.
+2. For purchase-sheet-only checks, a simulator is acceptable.
+3. For free-tier gating checks, use a physical iPhone or a build where simulator auto-entitlement has been intentionally disabled.
+4. Open the macro manager with no entitlement.
+5. Add custom macros until the fourth macro prompts the paywall.
+6. Confirm the annual card displays the localized StoreKit price for `com.macromark.subscription.annual`.
+7. Confirm the terms copy mentions the annual price and a human-readable 1-month free trial.
+8. Purchase the annual product.
+9. Return to macro management.
+
+Expected result:
+
+The purchase succeeds, the paywall dismisses, Pro gates open, and the app still allows capture without making purchase part of the capture flow.
+
+## 2. Annual Renewal And Expiry With Time Acceleration
+
+- [ ] Pass
+- [ ] Fail
+
+Steps:
+
+1. Start from a successful annual purchase.
+2. In Xcode's StoreKit Transaction Manager, set an accelerated subscription renewal rate.
+3. Let the trial and subscription renewal windows advance.
+4. Refresh entitlements by relaunching the app or using Restore Purchases.
+5. Let the subscription expire in the StoreKit test session.
+6. Refresh entitlements again.
+7. Run the post-expiry gate check on a physical device or non-auto-entitled build.
+
+Expected result:
+
+While the annual subscription is active, Pro gates stay open. After expiry and entitlement refresh, subscription-only access closes unless lifetime has also been purchased. Capture and daily-note append remain available.
+
+## 3. Lifetime Permanent Entitlement
+
+- [ ] Pass
+- [ ] Fail
+
+Steps:
+
+1. Clear local transactions and app data.
+2. Trigger the paywall from the fourth custom macro or another Pro-only control on a physical device or non-auto-entitled build.
+3. Confirm the lifetime card displays the localized StoreKit price for `com.macromark.lifetime`.
+4. Purchase the lifetime product.
+5. Relaunch the app.
+6. Open the macro manager and folder settings.
+
+Expected result:
+
+The lifetime purchase grants Pro access after purchase and after relaunch. The entitlement should remain available without requiring an active annual subscription.
+
+## 4. Annual And Lifetime Coexistence
+
+- [ ] Pass
+- [ ] Fail
+
+Steps:
+
+1. Clear app data and StoreKit transactions.
+2. Purchase the annual product.
+3. Confirm Pro gates open.
+4. Purchase the lifetime product.
+5. Expire the annual subscription through the StoreKit test session.
+6. Relaunch and refresh entitlements.
+
+Expected result:
+
+The lifetime unlock keeps Pro access active after annual expiry. The app should not duplicate exports, daily notes, or macro state because of the second purchase.
+
+## 5. Restore On Fresh Install
+
+- [ ] Pass
+- [ ] Fail
+
+Steps:
+
+1. Purchase annual or lifetime in a StoreKit test session.
+2. Delete the app from the device or simulator.
+3. Reinstall and launch the app with the same StoreKit test session.
+4. Open the paywall.
+5. Tap Restore Purchases.
+
+Expected result:
+
+Restore refreshes entitlements and dismisses the paywall when an active annual or lifetime purchase exists. Free capture remains usable before restore.
+
+## 6. Free-Tier Macro Limit
+
+- [ ] Pass
+- [ ] Fail
+
+Steps:
+
+1. Clear local StoreKit transactions and app data.
+2. Confirm there is no active entitlement. This requires a physical device or a build where simulator auto-entitlement is disabled.
+3. Add three custom macros.
+4. Attempt to add a fourth custom macro.
+5. Try editing a default macro.
+6. Try changing folder customization settings.
+7. Start and save a normal iPhone or Watch capture.
+
+Expected result:
+
+Three custom macros are allowed. The fourth custom macro, default-macro editing, and folder customization show the paywall. Capture and daily-note append never show an upgrade prompt.
+
+## 7. Refund Or Revocation Handling
+
+- [ ] Pass
+- [ ] Fail
+
+Steps:
+
+1. Purchase the annual product.
+2. Use Xcode's StoreKit Transaction Manager to revoke or refund the transaction if the local tool exposes that action.
+3. Keep the app running long enough for `Transaction.updates` to be delivered.
+4. Relaunch and refresh entitlements.
+5. Repeat with the lifetime product if the Transaction Manager supports revocation for local non-consumables.
+
+Expected result:
+
+Annual revocation should close Pro access after entitlement refresh. Lifetime revocation needs extra attention: `EntitlementManager` listens to `Transaction.updates`, but it also persists a lifetime keychain backstop after a verified purchase. Current source never clears the lifetime flag/keychain on revocation. Treat
+  this as a source release risk, verify/fix before paid release, and do not
+  mark refund handling complete from ordinary purchase success.
+
+## 8. No Upgrade Prompt During Active Capture
+
+- [ ] Pass
+- [ ] Fail
+
+Steps:
+
+1. Clear transactions and app data.
+2. Start a voice or text capture on iPhone.
+3. Save the capture.
+4. Start a Watch capture with fake demo text.
+5. Let the iPhone process and export the note.
+6. Repeat while offline or with the phone unavailable if paired-device testing is available.
+
+Expected result:
+
+No paywall appears during capture, processing, retry, ACK, or daily-note append. Upgrade prompts appear only when the user intentionally enters a Pro-gated macro or folder feature.
+
+## 9. Evidence To Record
+
+- Date, Xcode version, simulator device, and StoreKit test session name.
+- Whether the run used simulator auto-entitlement, a physical device, or a non-auto-entitled debug build.
+- Product IDs shown in the Transaction Manager.
+- Screenshots of annual purchase, lifetime purchase, restore, and free-tier gate.
+- Notes about any mismatch between displayed localized prices and `MacroMarkKit/Configuration.storekit`.

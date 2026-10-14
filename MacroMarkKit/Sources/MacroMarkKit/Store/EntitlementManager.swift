@@ -75,8 +75,11 @@ public final class EntitlementManager {
 
     /// Single source of truth for all entitlement-gated features.
     public var isEntitled: Bool {
-        if simulateEntitled { return true }
-        return isSubscribed || hasLifetimeUnlock
+        StoreAccessPolicy.isEntitled(
+            isSubscribed: isSubscribed,
+            hasLifetimeUnlock: hasLifetimeUnlock,
+            simulateEntitled: simulateEntitled
+        )
     }
 
     public var canEditDefaultMacros: Bool {

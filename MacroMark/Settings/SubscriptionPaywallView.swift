@@ -62,6 +62,12 @@ struct SubscriptionPaywallView: View {
                 }
                 .font(.subheadline)
 
+                HStack {
+                    Link("Privacy Policy", destination: URL(string: "https://dfakkeldy.github.io/MacroMark/privacy.html")!)
+                    Link("Terms of Use", destination: URL(string: "https://dfakkeldy.github.io/MacroMark/terms.html")!)
+                }
+                .font(.footnote)
+
                 Text(subscriptionInfo)
                     .font(.caption)
                     .foregroundStyle(.secondary)

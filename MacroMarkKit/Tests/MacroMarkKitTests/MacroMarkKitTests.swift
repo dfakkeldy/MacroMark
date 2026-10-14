@@ -22,6 +22,23 @@ struct MacroModelTests {
         #expect(macro.isDefault == false)
         #expect(macro.sortOrder == 0)
     }
+
+    @Test
+    func processedNoteStoresDurableSourceID() async throws {
+        let sourceID = UUID()
+        let note = ProcessedNote(text: "Saved note", sourceID: sourceID)
+
+        #expect(note.sourceID == sourceID)
+    }
+
+    @Test
+    func triggerValidatorTrimsAndFindsDuplicates() async throws {
+        let macro = Macro(trigger: "Heading One", replacement: "# ")
+
+        #expect(MacroTriggerValidator.cleanedTrigger("  Heading One\n") == "Heading One")
+        #expect(MacroTriggerValidator.hasDuplicate("heading one", in: [macro]))
+        #expect(!MacroTriggerValidator.hasDuplicate("heading one", in: [macro], excluding: macro))
+    }
 }
 
 struct FolderSettingsTests {
@@ -44,12 +61,160 @@ struct FolderSettingsTests {
 
     @Test
     func jsonRoundtrip() async throws {
-        var settings = FolderSettings(structure: .yearlyMonthly, dateFormat: "MM-dd-yyyy")
+        let settings = FolderSettings(structure: .yearlyMonthly, dateFormat: "MM-dd-yyyy")
         let data = try JSONEncoder().encode(settings)
         let decoded = try JSONDecoder().decode(FolderSettings.self, from: data)
 
         #expect(decoded.structure == .yearlyMonthly)
         #expect(decoded.dateFormat == "MM-dd-yyyy")
+    }
+
+    @Test
+    func dateFormatIsSanitizedForSafeDailyNoteFilenames() async throws {
+        #expect(FolderSettings.sanitizedDateFormat("") == FolderSettings.defaultDateFormat)
+        #expect(FolderSettings.sanitizedDateFormat("yyyy/MM/dd") == "yyyy-MM-dd")
+        #expect(FolderSettings.sanitizedDateFormat("yyyy MM dd") == "yyyy-MM-dd")
+        #expect(FolderSettings.sanitizedDateFormat("yyyy-MM") == FolderSettings.defaultDateFormat)
+    }
+
+    @Test
+    func relativePathMatchesStorageStructure() async throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let date = try #require(calendar.date(from: DateComponents(year: 2026, month: 6, day: 28, hour: 12)))
+
+        #expect(FolderSettings(structure: .flat).relativePath(for: date) == "2026-06-28.md")
+        #expect(FolderSettings(structure: .monthly).relativePath(for: date) == "2026-06/2026-06-28.md")
+        #expect(FolderSettings(structure: .yearlyMonthly).relativePath(for: date) == "2026/06/2026-06-28.md")
+    }
+}
+
+struct DailyLogFilePathTests {
+
+    @Test
+    func acceptsMarkdownFilesInsideNestedDailyFolders() async throws {
+        #expect(DailyLogFilePath.isSafeRelativeMarkdownPath("2026/07/2026-07-12.md"))
+        #expect(DailyLogFilePath.isSafeRelativeMarkdownPath("2026-07/2026-07-12.md"))
+        #expect(DailyLogFilePath.isSafeRelativeMarkdownPath("2026-07-12.md"))
+        #expect(DailyLogFilePath.isSafeRelativeMarkdownPath("2026-07-12.MD"))
+    }
+
+    @Test
+    func rejectsUnsafeAndNonMarkdownPaths() async throws {
+        for path in [
+            "",
+            "../private.md",
+            "/private.md",
+            "./private.md",
+            "2026//private.md",
+            "2026/../private.md",
+            "2026\\private.md",
+            "2026-07-12.txt",
+        ] {
+            #expect(!DailyLogFilePath.isSafeRelativeMarkdownPath(path))
+        }
+    }
+
+    @Test
+    func resolvesOnlySafePathsInsideBaseDirectory() throws {
+        let directory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        #expect(
+            DailyLogFilePath.resolvedURL(for: "2026/07/2026-07-12.md", in: directory)?.path
+                == directory.appending(path: "2026/07/2026-07-12.md").path
+        )
+        #expect(DailyLogFilePath.resolvedURL(for: "../private.md", in: directory) == nil)
+    }
+
+    @Test
+    func rejectsPathsEscapingThroughSymbolicLinks() throws {
+        let directory = try makeTemporaryDirectory()
+        let outsideDirectory = try makeTemporaryDirectory()
+        defer {
+            try? FileManager.default.removeItem(at: directory)
+            try? FileManager.default.removeItem(at: outsideDirectory)
+        }
+
+        let link = directory.appending(path: "outside")
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: outsideDirectory)
+
+        #expect(DailyLogFilePath.resolvedURL(for: "outside/private.md", in: directory) == nil)
+    }
+
+    @Test
+    func listsOnlyMarkdownFilesInDescendingPathOrder() throws {
+        let directory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let firstFile = directory.appending(path: "2026-07-01.md")
+        let secondFile = directory.appending(path: "2026/07/2026-07-12.md")
+        try Data().write(to: firstFile)
+        try FileManager.default.createDirectory(at: secondFile.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data().write(to: secondFile)
+        try Data().write(to: directory.appending(path: ".hidden.md"))
+        try Data().write(to: directory.appending(path: "ignore.txt"))
+
+        #expect(DailyLogFilePath.markdownFilePaths(in: directory) == [
+            "2026/07/2026-07-12.md",
+            "2026-07-01.md",
+        ])
+    }
+
+    private func makeTemporaryDirectory() throws -> URL {
+        let directory = URL.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        return directory
+    }
+}
+
+struct DailyLogTransferTests {
+
+    @Test
+    func pagesPathsWithoutDroppingOrRepeatingEntries() async throws {
+        let paths = ["c.md", "b.md", "a.md"]
+
+        #expect(DailyLogTransfer.page(paths, offset: 0, limit: 2).paths == ["c.md", "b.md"])
+        #expect(DailyLogTransfer.page(paths, offset: 0, limit: 2).nextOffset == 2)
+        #expect(DailyLogTransfer.page(paths, offset: 2, limit: 2).paths == ["a.md"])
+        #expect(DailyLogTransfer.page(paths, offset: 2, limit: 2).nextOffset == nil)
+    }
+
+    @Test
+    func rejectsInvalidPageOffsetsAndTerminates() async throws {
+        let paths = ["b.md", "a.md"]
+
+        #expect(DailyLogTransfer.page(paths, offset: -1, limit: 0).paths.isEmpty)
+        #expect(DailyLogTransfer.page(paths, offset: -1, limit: 0).nextOffset == nil)
+        #expect(DailyLogTransfer.page(paths, offset: 5, limit: 2).paths.isEmpty)
+        #expect(DailyLogTransfer.page(paths, offset: 5, limit: 2).nextOffset == nil)
+    }
+
+    @Test
+    func chunksRawUTF8DataAtBoundedByteOffsets() async throws {
+        let data = Data("A🙂e\u{0301}Z".utf8)
+        // 9 bytes: A(1) + 🙂(4) + é(3) + Z(1)
+        var chunks: [Data] = []
+        var offset = 0
+
+        while true {
+            let chunk = DailyLogTransfer.chunk(data, offset: offset, maximumByteCount: 3)
+            chunks.append(chunk.data)
+            guard let nextOffset = chunk.nextOffset else { break }
+            offset = nextOffset
+        }
+
+        #expect(chunks.map(\.count) == [3, 3, 3])
+        #expect(String(data: chunks.reduce(into: Data()) { $0.append($1) }, encoding: .utf8) == "A🙂éZ")
+    }
+
+    @Test
+    func rejectsChunkRequestsOutsideTheDataRange() async throws {
+        let data = Data("hello".utf8)
+
+        #expect(DailyLogTransfer.chunk(data, offset: 5, maximumByteCount: 2).data.isEmpty)
+        #expect(DailyLogTransfer.chunk(data, offset: 5, maximumByteCount: 2).nextOffset == nil)
+        #expect(DailyLogTransfer.chunk(data, offset: -1, maximumByteCount: 2).data.isEmpty)
     }
 }
 
@@ -60,6 +225,57 @@ struct ProductIdentifiersTests {
         #expect(ProductIdentifiers.all.count == 2)
         #expect(ProductIdentifiers.all.contains("com.macromark.subscription.annual"))
         #expect(ProductIdentifiers.all.contains("com.macromark.lifetime"))
+    }
+}
+
+struct StoreAccessPolicyTests {
+
+    @Test
+    func freeLaunchGrantsEntitlementWithoutPurchase() async throws {
+        #expect(StoreAccessPolicy.paywallDisabled)
+        #expect(
+            StoreAccessPolicy.isEntitled(
+                isSubscribed: false,
+                hasLifetimeUnlock: false,
+                simulateEntitled: false
+            )
+        )
+    }
+
+    @Test
+    func legacyPaidAndSimulatedEntitlementsRemainCompatible() async throws {
+        #expect(
+            !StoreAccessPolicy.isEntitled(
+                isSubscribed: false,
+                hasLifetimeUnlock: false,
+                simulateEntitled: false,
+                paywallDisabled: false
+            )
+        )
+        #expect(
+            StoreAccessPolicy.isEntitled(
+                isSubscribed: true,
+                hasLifetimeUnlock: false,
+                simulateEntitled: false,
+                paywallDisabled: false
+            )
+        )
+        #expect(
+            StoreAccessPolicy.isEntitled(
+                isSubscribed: false,
+                hasLifetimeUnlock: true,
+                simulateEntitled: false,
+                paywallDisabled: false
+            )
+        )
+        #expect(
+            StoreAccessPolicy.isEntitled(
+                isSubscribed: false,
+                hasLifetimeUnlock: false,
+                simulateEntitled: true,
+                paywallDisabled: false
+            )
+        )
     }
 }
 
@@ -90,6 +306,36 @@ struct MacroProcessorTests {
         let macros = [MacroRule(trigger: "Hello", replacement: "Bonjour")]
         let result = await MacroProcessor.process(text: "Hello world", macros: macros)
         #expect(result == "Bonjour world")
+    }
+
+    @Test
+    func punctuationTriggerReplacement() async throws {
+        let macros = [
+            MacroRule(trigger: "#tag", replacement: "tagged"),
+            MacroRule(trigger: "C++", replacement: "cpp")
+        ]
+        let result = await MacroProcessor.process(text: "#tag uses C++ but not C++20", macros: macros)
+        #expect(result == "tagged uses cpp but not C++20")
+    }
+
+    @Test
+    func wordTriggerDoesNotMatchInsideLongerWords() async throws {
+        let macros = [MacroRule(trigger: "Not", replacement: "{backspace}")]
+        let result = await MacroProcessor.process(text: "Not notebook", macros: macros)
+        #expect(result == " notebook")
+    }
+
+    @Test
+    func generatedWrappingTokensAreCleaned() async throws {
+        let macros = [MacroRule(trigger: "Bold", replacement: "**")]
+        let result = await MacroProcessor.process(text: "Bold wrapped text Bold", macros: macros)
+        #expect(result == "**wrapped text**")
+    }
+
+    @Test
+    func literalAsterisksAreNotCleanedWithoutGeneratedTokens() async throws {
+        let result = await MacroProcessor.process(text: "3 * 4 * 5 and * literal *", macros: [])
+        #expect(result == "3 * 4 * 5 and * literal *")
     }
 
     @Test
@@ -159,5 +405,191 @@ struct AppendResultTests {
         // The pipeline treats `.appended` as the only success; the other two
         // must keep the note in the pending-export WAL.
         #expect(cases.filter { $0 == .appended }.count == 1)
+    }
+}
+
+struct ICloudStorageManagerBookmarkTests {
+
+    @Test
+    func invalidCustomSaveBookmarkIsClearedBeforeFallbackRead() async throws {
+        let defaults = UserDefaults.standard
+        let key = UserDefaultsKey.customSaveBookmark.rawValue
+        let previousBookmark = defaults.data(forKey: key)
+        defer {
+            if let previousBookmark {
+                defaults.set(previousBookmark, forKey: key)
+            } else {
+                defaults.removeObject(forKey: key)
+            }
+        }
+
+        defaults.set(Data("not-a-valid-bookmark".utf8), forKey: key)
+
+        _ = iCloudStorageManager.shared.readText(for: Date(timeIntervalSinceReferenceDate: 0))
+
+        #expect(defaults.data(forKey: key) == nil)
+    }
+}
+
+struct UserDefaultsKeyTests {
+
+    @Test
+    func destinationProofKeysRemainStable() async throws {
+        #expect(UserDefaultsKey.lastSuccessfulExportPath.rawValue == "lastSuccessfulExportPath")
+        #expect(UserDefaultsKey.lastSuccessfulExportAt.rawValue == "lastSuccessfulExportAt")
+    }
+}
+
+struct ContinuationTimeoutTests {
+
+    @Test
+    func completeReturnsTrueOnlyOnce() async throws {
+        let timeout = ContinuationTimeout()
+        #expect(await timeout.complete())
+        #expect(!(await timeout.complete()))
+    }
+}
+
+struct AppRouteTests {
+
+    @Test
+    func captureRoutesAreStable() async throws {
+        #expect(AppRoute.instantCaptureURL.absoluteString == "macromark://capture/instant")
+        #expect(AppRoute.systemCaptureURL.absoluteString == "macromark://capture/system")
+    }
+
+    @Test
+    func dailyLogRoutesUseStableDateFormatting() async throws {
+        let calendar = Calendar(identifier: .gregorian)
+        let date = calendar.date(from: DateComponents(year: 2026, month: 6, day: 28))!
+
+        #expect(AppRoute.dailyLogURL().absoluteString == "macromark://daily-log")
+        #expect(
+            AppRoute.dailyLogURL(date: date, calendar: calendar).absoluteString
+                == "macromark://daily-log?date=2026-06-28"
+        )
+    }
+
+    @Test
+    func appendRouteEncodesQueryTextSafely() async throws {
+        let text = "Title & details\nLine two"
+        let url = AppRoute.appendTextURL(text)
+        let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+
+        #expect(url.absoluteString == "macromark://append?text=Title%20%26%20details%0ALine%20two")
+        #expect(components?.host == "append")
+        #expect(components?.queryItems?.first(where: { $0.name == "text" })?.value == text)
+    }
+}
+
+struct ExportManagerURLTests {
+
+    @Test
+    func urlSchemeExportsPreserveReservedQueryText() async throws {
+        let text = "Title & key=value + plus\nLine two"
+        let note = ProcessedNote(text: text)
+        let cases: [(target: ExportTarget, textItemName: String)] = [
+            (.drafts, "text"),
+            (.dayOne, "entry"),
+            (.obsidian, "content"),
+            (.bear, "text")
+        ]
+
+        for testCase in cases {
+            let url = try #require(ExportManager.url(for: note, to: testCase.target))
+            let components = try #require(URLComponents(url: url, resolvingAgainstBaseURL: false))
+            let values = components.queryItems?.filter { $0.name == testCase.textItemName }.map(\.value)
+
+            #expect(values == [text])
+        }
+    }
+}
+
+struct PendingExportRecordTests {
+
+    @Test
+    func recordPersistsDestinationTargetAndAckPolicy() async throws {
+        let id = UUID()
+        let timestamp = Date(timeIntervalSinceReferenceDate: 42)
+        let record = PendingExportRecord(
+            noteId: id,
+            processedText: "Draft text",
+            timestamp: timestamp,
+            target: .drafts,
+            isAudio: false,
+            requiresWatchAcknowledgement: false
+        )
+
+        let decoded = try JSONDecoder().decode(
+            PendingExportRecord.self,
+            from: JSONEncoder().encode(record)
+        )
+
+        #expect(decoded.noteId == id)
+        #expect(decoded.target == .drafts)
+        #expect(decoded.requiresWatchAcknowledgement == false)
+    }
+
+    @Test
+    func oldPendingExportRecordsDefaultToICloudAndWatchAck() async throws {
+        let id = UUID()
+        let timestamp = Date(timeIntervalSinceReferenceDate: 84)
+        let legacyRecord = """
+        {
+          "noteId": "\(id.uuidString)",
+          "processedText": "Legacy text",
+          "timestamp": \(timestamp.timeIntervalSinceReferenceDate),
+          "isAudio": true
+        }
+        """.data(using: .utf8)!
+
+        let decoded = try JSONDecoder().decode(PendingExportRecord.self, from: legacyRecord)
+
+        #expect(decoded.noteId == id)
+        #expect(decoded.target == .iCloud)
+        #expect(decoded.requiresWatchAcknowledgement == true)
+    }
+
+    @Test
+    func storeRoundTripsByNoteID() async throws {
+        let suiteName = "PendingExportRecordTests-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defaults.removePersistentDomain(forName: suiteName)
+        let id = UUID()
+        let record = PendingExportRecord(
+            noteId: id,
+            processedText: "Queued",
+            timestamp: Date(timeIntervalSinceReferenceDate: 126),
+            target: .bear,
+            isAudio: true
+        )
+
+        try PendingExportStore.upsert(record, in: defaults)
+        #expect(PendingExportStore.read(from: defaults)[id] == record)
+
+        try PendingExportStore.remove(id: id, from: defaults)
+        #expect(PendingExportStore.read(from: defaults)[id] == nil)
+    }
+}
+
+struct ExportStatusTests {
+
+    @Test
+    func exportedStatusFollowsLegacyFlag() async throws {
+        let note = ProcessedNote(text: "done", isExported: true)
+        #expect(note.exportStatus == .exported)
+    }
+
+    @Test
+    func statusRoundTripsThroughRawValue() async throws {
+        let note = ProcessedNote(
+            text: "waiting",
+            exportStatus: .deferred,
+            exportStatusMessage: "Waiting for iCloud."
+        )
+        #expect(note.exportStatusRaw == "deferred")
+        #expect(note.exportStatus == .deferred)
+        #expect(note.exportStatus.needsAttention)
+        #expect(note.exportStatusMessage == "Waiting for iCloud.")
     }
 }
