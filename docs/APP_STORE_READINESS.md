@@ -1,25 +1,36 @@
 # MacroMark App Store Readiness
 
-Re-checked: 2026-10-06. This audit covers source, GitHub checks and shipping
-receipts, public URLs, and prepared materials. It does not authorize promotion,
-upload, submission, pricing changes, or agreement acceptance.
+Re-checked: 2026-10-14. This refresh records weekly and main git promotion of
+the accepted free-launch candidate after
+[PR #120](https://github.com/dfakkeldy/MacroMark/pull/120) merged into `weekly`
+and [PR #121](https://github.com/dfakkeldy/MacroMark/pull/121) merged into
+`main`. It covers GitHub promotion receipts. It does not re-read App Store
+Connect, and it does not authorize App Review submission, public release,
+upload, pricing changes, or agreement acceptance.
 
 **Hold App Store submission.** The October 6 owner decision is a fully free
 launch. Full macro/folder access remains enabled for all users; legacy
-StoreKit ownership is preserved. The current candidate still needs the
-nightly, weekly and main ladder and final candidate evidence. Use the [prepared packet](APP_STORE_PACKET.md) and
+StoreKit ownership is preserved. Weekly and main both carry that candidate:
+weekly merge `af950006662dfed56afce34bcd76b986cb55b6f1` (reviewed head
+`5f1dc4718caa6711cf5267f987338dab1bd19236`); main merge
+`aeafeda1b649fe8952ce1a7f23ac8a6eabe6c86f` (head
+`abd4ae522e6c3c860d66298b73b31f9ed9790ca8`; per #121, byte-identical to
+weekly). App Review submission and public release remain held and need Dan's
+specific authorization. Use the [prepared packet](APP_STORE_PACKET.md) and
 [submission checklist](ASC_SUBMISSION_CHECKLIST.md).
 
 ## Verified release state
 
 | Surface | Exact state | Evidence and limit |
 | --- | --- | --- |
-| nightly | `80455834a3126973a195c74d6a605ce95105831c` | Current audited integration source |
-| weekly | `af37371ca19d111dd65806471a8841f97163a6a7` | Missing 43 nightly commits; one main flow-back commit ahead of main |
-| main | `59b96a15c23f7621c9948a78718905ac27ad3748` | Missing 43 nightly commits |
-| Nightly exact-head CI | [36335804831](https://github.com/dfakkeldy/MacroMark/actions/runs/36335804831), success | iOS build-for-testing, Watch build, package checks; app-hosted iOS unit test step **skipped** |
-| Real ship receipt | [37306349729](https://github.com/dfakkeldy/MacroMark/actions/runs/37306349729), job `111750878037`, October 5 | Payload nightly `80455834`, automation main `59b96a15`, Xcode 26.6 (`17F113`), 50 package tests; signed IPA uploaded, `1.0 (75)` processed, internal distribution succeeded |
-| External beta / App Review / public store | Not verified by this public packet | Internal distribution does not establish external approval, installation, App Review approval, or availability |
+| nightly | `085fa70dad8ca0299da18a8411be8916f231f34a` | Current integration source; application payload promoted to weekly in #120 |
+| weekly | `af950006662dfed56afce34bcd76b986cb55b6f1` | Merged 2026-10-14T03:35:02Z via #120; reviewed head `5f1dc4718caa6711cf5267f987338dab1bd19236`; payload matches nightly `085fa70…` |
+| main | `aeafeda1b649fe8952ce1a7f23ac8a6eabe6c86f` | Merged 2026-10-14T03:50:00Z via #121; head `abd4ae522e6c3c860d66298b73b31f9ed9790ca8`; per #121, tree is byte-identical to weekly `af950006…` |
+| Weekly promotion CI | [38505654154](https://github.com/dfakkeldy/MacroMark/actions/runs/38505654154), success | Required checks on exact reviewed head `5f1dc471`; from #120 PR body |
+| Main promotion CI | [38507144366](https://github.com/dfakkeldy/MacroMark/actions/runs/38507144366), success | Required `Build gate + tests` on exact head `abd4ae522`; verified via GitHub Actions API |
+| Claimed TestFlight binding | `1.0 (83)` | **CLAIM** from #120/#121 PR bodies / board; not re-verified by reading App Store Connect |
+| Historical internal ship | [37306349729](https://github.com/dfakkeldy/MacroMark/actions/runs/37306349729), job `111750878037`, October 5 | Payload nightly `80455834`, automation main `59b96a15`, Xcode 26.6 (`17F113`), 50 package tests; signed IPA uploaded, `1.0 (75)` processed, internal distribution succeeded |
+| External beta / App Review / public store | Not verified; not opened by #120 or #121 | Claimed TestFlight binding does not establish external approval, App Review approval, or public availability |
 
 The scheduled main workflow replaces nightly's Fastlane files with main's
 release automation. Its October 5 run did **not** run app-hosted iOS/UI tests.
@@ -48,7 +59,7 @@ backport features or change protections/pipelines to obtain green CI.
 | Manifest coverage | Four manifests: empty collection, tracking false; app/Watch/package UserDefaults `CA92.1`; unused `.contentModificationDateKey` request removed; filename order/filtering preserved | **Source coverage gap removed; final linked-API/archive report still pending** |
 | Core capture → durable Markdown | WAL, retry, deduplication, original timestamps and visible export status in source | **Configured / partly automated**; no fresh paired physical-device acceptance in this audit |
 | Screenshots | Current neutral phone/iPad simulator drafts captured and inspected; Watch finals incomplete | **Draft assets**; clean status bars and candidate/device coverage before store upload |
-| ASC configuration | Free launch; existing annual draft is preserved | **Pending** final candidate selection, listing/assets and current questionnaires; no IAP attachment for this free launch |
+| ASC configuration | Free launch; existing annual draft is preserved | Weekly (#120) and main (#121) have the accepted candidate. Listing/assets and questionnaires remain pending. **CLAIM:** TestFlight `1.0 (83)` bound from PR/board, not re-read in ASC. No IAP attachment for this free launch |
 
 Open June issues #79–#86 are not automatically eight current blockers. The
 intended bookmark cleanup, WAL ordering, duplicate-audio/retry guards, mixed
@@ -92,10 +103,12 @@ current shipping evidence; reproduce on the candidate before closing issues.
 3. At the next sign-in, inspect existing ASC fields/products before entering
    prepared material. The operator can do data entry; owner decides legal,
    business, free availability, rights and release scope.
-4. When authorized, promote through weekly external acceptance and main.
-   `release` and `release_train channel:appstore` upload **and submit**; they
-   are not harmless archive-only commands. Use manual public release unless
-   the owner explicitly chooses otherwise.
+4. Weekly git promotion (#120) and main git promotion (#121) of the accepted
+   candidate are complete. App Review submission and public release remain
+   held and need Dan's specific authorization. `release` and `release_train
+   channel:appstore` upload **and submit**; they are not harmless
+   archive-only commands. Use manual public release unless the owner
+   explicitly chooses otherwise.
 
 ## Apple references
 

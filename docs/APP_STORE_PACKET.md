@@ -115,9 +115,11 @@ recaptured in this documentation audit.
 
 After source fixes and candidate checks, compare current ASC fields with this
 packet after sign-in. An authorized operator can enter text/assets; the owner
-reviews legal/business/price/rights answers. Obtain specific authorization
-before weekly promotion/external upload, main promotion, submission and
-public release. Default to manual release after approval unless explicitly
+reviews legal/business/price/rights answers. Weekly git promotion of the
+accepted candidate is complete via [#120](https://github.com/dfakkeldy/MacroMark/pull/120).
+Main git promotion is complete via [#121](https://github.com/dfakkeldy/MacroMark/pull/121).
+App Review submission and public release remain held and need Dan's specific
+authorization. Default to manual release after approval unless explicitly
 instructed otherwise.
 
 ## Apple references
