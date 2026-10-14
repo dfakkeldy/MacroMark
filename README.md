@@ -31,12 +31,17 @@ The full roadmap is in [docs/V1_ROADMAP.md](docs/V1_ROADMAP.md). It turns the co
 7. Transcription integrity.
 8. Free launch and App Store readiness.
 
-Status re-checked 2026-10-06: MacroMark launches fully free, including custom
+Status re-checked 2026-10-14: MacroMark launches fully free, including custom
 macros, default-macro editing and folder customization. Existing ownership and
-product IDs are preserved. Internal TestFlight `1.0 (75)` shipped October 5;
-final candidate checks/assets and the weekly/main ladder still need evidence.
-Hold App Review submission and public release. See [readiness](docs/APP_STORE_READINESS.md)
-and the [prepared packet](docs/APP_STORE_PACKET.md).
+product IDs are preserved. Weekly now has the accepted candidate via
+[#120](https://github.com/dfakkeldy/MacroMark/pull/120) (merge
+`af950006662dfed56afce34bcd76b986cb55b6f1`, reviewed head
+`5f1dc4718caa6711cf5267f987338dab1bd19236`; application payload matches nightly
+`085fa70dad8ca0299da18a8411be8916f231f34a`). Internal TestFlight `1.0 (83)` is
+**claimed** from that PR/board, not re-verified in App Store Connect. **main**
+promotion, App Review submission, and public release remain held. See
+[readiness](docs/APP_STORE_READINESS.md) and the
+[prepared packet](docs/APP_STORE_PACKET.md).
 
 ## Installation
 
