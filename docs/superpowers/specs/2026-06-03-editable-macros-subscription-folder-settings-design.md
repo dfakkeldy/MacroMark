@@ -8,7 +8,7 @@
 Three features delivered together:
 
 1. **Editable macro list** — inline editing of trigger words and replacement text, plus drag-to-reorder.
-2. **Subscription model** — StoreKit 2 with a 1-month free annual trial ($5/yr) or $12.99 lifetime, gating paid features.
+2. **Subscription model** - StoreKit 2 with a 1-month free annual trial ($9.99/yr) or $24.99 lifetime, gating paid features.
 3. **Customizable folder structure** — users choose flat, monthly, or yearly+monthly nesting and a custom date format.
 
 Also fixes default macros that use `{newline}{newline}` to use `{newline}`.
@@ -100,8 +100,8 @@ Stored in `UserDefaults` under key `folderSettings` via `@AppStorage` + JSON cod
 
 | Product ID | Price | Type | Trial |
 |------------|-------|------|-------|
-| `com.macromark.subscription.annual` | $4.99/yr | Auto-renewable subscription | 1-month free introductory offer |
-| `com.macromark.lifetime` | $12.99 | Non-consumable IAP | None |
+| `com.macromark.subscription.annual` | $9.99/yr | Auto-renewable subscription | 1-month free introductory offer |
+| `com.macromark.lifetime` | $24.99 | Non-consumable IAP | $16.99 launch intro via temporary/scheduled App Store Connect price change |
 
 ### 2.2 Store/ProductIdentifiers.swift
 
@@ -283,4 +283,4 @@ The `{newline}` variable already inserts a single `\n`, so `{newline}{newline}` 
 - Product IDs must be created in App Store Connect before submission. Development uses StoreKit testing config file (`.storekit`).
 - Existing notes are not migrated when folder structure changes. This is documented in the UI.
 - Watch app continues to use flat storage locally (its storage is transient — notes are sent to iOS immediately).
-- Lifetime purchases are tracked via keychain flag + `Transaction.currentEntitlements` check, not a server-side receipt validator. This is appropriate for a $12.99 one-time purchase.
+- Lifetime purchases are tracked via keychain flag + `Transaction.currentEntitlements` check, not a server-side receipt validator. This is appropriate for the $24.99 one-time purchase, but refund/revocation behavior should be tested before public launch because the keychain backstop intentionally preserves a durable unlock.

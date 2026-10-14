@@ -1,5 +1,11 @@
 # MacroMark — Kickstart Population Package
 
+> Historical June/July population record. Re-checked 2026-10-06: internal
+> `1.0 (75)` upload/processing/distribution is verified. Do not reuse old
+> launch dates, zero-build counts, task/ASO counts or price declarations as
+> current facts. Use [readiness](APP_STORE_READINESS.md) and
+> [prepared store packet](APP_STORE_PACKET.md); account data stays private.
+
 > **Status:** ✅ APPLIED 2026-06-20; refreshed 2026-07-01. The project was created manually in the Kickstart app
 > (the MCP `create_project` endpoint was failing — 7/7 connection drops; all other write
 > endpoints worked fine). Launch date set to **Aug 4, 2026**. Applied: project record +
@@ -10,7 +16,7 @@
 > 20 competitors, and one `en-US` App Store localization. Still open: first visible
 > TestFlight build, Accessibility Nutrition Labels, pricing/free-vs-paid confirmation, and
 > final competitor screenshot/copy review.
-> This file remains the source of truth for App Store Connect / fastlane metadata.
+> This historical population file does not establish current ASC fields.
 >
 > Data sourced from: repo (`README.md`, `MacroMarkKit/Configuration.storekit`,
 > `fastlane/README.md`, `MacroMark.xcodeproj/project.pbxproj`), the developer's existing
@@ -40,8 +46,8 @@
 > UI, an append-to-daily-note mechanic (one file per day instead of hundreds of
 > fragments), and verbal macros (say "Heading One" for "# ", or insert
 > {date}/{time}/{location} variables). Built for iOS 26 and watchOS 26 in Swift 6.2 /
-> SwiftUI. Freemium: a free tier with limited macros, plus a Pro upgrade (Annual $4.99/yr
-> with free trial, or Lifetime $12.99) unlocking unlimited macros, default-macro editing,
+> SwiftUI. Freemium: a free tier with limited macros, plus a Pro upgrade (Annual $9.99/yr
+> with 1-month free trial, or Lifetime $24.99 with a $16.99 launch intro) unlocking unlimited macros, default-macro editing,
 > and folder customization.
 
 ---
@@ -53,7 +59,7 @@
 | **pressKitCompanyName** | KinNoKi Labs |
 | **pressKitContactName** | Dan Fakkeldy |
 | **pressKitContactEmail** | dan@kinnokilabs.com |
-| **pressKitAppPrice** | Free with Pro upgrade — Annual $4.99/yr (free trial) or Lifetime $12.99 |
+| **pressKitAppPrice** | Free with Pro upgrade - Annual $9.99/yr (1-month free trial) or Lifetime $24.99 ($16.99 launch intro) |
 | **pressKitMinimumOS** | iOS 26.5 / watchOS 26.5 |
 
 > The Xcode project and Kickstart press kit agree on iOS 26.5 / watchOS 26.5 and
@@ -95,8 +101,8 @@
 > a Liquid Glass interface with large microphone and keyboard buttons and one-tap access to
 > today's log.
 >
-> MacroMark is free to start, with a Pro upgrade (Annual $4.99/yr with a free trial, or
-> $12.99 Lifetime) that unlocks unlimited macros, default-macro editing, and folder
+> MacroMark is free to start, with a Pro upgrade (Annual $9.99/yr with a 1-month free trial, or
+> $24.99 Lifetime with a $16.99 launch intro) that unlocks unlimited macros, default-macro editing, and folder
 > customization. Requires iOS 26.5 and watchOS 26.5.
 
 ---
@@ -170,7 +176,7 @@ MacroMark-specific items. Project-specific pre-launch items to ensure are covere
 - Resolve the open `docs/SETUP_TASKS.md` Xcode steps (SPM package, target membership, StoreKit config)
 - Confirm iCloud Documents container ID is provisioned for the production App ID
 - App Privacy: declare microphone + speech recognition usage; Privacy Manifest present
-- StoreKit: products approved in App Store Connect (`Annual $4.99` autorenew + `Lifetime $12.99` non-consumable), restore-purchases verified
+- StoreKit: products created and approved in App Store Connect (`Annual $9.99` autorenew with 1-month free trial + `Lifetime $24.99` non-consumable with $16.99 launch intro), restore-purchases verified
 - watchOS complication / `macromark://capture/instant` deep link verified on device
 - Screenshots: iPhone + Apple Watch via fastlane snapshot
 - Accessibility Nutrition Labels declared after an accessibility pass

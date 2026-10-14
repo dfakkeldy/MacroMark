@@ -37,35 +37,40 @@ final class AudioRecorder {
 
             audioRecorder = try AVAudioRecorder(url: url, settings: settings)
             audioRecorder?.prepareToRecord()
+            recordingURL = url
 
             // Start recording immediately
             audioRecorder?.record()
+            isRecording = true
 
             // Wait for the microphone hardware to fully spin up and buffer
             try? await Task.sleep(for: .seconds(1))
 
             // Signal the user exactly when it's safe to start talking
-            WKInterfaceDevice.current().play(.start)
-
-            self.recordingURL = url
-            self.isRecording = true
+            if isRecording, recordingURL == url {
+                WKInterfaceDevice.current().play(.start)
+            }
 
         } catch {
             #if DEBUG
             print("Failed to start recording: \(error)")
             #endif
             self.isRecording = false
+            self.recordingURL = nil
         }
     }
 
     func stopRecording() -> URL? {
+        let url = recordingURL
         audioRecorder?.stop()
+        audioRecorder = nil
         isRecording = false
+        recordingURL = nil
 
         // Deactivate the audio session so other audio (alarms, calls, other apps)
         // can play or record after recording ends.
         try? AVAudioSession.sharedInstance().setActive(false)
 
-        return recordingURL
+        return url
     }
 }

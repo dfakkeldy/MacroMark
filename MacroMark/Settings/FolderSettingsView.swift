@@ -42,7 +42,7 @@ struct FolderSettingsView: View {
             } footer: {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Example: \(currentDateExample)")
-                    Text("Use yyyy, MM, dd patterns (e.g., yyyy-MM-dd, MM-dd-yyyy, dd-MM-yyyy)")
+                    Text("Use yyyy, MM, and dd. Unsafe path characters are normalized on save.")
                         .font(.caption2)
                 }
             }
@@ -73,35 +73,20 @@ struct FolderSettingsView: View {
     }
 
     private var structureExample: String {
-        let today = Date()
-        let year = today.formatted(Date.FormatStyle().year())
-        let month = today.formatted(Date.FormatStyle().month(.twoDigits))
-        let day = today.formatted(Date.FormatStyle().day(.twoDigits))
-
-        switch settings.structure {
-        case .flat:
-            return "Example: \(formatWithSettings())/\(year)-\(month)-\(day).md"
-        case .monthly:
-            return "Example: \(formatWithSettings())/\(year)-\(month)/\(day).md"
-        case .yearlyMonthly:
-            return "Example: \(formatWithSettings())/\(year)/\(month)/\(day).md"
-        }
+        "Example: Notes/\(settings.relativePath(for: Date()))"
     }
 
     /// The current date formatted through the selected format string, using the
     /// canonical `FolderSettings.format(date:)` (the same method used for the
     /// actual daily-note filename).
     private var currentDateExample: String {
-        settings.format(date: Date())
-    }
-
-    /// The `"Notes/"`-prefixed path used by the structure-preview example — also
-    /// delegates to the canonical formatter.
-    private func formatWithSettings() -> String {
-        return "Notes/\(settings.format(date: Date()))"
+        var previewSettings = settings
+        previewSettings.dateFormat = FolderSettings.sanitizedDateFormat(settings.dateFormat)
+        return previewSettings.format(date: Date())
     }
 
     private func saveSettings() {
+        settings.dateFormat = FolderSettings.sanitizedDateFormat(settings.dateFormat)
         if let data = try? JSONEncoder().encode(settings) {
             folderSettingsData = data
         }

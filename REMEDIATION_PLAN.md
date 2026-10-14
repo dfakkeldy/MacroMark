@@ -2,10 +2,9 @@
 
 Generated 2026-06-20. Companion to `CODE_AUDIT.md` (same date). This plan maps every audit finding to a concrete remediation, ordered by severity and dependency, and groups them into batches suitable for parallel subagent execution (see `IMPLEMENTATION_PLAN.md`).
 
-> Status update, 2026-07-01: this is a historical audit-remediation ledger. The
-> active release picture now spans two branches: `origin/nightly` contains later
-> v1 product/reliability work, while `origin/main` contains later release automation
-> fixes. Read `docs/V1_ROADMAP.md`, `docs/APP_STORE_READINESS.md`, and
+> Status update, 2026-07-02: this is a historical audit-remediation ledger. The
+> active release reconciliation brings together later v1 product/reliability work
+> from `origin/nightly` and release automation fixes from `origin/main`. Read `docs/V1_ROADMAP.md`, `docs/APP_STORE_READINESS.md`, and
 > `docs/BRANCH_WORKTREE_CLEANUP.md` before treating any row below as still open.
 
 Conventions:

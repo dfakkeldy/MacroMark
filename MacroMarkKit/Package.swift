@@ -18,7 +18,10 @@ let package = Package(
     ],
     targets: [
         .target(
-            name: "MacroMarkKit"
+            name: "MacroMarkKit",
+            resources: [
+                .copy("PrivacyInfo.xcprivacy"),
+            ]
         ),
         .testTarget(
             name: "MacroMarkKitTests",
