@@ -2,10 +2,12 @@ import Foundation
 import os
 @preconcurrency import Speech
 import AVFoundation
+import MacroMarkKit
 
 final class AudioTranscriber {
     /// Speech framework has a ~60s request limit; 50s leaves headroom.
     private static let chunkDurationSeconds: TimeInterval = 50
+    private static let chunkRecognitionTimeout: Duration = .seconds(75)
     private static let timescale: CMTimeScale = 1000
 
     /// The outcome of a transcription session. When some chunks fail but others
@@ -19,8 +21,20 @@ final class AudioTranscriber {
 
     static func transcribe(fileURL: URL) async throws -> TranscriptionResult {
         let status = await withCheckedContinuation { continuation in
-            SFSpeechRecognizer.requestAuthorization { status in
-                continuation.resume(returning: status)
+            let timeout = ContinuationTimeout()
+            Task {
+                try? await Task.sleep(for: .seconds(5))
+                if await timeout.complete() {
+                    continuation.resume(returning: SFSpeechRecognizer.authorizationStatus())
+                }
+            }
+            SFSpeechRecognizer.requestAuthorization { @Sendable status in
+                let authorizationStatus = status
+                Task {
+                    if await timeout.complete() {
+                        continuation.resume(returning: authorizationStatus)
+                    }
+                }
             }
         }
 
@@ -50,17 +64,41 @@ final class AudioTranscriber {
                 let speechTaskBox = OSAllocatedUnfairLock<SFSpeechRecognitionTask?>(initialState: nil)
                 let chunkText: String = try await withTaskCancellationHandler {
                     try await withCheckedThrowingContinuation { continuation in
-                        var isResumed = false
-                        let task = recognizer.recognitionTask(with: request) { result, error in
-                            if isResumed { return }
-                            if let error = error {
-                                isResumed = true
-                                continuation.resume(throwing: error)
-                                return
+                        let resumeGate = ContinuationTimeout()
+                        let timeoutTask = Task {
+                            try? await Task.sleep(for: chunkRecognitionTimeout)
+                            guard !Task.isCancelled else { return }
+                            if await resumeGate.complete() {
+                                speechTaskBox.withLock { $0?.cancel() }
+                                continuation.resume(
+                                    throwing: NSError(
+                                        domain: "AudioTranscriber",
+                                        code: 5,
+                                        userInfo: [
+                                            NSLocalizedDescriptionKey: "Speech recognition timed out."
+                                        ]
+                                    )
+                                )
                             }
-                            if let result = result, result.isFinal {
-                                isResumed = true
-                                continuation.resume(returning: result.bestTranscription.formattedString)
+                        }
+                        let task = recognizer.recognitionTask(with: request) { @Sendable result, error in
+                            let finalTranscript: String?
+                            if let result, result.isFinal {
+                                finalTranscript = result.bestTranscription.formattedString
+                            } else {
+                                finalTranscript = nil
+                            }
+
+                            guard error != nil || finalTranscript != nil else { return }
+
+                            Task {
+                                guard await resumeGate.complete() else { return }
+                                timeoutTask.cancel()
+                                if let error {
+                                    continuation.resume(throwing: error)
+                                } else if let finalTranscript {
+                                    continuation.resume(returning: finalTranscript)
+                                }
                             }
                         }
                         speechTaskBox.withLock { $0 = task }
@@ -70,7 +108,7 @@ final class AudioTranscriber {
                 }
 
                 if !fullTranscript.isEmpty && !chunkText.isEmpty {
-                    fullTranscript += " "
+                    fullTranscript += "\n"
                 }
                 fullTranscript += chunkText
             } catch {

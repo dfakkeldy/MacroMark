@@ -2,9 +2,9 @@
 
 Generated 2026-06-20. Companion to `CODE_AUDIT.md` and `REMEDIATION_PLAN.md` (same date). This document defines **self-contained batches** that can be dispatched to parallel coding subagents. Each batch lists the exact files to touch, the exact change, the acceptance test, and the build command.
 
-> Status update, 2026-07-01: this file is a historical audit-remediation execution plan.
+> Status update, 2026-07-02: this file is a historical audit-remediation execution plan.
 > Many P0/P1/P2 items landed later on `nightly`; release automation fixes landed on
-> `main`. Use `docs/V1_ROADMAP.md`, `docs/APP_STORE_READINESS.md`, and
+> `main` and are being reconciled back toward `nightly`. Use `docs/V1_ROADMAP.md`, `docs/APP_STORE_READINESS.md`, and
 > `docs/BRANCH_WORKTREE_CLEANUP.md` for the current release state before dispatching
 > any remaining remediation batches from this older snapshot.
 

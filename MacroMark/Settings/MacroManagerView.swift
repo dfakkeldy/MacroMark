@@ -17,8 +17,11 @@ struct MacroManagerView: View {
     @State private var editingMacro: Macro?
     @State private var showingPaywall = false
     @State private var showingFolderSettings = false
+    @State private var showingDailyNoteFormatting = false
+    @State private var showingDestinationProof = false
     @State private var showingRestoreConfirmation = false
     @State private var paywallReason: PaywallReason = .addMacro
+    @State private var screenshotMacros: [Macro] = []
 
     @Environment(EntitlementManager.self) private var entitlements
 
@@ -29,7 +32,17 @@ struct MacroManagerView: View {
     }
 
     private var customMacroCount: Int {
-        macros.filter { !$0.isDefault }.count
+        displayedMacros.filter { !$0.isDefault }.count
+    }
+
+    private var displayedMacros: [Macro] {
+        guard ScreenshotMode.isEnabled else {
+            return macros
+        }
+        if !screenshotMacros.isEmpty {
+            return screenshotMacros
+        }
+        return macros.isEmpty ? ScreenshotMode.previewMacros : macros
     }
 
     var body: some View {
@@ -74,9 +87,13 @@ struct MacroManagerView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
+
+                    Button("Destination", systemImage: "folder.badge.gearshape") {
+                        showingDestinationProof = true
+                    }
                 }
 
-                // MARK: Folder Structure (Paid)
+                // MARK: Folder Structure
                 Section {
                     Button {
                         if entitlements.canCustomizeFolderStructure {
@@ -98,9 +115,20 @@ struct MacroManagerView: View {
                     }
                 }
 
+                Section {
+                    Button("Daily Note Formatting", systemImage: "text.alignleft") {
+                        showingDailyNoteFormatting = true
+                    }
+                }
+
+                Section("Privacy") {
+                    Link("Privacy Policy", destination: URL(string: "https://dfakkeldy.github.io/MacroMark/privacy.html")!)
+                        .accessibilityIdentifier("settings.privacy-policy")
+                }
+
                 // MARK: Macros
                 Section {
-                    ForEach(macros) { macro in
+                    ForEach(displayedMacros) { macro in
                         Button {
                             if macro.isDefault && !entitlements.canEditDefaultMacros {
                                 paywallReason = .editDefault
@@ -186,6 +214,16 @@ struct MacroManagerView: View {
                     FolderSettingsView()
                 }
             }
+            .sheet(isPresented: $showingDailyNoteFormatting) {
+                NavigationStack {
+                    DailyNoteFormattingView()
+                }
+            }
+            .sheet(isPresented: $showingDestinationProof) {
+                NavigationStack {
+                    DestinationProofView()
+                }
+            }
             .fileImporter(isPresented: $showingFolderPicker, allowedContentTypes: [.folder], allowsMultipleSelection: false) { result in
                 switch result {
                 case .success(let urls):
@@ -209,7 +247,12 @@ struct MacroManagerView: View {
                 Text("Your custom macros will be kept. Only the built-in defaults will be reset.")
             }
             .onAppear {
-                prepopulateIfNeeded()
+                if ScreenshotMode.isEnabled {
+                    ScreenshotMode.seedIfNeeded(in: modelContext)
+                    loadScreenshotMacrosIfNeeded()
+                } else {
+                    prepopulateIfNeeded()
+                }
             }
         }
     }
@@ -218,13 +261,14 @@ struct MacroManagerView: View {
 
     private func deleteMacros(offsets: IndexSet) {
         for index in offsets {
-            modelContext.delete(macros[index])
+            modelContext.delete(displayedMacros[index])
         }
         MacroProcessor.invalidateRegexCache()
+        saveMacroChanges(context: "delete macros")
     }
 
     private func moveMacros(from source: IndexSet, to destination: Int) {
-        var sorted = macros
+        var sorted = displayedMacros
         sorted.move(fromOffsets: source, toOffset: destination)
         for (index, macro) in sorted.enumerated() {
             macro.sortOrder = index
@@ -232,6 +276,7 @@ struct MacroManagerView: View {
         // sortOrder changes don't affect trigger patterns, but invalidation is
         // cheap and keeps the cache in lockstep with the macro set.
         MacroProcessor.invalidateRegexCache()
+        saveMacroChanges(context: "reorder macros")
     }
 
     // MARK: - Default Macros (Fixed: single newlines)
@@ -241,34 +286,34 @@ struct MacroManagerView: View {
             // Markdown Headings
             Macro(trigger: "Heading One", replacement: "# ", isDefault: true, sortOrder: 0),
             Macro(trigger: "Heading Two", replacement: "## ", isDefault: true, sortOrder: 1),
-            Macro(trigger: "Heading To", replacement: "## ", notes: "Dictation often mishears 'Heading Two' as 'Heading To'.", isDefault: true, sortOrder: 1),
-            Macro(trigger: "Heading Three", replacement: "### ", isDefault: true, sortOrder: 2),
-            Macro(trigger: "Heading Four", replacement: "#### ", isDefault: true, sortOrder: 3),
-            Macro(trigger: "Heading Five", replacement: "##### ", isDefault: true, sortOrder: 4),
-            Macro(trigger: "Heading Six", replacement: "###### ", isDefault: true, sortOrder: 5),
+            Macro(trigger: "Heading To", replacement: "## ", notes: "Dictation often mishears 'Heading Two' as 'Heading To'.", isDefault: true, sortOrder: 2),
+            Macro(trigger: "Heading Three", replacement: "### ", isDefault: true, sortOrder: 3),
+            Macro(trigger: "Heading Four", replacement: "#### ", isDefault: true, sortOrder: 4),
+            Macro(trigger: "Heading Five", replacement: "##### ", isDefault: true, sortOrder: 5),
+            Macro(trigger: "Heading Six", replacement: "###### ", isDefault: true, sortOrder: 6),
 
             // Markdown Formatting
-            Macro(trigger: "Bold", replacement: "**", isDefault: true, sortOrder: 6),
-            Macro(trigger: "Italic", replacement: "_", isDefault: true, sortOrder: 7),
-            Macro(trigger: "Strikethrough", replacement: "~~", isDefault: true, sortOrder: 8),
-            Macro(trigger: "Code Block", replacement: "```", isDefault: true, sortOrder: 9),
-            Macro(trigger: "Inline Code", replacement: "`", isDefault: true, sortOrder: 10),
-            Macro(trigger: "Quote", replacement: "> ", isDefault: true, sortOrder: 11),
+            Macro(trigger: "Bold", replacement: "**", isDefault: true, sortOrder: 7),
+            Macro(trigger: "Italic", replacement: "_", isDefault: true, sortOrder: 8),
+            Macro(trigger: "Strikethrough", replacement: "~~", isDefault: true, sortOrder: 9),
+            Macro(trigger: "Code Block", replacement: "```", isDefault: true, sortOrder: 10),
+            Macro(trigger: "Inline Code", replacement: "`", isDefault: true, sortOrder: 11),
+            Macro(trigger: "Quote", replacement: "> ", isDefault: true, sortOrder: 12),
 
             // Markdown Lists
-            Macro(trigger: "Bullet", replacement: "- ", isDefault: true, sortOrder: 12),
-            Macro(trigger: "Numbered", replacement: "1. ", isDefault: true, sortOrder: 13),
-            Macro(trigger: "Task", replacement: "- [ ] ", isDefault: true, sortOrder: 14),
+            Macro(trigger: "Bullet", replacement: "- ", isDefault: true, sortOrder: 13),
+            Macro(trigger: "Numbered", replacement: "1. ", isDefault: true, sortOrder: 14),
+            Macro(trigger: "Task", replacement: "- [ ] ", isDefault: true, sortOrder: 15),
 
             // Clever Macros
-            Macro(trigger: "Timestamp", replacement: "{time} - ", notes: "Inserts the current time.", isDefault: true, sortOrder: 15),
-            Macro(trigger: "New Journal Entry", replacement: "## {date} at {time}", notes: "Creates a new daily journal entry heading.", isDefault: true, sortOrder: 16),
-            Macro(trigger: "Horizontal Rule", replacement: "---", isDefault: true, sortOrder: 17),
-            Macro(trigger: "Paste", replacement: "{clipboard}", notes: "Pastes whatever is currently on your clipboard.", isDefault: true, sortOrder: 18),
-            Macro(trigger: "Dropoff", replacement: "{location} - ", notes: "Inserts your current street address.", isDefault: true, sortOrder: 19),
-            Macro(trigger: "Smile", replacement: "😀", isDefault: true, sortOrder: 20),
-            Macro(trigger: "Block ID", replacement: "^id-{uuid}", notes: "Generates a unique identifier for block references.", isDefault: true, sortOrder: 21),
-            Macro(trigger: "Not", replacement: "{backspace}", notes: "Deletes the character before it. Say 'new line' then 'not' to end a hashtag without leaving a newline. ⚠️ 'Not' is a common word — rename this trigger if it fires accidentally.", isDefault: true, sortOrder: 22)
+            Macro(trigger: "Timestamp", replacement: "{time} - ", notes: "Inserts the current time.", isDefault: true, sortOrder: 16),
+            Macro(trigger: "New Journal Entry", replacement: "## {date} at {time}", notes: "Creates a new daily journal entry heading.", isDefault: true, sortOrder: 17),
+            Macro(trigger: "Horizontal Rule", replacement: "---", isDefault: true, sortOrder: 18),
+            Macro(trigger: "Paste", replacement: "{clipboard}", notes: "Pastes whatever is currently on your clipboard.", isDefault: true, sortOrder: 19),
+            Macro(trigger: "Dropoff", replacement: "{location} - ", notes: "Inserts your current street address.", isDefault: true, sortOrder: 20),
+            Macro(trigger: "Smile", replacement: "😀", isDefault: true, sortOrder: 21),
+            Macro(trigger: "Block ID", replacement: "^id-{uuid}", notes: "Generates a unique identifier for block references.", isDefault: true, sortOrder: 22),
+            Macro(trigger: "Backspace", replacement: "{backspace}", notes: "Deletes the character before it.", isDefault: true, sortOrder: 23)
         ]
     }
 
@@ -281,6 +326,17 @@ struct MacroManagerView: View {
         }
     }
 
+    private func loadScreenshotMacrosIfNeeded() {
+        guard ScreenshotMode.isEnabled else { return }
+
+        var descriptor = FetchDescriptor<Macro>(
+            sortBy: [SortDescriptor(\Macro.sortOrder, order: .forward)]
+        )
+        descriptor.fetchLimit = 20
+        let fetchedMacros = (try? modelContext.fetch(descriptor)) ?? []
+        screenshotMacros = fetchedMacros.isEmpty ? ScreenshotMode.previewMacros : fetchedMacros
+    }
+
     private func restoreDefaults() {
         // Only reset the built-in defaults; user-created custom macros survive.
         for macro in macros where macro.isDefault {
@@ -289,8 +345,18 @@ struct MacroManagerView: View {
         for macro in defaultMacros {
             modelContext.insert(macro)
         }
-        try? modelContext.save()
+        saveMacroChanges(context: "restore default macros")
         MacroProcessor.invalidateRegexCache()
+    }
+
+    private func saveMacroChanges(context: String) {
+        do {
+            try modelContext.save()
+        } catch {
+#if DEBUG
+            print("MacroMark: failed to \(context): \(error)")
+#endif
+        }
     }
 }
 

@@ -47,15 +47,21 @@ MacroMark treats captured notes and recordings as user data, not transient messa
 4. Export status tracks whether the configured target appended successfully, deferred safely, or needs attention.
 5. Watch-side data is acknowledged only after iPhone-side durability and export safety are established.
 
+Initial processing, export retry, and audio WAL recovery share one reservation per capture source UUID. A path acquires it before starting work and releases it when that work ends, so a retry or recovery pass cannot append or retranscribe a capture while another path still owns it. A successful export reports that the note was saved to the daily Markdown file.
+
 The public UI mirrors this model through inbox status, needs-attention filtering, note detail status, retry actions, partial transcription warnings, and destination setup proof. Any future sync/storage work must preserve idempotency: replayed notes, audio files, and ACK messages must not duplicate user-visible Markdown exports.
 
 ## 5. Product And Monetization Boundaries
 
-The launch model is free download plus MacroMark Pro:
+The approved launch is fully free. Apple Watch/iPhone capture, daily-note append,
+review, unlimited custom macros, default macro editing and folder customization
+do not require a purchase. `StoreAccessPolicy.paywallDisabled = true` is the
+release policy, as recorded in `docs/APP_STORE_PACKET.md`.
 
-- Free tier: core Apple Watch/iPhone capture, daily-note append, and review.
-- Pro: unlimited macros, default macro editing, folder customization, and advanced formatting/customization where shipped.
-- StoreKit products: `com.macromark.subscription.annual` and `com.macromark.lifetime`.
+Existing `com.macromark.subscription.annual` and `com.macromark.lifetime`
+identifiers, transaction handling and prior ownership remain compatible. They
+are not new offers for this free launch; historical paid-tier plans do not
+change current access.
 
 The app has no account system and no third-party analytics in the v1.0 plan. Privacy disclosures, App Store metadata, and the website must stay consistent with that behavior.
 
@@ -63,8 +69,8 @@ The app has no account system and no third-party analytics in the v1.0 plan. Pri
 
 - Promotion ladder: `feature/* -> nightly -> weekly -> main`.
 - GitHub Pages source: `main /docs`.
-- Release automation source: current workflow on `main`, narrowed to nightly internal TestFlight as of PR #90.
+- Release automation source: current workflow on `main`, narrowed to nightly internal TestFlight as of PR #90 and reconciled back toward `nightly` in the release reconciliation branch.
 - Devlog automation: `Scripts/doc_automation/` updates `docs/guides/devlog.md` and `docs/devlog.html` and opens a reviewable PR.
 - App Store readiness source: `docs/APP_STORE_READINESS.md`.
 
-As of 2026-07-01, `origin/main` and `origin/nightly` are split: `main` has newer release automation, while `nightly` has newer v1 product/docs work. Resolve that split before final App Store submission so the branch being shipped, the release workflow, README, website, Fastlane metadata, and App Store Connect state all describe the same product.
+As of 2026-07-02, the release reconciliation branch brings together `origin/main` release automation/docs work and `origin/nightly` v1 product work. Keep the branch being shipped, the release workflow, README, website, Fastlane metadata, and App Store Connect state aligned before final App Store submission.
