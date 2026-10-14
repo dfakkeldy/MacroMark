@@ -17,7 +17,9 @@ copy, product localizations, review instructions and declaration mappings.
 - [ ] Recapture clean phone/iPad/Watch assets with neutral fixture notes and
   matching source/build/device/locale receipts.
 - [ ] Verify normal exact-head checks and nightly internal delivery, then
-  weekly external installation/launch acceptance before main promotion.
+  weekly external installation/launch acceptance. Weekly and main git
+  promotion are done (#120, #121); App Review submission and public release
+  remain held.
 
 The authorized operator owns routine metadata entry and screenshots. Dan
 only needs to resolve actual legal/business facts and actions requiring his
