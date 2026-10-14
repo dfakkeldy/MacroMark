@@ -4,33 +4,38 @@ Re-checked: 2026-10-14. This refresh records weekly and main git promotion of
 the accepted free-launch candidate after
 [PR #120](https://github.com/dfakkeldy/MacroMark/pull/120) merged into `weekly`
 and [PR #121](https://github.com/dfakkeldy/MacroMark/pull/121) merged into
-`main`. It covers GitHub promotion receipts. It does not re-read App Store
-Connect, and it does not authorize App Review submission, public release,
-upload, pricing changes, or agreement acceptance.
+`main`. It records GitHub promotion receipts and the release coordinator's October 14
+official read-only TestFlight check. Current selected App Store build, metadata
+completeness and review/release state have not been read back. Dan's October 14
+grant authorizes submission of eligible passing candidates; it does not resolve
+missing factual evidence, authorize new agreements or enable automatic release.
 
-**Hold App Store submission.** The October 6 owner decision is a fully free
+**Submission authority is granted; actual prerequisites remain.** The October 6 owner decision is a fully free
 launch. Full macro/folder access remains enabled for all users; legacy
 StoreKit ownership is preserved. Weekly and main both carry that candidate:
 weekly merge `af950006662dfed56afce34bcd76b986cb55b6f1` (reviewed head
 `5f1dc4718caa6711cf5267f987338dab1bd19236`); main merge
 `aeafeda1b649fe8952ce1a7f23ac8a6eabe6c86f` (head
 `abd4ae522e6c3c860d66298b73b31f9ed9790ca8`; per #121, byte-identical to
-weekly). App Review submission and public release remain held and need Dan's
-specific authorization. Use the [prepared packet](APP_STORE_PACKET.md) and
+weekly). Complete the factual candidate/store packet and verify the selected
+build and persisted manual-release setting before submitting. No repeated
+generic submission approval is required; no submission or public release is
+claimed here. Use the [prepared packet](APP_STORE_PACKET.md) and
 [submission checklist](ASC_SUBMISSION_CHECKLIST.md).
 
 ## Verified release state
 
 | Surface | Exact state | Evidence and limit |
 | --- | --- | --- |
-| nightly | `085fa70dad8ca0299da18a8411be8916f231f34a` | Current integration source; application payload promoted to weekly in #120 |
+| Promoted Nightly app payload | `085fa70dad8ca0299da18a8411be8916f231f34a` | Release application source; later documentation-only Nightly commits do not change it; payload promoted to weekly in #120 |
 | weekly | `af950006662dfed56afce34bcd76b986cb55b6f1` | Merged 2026-10-14T03:35:02Z via #120; reviewed head `5f1dc4718caa6711cf5267f987338dab1bd19236`; payload matches nightly `085fa70…` |
 | main | `aeafeda1b649fe8952ce1a7f23ac8a6eabe6c86f` | Merged 2026-10-14T03:50:00Z via #121; head `abd4ae522e6c3c860d66298b73b31f9ed9790ca8`; per #121, tree is byte-identical to weekly `af950006…` |
 | Weekly promotion CI | [38505654154](https://github.com/dfakkeldy/MacroMark/actions/runs/38505654154), success | Required checks on exact reviewed head `5f1dc471`; from #120 PR body |
 | Main promotion CI | [38507144366](https://github.com/dfakkeldy/MacroMark/actions/runs/38507144366), success | Required `Build gate + tests` on exact head `abd4ae522`; verified via GitHub Actions API |
-| Claimed TestFlight binding | `1.0 (83)` | **CLAIM** from #120/#121 PR bodies / board; not re-verified by reading App Store Connect |
+| Verified internal TestFlight | `1.0 (83)` | October 14 official read-only service check: processed, internal, unexpired; actual [ship 38396977539](https://github.com/dfakkeldy/MacroMark/actions/runs/38396977539) used app source `085fa70d`. Current selected App Store build/state remains unverified |
+| Main post-merge CI | [38508282631](https://github.com/dfakkeldy/MacroMark/actions/runs/38508282631), success | Passed at actual merge head `aeafeda1`; separate from device acceptance and store state |
 | Historical internal ship | [37306349729](https://github.com/dfakkeldy/MacroMark/actions/runs/37306349729), job `111750878037`, October 5 | Payload nightly `80455834`, automation main `59b96a15`, Xcode 26.6 (`17F113`), 50 package tests; signed IPA uploaded, `1.0 (75)` processed, internal distribution succeeded |
-| External beta / App Review / public store | Not verified; not opened by #120 or #121 | Claimed TestFlight binding does not establish external approval, App Review approval, or public availability |
+| External beta / App Review / public store | Not verified; not opened by #120 or #121 | Internal TestFlight processing does not establish external approval, App Review approval, or public availability |
 
 The scheduled main workflow replaces nightly's Fastlane files with main's
 release automation. Its October 5 run did **not** run app-hosted iOS/UI tests.
@@ -42,10 +47,12 @@ All three live branch protections require up-to-date `Build gate + tests`
 additional active branch rulesets were returned. These settings were only
 read. Ordinary CI can skip iOS tests for unavailable/timed-out simulators.
 
-Keep `feature/* → nightly → weekly → main`: internal testers, then weekly
-external acceptance/Beta App Review as applicable, then main App Store.
+Keep `feature/* → nightly → weekly → main`. Dan approved his internal
+acceptance plus required technical checks in place of nonexistent external
+testers. External eligibility/Beta App Review is needed only for claims of
+external distribution; no new tester requirement is introduced.
 Weekly dispatch builds the workflow ref, so dispatching it from nightly would
-bypass the payload ladder. Promotions need separate authorization. Do not
+bypass the payload ladder. The current release grant authorizes normal promotions through actual gates. Do not
 backport features or change protections/pipelines to obtain green CI.
 
 ## Source blockers and remaining evidence
@@ -57,9 +64,9 @@ backport features or change protections/pipelines to obtain green CI.
 | Legacy StoreKit UI | Simulator auto-entitles; historical trial UI remains behind inaccessible purchase gates during free launch | **Not a free-launch gate**; no new paid offer or purchase claim in listing |
 | Lifetime revocation | Lifetime flag/keychain is set and never cleared on revocation, although Apple excludes revoked transactions from current entitlements | **Legacy paid-path finding**; full free access does not depend on cached ownership; review before any future paid policy |
 | Manifest coverage | Four manifests: empty collection, tracking false; app/Watch/package UserDefaults `CA92.1`; unused `.contentModificationDateKey` request removed; filename order/filtering preserved | **Source coverage gap removed; final linked-API/archive report still pending** |
-| Core capture → durable Markdown | WAL, retry, deduplication, original timestamps and visible export status in source | **Configured / partly automated**; no fresh paired physical-device acceptance in this audit |
-| Screenshots | Current neutral phone/iPad simulator drafts captured and inspected; Watch finals incomplete | **Draft assets**; clean status bars and candidate/device coverage before store upload |
-| ASC configuration | Free launch; existing annual draft is preserved | Weekly (#120) and main (#121) have the accepted candidate. Listing/assets and questionnaires remain pending. **CLAIM:** TestFlight `1.0 (83)` bound from PR/board, not re-read in ASC. No IAP attachment for this free launch |
+| Core capture → durable Markdown | WAL, retry, deduplication, original timestamps and visible export status in source | Dan accepted paired capture on source `96c2c13`; build 83 application/configuration/tests match that source (only instructions differ). Preserve that acceptance and verify uncovered cases |
+| Screenshots | Current neutral phone/iPad simulator drafts captured and inspected; Watch finals incomplete | Preserve previously accepted/saved assets; verify current candidate/device coverage and complete actual gaps |
+| ASC configuration | Free launch; existing annual draft is preserved | Weekly (#120) and main (#121) have the accepted candidate. Listing/assets and questionnaires remain pending. Internal TestFlight `1.0 (83)` verified by the October 14 service check; selected store build/fields remain unverified. No IAP attachment for this free launch |
 
 Open June issues #79–#86 are not automatically eight current blockers. The
 intended bookmark cleanup, WAL ordering, duplicate-audio/retry guards, mixed
@@ -97,18 +104,19 @@ current shipping evidence; reproduce on the candidate before closing issues.
 1. Review prepared docs/copy and resolve scoped source blockers on nightly
    with focused tests and independent review. The [repair plan](RELEASE_REPAIR_PLAN.md)
    separates defects from beta policy and unobserved tests.
-2. Serially capture phone/iPad/Watch images; verify core capture,
-   deferred retry and replay against a current candidate, without cosmetic
-   expansion or unrelated features.
+2. Preserve accepted capture behavior and existing assets. Verify their
+   candidate correspondence and complete only actual image or behavior gaps;
+   serialize any necessary native work.
 3. At the next sign-in, inspect existing ASC fields/products before entering
    prepared material. The operator can do data entry; owner decides legal,
    business, free availability, rights and release scope.
 4. Weekly git promotion (#120) and main git promotion (#121) of the accepted
-   candidate are complete. App Review submission and public release remain
-   held and need Dan's specific authorization. `release` and `release_train
-   channel:appstore` upload **and submit**; they are not harmless
-   archive-only commands. Use manual public release unless the owner
-   explicitly chooses otherwise.
+   candidate are complete. Submit only after the actual candidate/store
+   prerequisites pass under Dan's October 14 grant; do not ask for that grant
+   again. `release` and `release_train channel:appstore` upload **and submit**;
+   they are not archive-only commands. Verify the persisted manual-release
+   setting and retain the actual submission result. Do not enable automatic
+   public release.
 
 ## Apple references
 

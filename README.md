@@ -42,9 +42,12 @@ candidate are both done: weekly via
 [#121](https://github.com/dfakkeldy/MacroMark/pull/121) (merge
 `aeafeda1b649fe8952ce1a7f23ac8a6eabe6c86f`, head
 `abd4ae522e6c3c860d66298b73b31f9ed9790ca8`; per #121, main's tree is
-byte-identical to weekly). Internal TestFlight `1.0 (83)` is **claimed** from
-those PRs/board, not re-verified in App Store Connect. App Review submission
-and public release remain held and need Dan's specific authorization. See
+byte-identical to weekly). An official read-only service check on October 14
+verified internal TestFlight
+`1.0 (83)`; the selected App Store build and review state remain unverified.
+Dan authorized submission of eligible passing candidates on October 14. Complete
+the factual store packet and verify the saved manual-release setting before
+submission; no automatic public release is authorized. See
 [readiness](docs/APP_STORE_READINESS.md) and the
 [prepared packet](docs/APP_STORE_PACKET.md).
 
