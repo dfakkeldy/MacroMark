@@ -118,9 +118,12 @@ packet after sign-in. An authorized operator can enter text/assets; the owner
 reviews legal/business/price/rights answers. Weekly git promotion of the
 accepted candidate is complete via [#120](https://github.com/dfakkeldy/MacroMark/pull/120).
 Main git promotion is complete via [#121](https://github.com/dfakkeldy/MacroMark/pull/121).
-App Review submission and public release remain held and need Dan's specific
-authorization. Default to manual release after approval unless explicitly
-instructed otherwise.
+Dan authorized App Review submission of eligible passing candidates on October 14.
+Complete the candidate evidence and factual privacy/rights/store packet, verify
+the selected build and saved manual-release setting, then submit under that
+authority. No repeated generic approval is needed. Do not enable automatic
+public release; retain the actual submission receipt separately from approval
+and release evidence.
 
 ## Apple references
 
