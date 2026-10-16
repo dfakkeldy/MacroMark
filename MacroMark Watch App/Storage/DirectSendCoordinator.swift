@@ -60,7 +60,10 @@ final class DirectSendCoordinator {
         if let queue = store.textQueue {
             let receipts = queue.flushConfirmations()
             for receipt in receipts where receipt.destination == .webhook { webhooks.removeBody(for: receipt.noteID) }
-            if !receipts.isEmpty { store.updatePendingCount() }
+            if !receipts.isEmpty {
+                store.updatePendingCount()
+                if !queue.hasUnpersistedConfirmations { store.deliveryError = nil }
+            }
         }
         await webhooks.reconcile()
         for snapshot in store.pendingNotes {
