@@ -117,15 +117,17 @@ public struct DirectSendConfiguration: Identifiable, Codable, Equatable, Sendabl
     public let id: UUID
     public let configuredAt: Date
     public let revision: UInt64
+    public let sourceID: UUID
     public let mode: WatchDeliveryMode
     public let github: GitHubDestination?
     public let webhook: WebhookDestination?
 
-    public init(id: UUID = UUID(), configuredAt: Date = Date(), revision: UInt64 = 0, mode: WatchDeliveryMode,
+    public init(id: UUID = UUID(), configuredAt: Date = Date(), revision: UInt64 = 0, sourceID: UUID = UUID(), mode: WatchDeliveryMode,
                 github: GitHubDestination? = nil, webhook: WebhookDestination? = nil) {
         self.id = id
         self.configuredAt = configuredAt
         self.revision = revision
+        self.sourceID = sourceID
         self.mode = mode
         self.github = github
         self.webhook = webhook
@@ -149,6 +151,32 @@ public struct DirectSendConfiguration: Identifiable, Codable, Equatable, Sendabl
               mode == .phone || !destinations.isEmpty else {
             throw DirectSendError.invalidConfiguration("Choose at least one Direct Send destination.")
         }
+    }
+
+    /// Credential rotation can repair old notes only when their endpoint is unchanged.
+    /// Keep the original ID, route, branch, folder, URL and non-authentication headers.
+    public func refreshingCredentials(from current: DirectSendConfiguration?) -> DirectSendConfiguration {
+        guard let current else { return self }
+        var github = self.github
+        if let original = github, let replacement = current.github,
+           original.owner == replacement.owner, original.repository == replacement.repository,
+           original.branch == replacement.branch, original.folder == replacement.folder {
+            github = GitHubDestination(owner: original.owner, repository: original.repository,
+                branch: original.branch, folder: original.folder, token: replacement.token)
+        }
+        var webhook = self.webhook
+        if let original = webhook, let replacement = current.webhook, original.url == replacement.url {
+            let authNames: Set<String> = ["authorization", "x-api-key", "api-key", "x-webhook-key"]
+            let oldHeaders = Dictionary(original.headers.map { ($0.key.lowercased(), $0.value) }, uniquingKeysWith: { _, new in new })
+            let newHeaders = Dictionary(replacement.headers.map { ($0.key.lowercased(), $0.value) }, uniquingKeysWith: { _, new in new })
+            if oldHeaders.filter({ !authNames.contains($0.key) }) == newHeaders.filter({ !authNames.contains($0.key) }) {
+                var refreshed = oldHeaders.filter { !authNames.contains($0.key) }
+                for (name, value) in newHeaders where authNames.contains(name) { refreshed[name] = value }
+                webhook = WebhookDestination(url: original.url, headers: refreshed)
+            }
+        }
+        return DirectSendConfiguration(id: id, configuredAt: configuredAt, revision: revision, sourceID: sourceID,
+            mode: mode, github: github, webhook: webhook)
     }
 }
 

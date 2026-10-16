@@ -7,7 +7,9 @@ struct DeliveryStatusView: View {
             if let error = LocalStore.shared.captureError ?? LocalStore.shared.deliveryError {
                 Text(error).font(.caption).foregroundStyle(.orange)
             }
-            if LocalStore.shared.pendingCount == 0 {
+            if LocalStore.shared.textQueue == nil {
+                Text("Saved note queue unavailable")
+            } else if LocalStore.shared.pendingCount == 0 {
                 Text("All notes delivered")
             } else {
                 Text("\(LocalStore.shared.pendingCount) pending")

@@ -31,7 +31,13 @@ final class WebhookBackgroundUploader: NSObject, URLSessionTaskDelegate {
 
     func reconcile() async {
         let tasks = await session.allTasks
-        activeIDs = Set(tasks.compactMap { $0.taskDescription.flatMap(UUID.init(uuidString:)) })
+        activeIDs = Set(tasks.compactMap { task in
+            // A crash can occur between uploadTask creation and taskDescription assignment.
+            let id = task.taskDescription.flatMap(UUID.init(uuidString:))
+                ?? task.originalRequest?.value(forHTTPHeaderField: "Idempotency-Key").flatMap(UUID.init(uuidString:))
+            if let id { task.taskDescription = id.uuidString }
+            return id
+        })
         // If the process died after creating a task but before resume(), continue it.
         for task in tasks where task.state == .suspended { task.resume() }
     }
@@ -55,19 +61,41 @@ final class WebhookBackgroundUploader: NSObject, URLSessionTaskDelegate {
             task.setTaskCompletedWithSnapshot(false)
         } else {
             backgroundTasks.append(task)
+            task.expirationHandler = { [weak self, weak task] in
+                Task { @MainActor in
+                    guard let task else { return }
+                    self?.finishBackgroundTask(task)
+                }
+            }
         }
+    }
+
+    private func finishBackgroundTask(_ task: WKURLSessionRefreshBackgroundTask) {
+        guard let index = backgroundTasks.firstIndex(where: { $0 === task }) else { return }
+        backgroundTasks.remove(at: index)
+        task.expirationHandler = nil
+        task.setTaskCompletedWithSnapshot(false)
+    }
+
+    func removeBody(for id: UUID) {
+        try? FileManager.default.removeItem(at: directory.appendingPathComponent("\(id.uuidString).json"))
     }
 
     nonisolated func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: (any Error)?) {
         let id = task.taskDescription.flatMap(UUID.init(uuidString:))
+            ?? task.originalRequest?.value(forHTTPHeaderField: "Idempotency-Key").flatMap(UUID.init(uuidString:))
         let status = (task.response as? HTTPURLResponse)?.statusCode
+        let expectedURL = task.originalRequest?.url
+        let responseURL = task.response?.url
+        let finalMethod = task.currentRequest?.httpMethod
         let retryAfter = (task.response as? HTTPURLResponse)?.value(forHTTPHeaderField: "Retry-After").flatMap(TimeInterval.init)
         MainActor.assumeIsolated {
             guard let id else { return }
             activeIDs.remove(id)
-            if error == nil, let status, (200..<300).contains(status) {
+            if error == nil, let status, WebhookRoute.confirmsDelivery(status: status,
+                expectedURL: expectedURL, responseURL: responseURL, finalMethod: finalMethod) {
                 if store.completeDirect(id, destination: .webhook) {
-                    try? FileManager.default.removeItem(at: directory.appendingPathComponent("\(id.uuidString).json"))
+                    removeBody(for: id)
                 }
             } else {
                 let failure = status.map { DirectSendError.http($0, retryAfter: retryAfter) }
@@ -80,8 +108,7 @@ final class WebhookBackgroundUploader: NSObject, URLSessionTaskDelegate {
     nonisolated func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {
         MainActor.assumeIsolated {
             eventsFinished = true
-            for task in backgroundTasks { task.setTaskCompletedWithSnapshot(false) }
-            backgroundTasks.removeAll()
+            for task in backgroundTasks { finishBackgroundTask(task) }
         }
     }
 }

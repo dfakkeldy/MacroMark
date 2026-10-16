@@ -1,6 +1,11 @@
 import Foundation
 
 public enum WebhookRoute {
+    public static func confirmsDelivery(status: Int, expectedURL: URL?, responseURL: URL?, finalMethod: String?) -> Bool {
+        guard (200..<300).contains(status), let expectedURL, responseURL == expectedURL else { return false }
+        return finalMethod == "POST"
+    }
+
     public struct Upload: Sendable {
         public let request: URLRequest
         public let body: Data

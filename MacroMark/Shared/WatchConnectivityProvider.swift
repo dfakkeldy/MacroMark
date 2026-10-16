@@ -3,6 +3,9 @@ import Foundation
 import Observation
 import MacroMarkKit
 import os
+#if os(watchOS)
+import WatchKit
+#endif
 
 @MainActor
 @Observable
@@ -12,6 +15,49 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
     private let session: WCSession?
     private var pendingCaptureMode: String?
     private let deliveryLogger = Logger(subsystem: "com.macromark", category: "direct-setup")
+#if os(watchOS)
+    @ObservationIgnored private var connectivityTasks: [WKWatchConnectivityRefreshBackgroundTask] = []
+    @ObservationIgnored private var pendingContentObservation: NSKeyValueObservation?
+    nonisolated private let receiveWork = OSAllocatedUnfairLock(initialState: 0)
+
+    nonisolated private func receiveOnWatchActor(_ action: @escaping @MainActor @Sendable () -> Void) {
+        receiveWork.withLock { $0 += 1 }
+        Task { @MainActor in
+            action()
+            receiveWork.withLock { $0 -= 1 }
+            completeConnectivityTasksIfReady()
+        }
+    }
+
+    func handleConnectivityRefresh(_ task: WKWatchConnectivityRefreshBackgroundTask) {
+        connectivityTasks.append(task)
+        task.expirationHandler = { [weak self, weak task] in
+            Task { @MainActor in
+                guard let task else { return }
+                self?.finishConnectivityTask(task)
+            }
+        }
+        if pendingContentObservation == nil {
+            pendingContentObservation = session?.observe(\.hasContentPending, options: [.initial, .new]) { [weak self] _, _ in
+                Task { @MainActor in self?.completeConnectivityTasksIfReady() }
+            }
+        }
+        completeConnectivityTasksIfReady()
+    }
+
+    private func completeConnectivityTasksIfReady() {
+        guard let session, session.activationState == .activated, !session.hasContentPending,
+              receiveWork.withLock({ $0 == 0 }) else { return }
+        for task in connectivityTasks { finishConnectivityTask(task) }
+    }
+
+    private func finishConnectivityTask(_ task: WKWatchConnectivityRefreshBackgroundTask) {
+        guard let index = connectivityTasks.firstIndex(where: { $0 === task }) else { return }
+        connectivityTasks.remove(at: index)
+        task.expirationHandler = nil
+        task.setTaskCompletedWithSnapshot(false)
+    }
+#endif
 
     // For iOS to process received notes
     var onNoteReceived: ((UUID, String, Date) -> Void)? {
@@ -69,10 +115,14 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
 #if os(watchOS)
         let directConfiguration = session.receivedApplicationContext["directSendConfiguration"] as? Data
         if activationState == .activated {
-            Task { @MainActor in
-                if let directConfiguration { receiveDirectConfiguration(directConfiguration) }
+            receiveOnWatchActor {
+                if let directConfiguration { self.receiveDirectConfiguration(directConfiguration) }
                 LocalStore.shared.syncPendingNotes()
                 LocalStore.shared.syncPendingAudio()
+            }
+        } else {
+            receiveOnWatchActor {
+                for task in self.connectivityTasks { self.finishConnectivityTask(task) }
             }
         }
 #elseif os(iOS)
@@ -124,7 +174,7 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
             let processed = (reply["processed"] as? Bool) == true
             guard processed else { return }
 
-            Task { @MainActor in
+            self.receiveOnWatchActor {
                 LocalStore.shared.removeNote(withId: id)
                 LocalStore.shared.removeAudio(withId: id)
             }
@@ -184,9 +234,7 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
             try session.updateApplicationContext(context)
             return true
         } catch {
-#if DEBUG
-            print("Failed to update application context: \(error)")
-#endif
+            deliveryLogger.error("Watch settings context was not sent")
             return false
         }
     }
@@ -197,11 +245,11 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
         // --- Watch side: handle acknowledgements from phone ---
 #if os(watchOS)
         if let ackId = userInfo["ack"] as? String, let id = UUID(uuidString: ackId) {
-            Task { @MainActor in LocalStore.shared.removeNote(withId: id) }
+            receiveOnWatchActor { LocalStore.shared.removeNote(withId: id) }
             return
         }
         if let ackId = userInfo["ackFile"] as? String, let id = UUID(uuidString: ackId) {
-            Task { @MainActor in LocalStore.shared.removeAudio(withId: id) }
+            receiveOnWatchActor { LocalStore.shared.removeAudio(withId: id) }
             return
         }
 #endif
@@ -334,7 +382,7 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
         }
 #if os(watchOS)
         if let data = applicationContext["directSendConfiguration"] as? Data {
-            Task { @MainActor in receiveDirectConfiguration(data) }
+            receiveOnWatchActor { self.receiveDirectConfiguration(data) }
         }
 #endif
     }
@@ -346,7 +394,7 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
             let configuration = try JSONDecoder().decode(DirectSendConfiguration.self, from: data)
             let settings = DirectSendSettingsStore()
             if let current = try settings.current(), current.id != configuration.id,
-               current.revision >= configuration.revision { return }
+               current.sourceID == configuration.sourceID, current.revision >= configuration.revision { return }
             try settings.save(configuration)
             UserDefaults.standard.set(configuration.mode.rawValue, forKey: "directSend.selectedMode")
             session?.transferUserInfo(["directSendConfigurationAck": configuration.id.uuidString])

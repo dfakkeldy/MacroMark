@@ -146,7 +146,7 @@ struct DirectSendSettingsView: View {
                 }
                 webhook = WebhookDestination(url: url, headers: values)
             }
-            let configuration = DirectSendConfiguration(revision: (previous?.revision ?? 0) + 1,
+            let configuration = DirectSendConfiguration(revision: (previous?.revision ?? 0) + 1, sourceID: previous?.sourceID ?? UUID(),
                 mode: mode, github: github, webhook: webhook)
             try settings.save(configuration)
             savedID = configuration.id

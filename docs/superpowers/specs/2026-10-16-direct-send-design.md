@@ -18,8 +18,8 @@ The user chooses Phone or Direct in iPhone settings. Direct can target GitHub,
 a webhook, or both. Capture freezes the route, configuration version, destination
 set, local date and UTC offset. Changing settings cannot reroute old notes.
 GitHub and iCloud files stay separate. Direct notes use captured text without
-macro expansion. These resolve the spec's open choices provisionally; Dan can
-change them before delivery. Google Drive and watch audio transcription stay out
+macro expansion. Dan confirmed these defaults during implementation.
+Google Drive and watch audio transcription stay out
 of scope.
 
 Persist text queue changes atomically before reporting capture or delivery

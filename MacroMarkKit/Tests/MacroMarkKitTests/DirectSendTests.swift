@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import os
 @testable import MacroMarkKit
 
 @Suite("Direct Send durability")
@@ -78,7 +79,13 @@ struct DirectSendQueueTests {
         fail = true
         #expect(throws: (any Error).self) { try queue.complete(note.id, destination: .github) }
         #expect(queue.notes.first?.pendingDestinations == [.github])
+        #expect(queue.isConfirmed(note.id, destination: .github))
         #expect(try TextDeliveryQueue(fileURL: url).notes == queue.notes)
+        #expect(queue.flushConfirmations().isEmpty)
+        fail = false
+        #expect(queue.flushConfirmations().count == 1)
+        #expect(queue.notes.isEmpty)
+        #expect(!queue.hasUnpersistedConfirmations)
     }
 
     @Test("Corrupt queue and invalid Direct routes fail closed")
@@ -133,6 +140,59 @@ private actor HTTPFixture {
 }
 
 struct DirectSendHTTPTests {
+    @Test("A redirected landing-page 200 never confirms a webhook POST")
+    func webhookRedirects() throws {
+        let endpoint = try #require(URL(string: "https://example.com/receive"))
+        let login = try #require(URL(string: "https://example.com/login"))
+        #expect(WebhookRoute.confirmsDelivery(status: 204, expectedURL: endpoint, responseURL: endpoint, finalMethod: "POST"))
+        #expect(!WebhookRoute.confirmsDelivery(status: 200, expectedURL: endpoint, responseURL: login, finalMethod: "GET"))
+        #expect(!WebhookRoute.confirmsDelivery(status: 200, expectedURL: endpoint, responseURL: login, finalMethod: "POST"))
+        #expect(!WebhookRoute.confirmsDelivery(status: 302, expectedURL: endpoint, responseURL: endpoint, finalMethod: "POST"))
+    }
+
+    @Test("Credential repairs survive switching away and stale setup replay")
+    func persistentCredentialRotation() throws {
+        let data = OSAllocatedUnfairLock(initialState: [String: Data]())
+        let settings = DirectSendSettingsStore(read: { key in data.withLock { $0[key] } },
+            write: { value, key in data.withLock { $0[key] = value } })
+        let sourceID = UUID()
+        let old = DirectSendConfiguration(revision: 1, sourceID: sourceID, mode: .direct,
+            github: GitHubDestination(owner: "me", repository: "notes", token: "old"))
+        let rotated = DirectSendConfiguration(revision: 2, sourceID: sourceID, mode: .direct,
+            github: GitHubDestination(owner: "me", repository: "notes", token: "new"))
+        let elsewhere = DirectSendConfiguration(revision: 3, sourceID: sourceID, mode: .direct,
+            github: GitHubDestination(owner: "me", repository: "elsewhere", token: "other"))
+        try settings.save(old)
+        try settings.save(rotated)
+        try settings.save(elsewhere)
+        #expect(try settings.deliveryConfiguration(id: old.id)?.github?.token == "new")
+        #expect(try settings.deliveryConfiguration(id: old.id)?.route == old.route)
+        #expect(try settings.configuration(id: old.id)?.github?.token == "old")
+        #expect(throws: (any Error).self) { try settings.save(old) }
+        #expect(try settings.current()?.id == elsewhere.id)
+        #expect(try settings.deliveryConfiguration(id: old.id)?.github?.token == "new")
+    }
+
+    @Test("Credential rotation repairs the same destination without rerouting old captures")
+    func credentialRotation() throws {
+        let url = try #require(URL(string: "https://example.com/notes"))
+        let old = DirectSendConfiguration(mode: .direct,
+            github: GitHubDestination(owner: "me", repository: "notes", folder: "Inbox", token: "old"),
+            webhook: WebhookDestination(url: url, headers: ["Authorization": "old", "X-Target": "same"]))
+        let replacement = DirectSendConfiguration(mode: .phone,
+            github: GitHubDestination(owner: "me", repository: "notes", folder: "Inbox", token: "new"),
+            webhook: WebhookDestination(url: url, headers: ["Authorization": "new", "X-Target": "same"]))
+        let repaired = old.refreshingCredentials(from: replacement)
+        #expect(repaired.id == old.id)
+        #expect(repaired.route == old.route)
+        #expect(repaired.github?.token == "new")
+        #expect(repaired.webhook?.headers["authorization"] == "new")
+        let changed = DirectSendConfiguration(mode: .direct,
+            github: GitHubDestination(owner: "me", repository: "elsewhere", token: "new"),
+            webhook: WebhookDestination(url: url, headers: ["Authorization": "new", "X-Target": "different"]))
+        #expect(old.refreshingCredentials(from: changed) == old)
+    }
+
     private func content(_ text: String, sha: String = "sha1") throws -> Data {
         try JSONSerialization.data(withJSONObject: ["encoding": "base64", "size": text.utf8.count,
             "content": Data(text.utf8).base64EncodedString(), "sha": sha])
@@ -152,9 +212,13 @@ struct DirectSendHTTPTests {
         #expect(requests.map(\.httpMethod) == ["GET", "PUT", "GET", "PUT"])
         #expect(requests[0].cachePolicy == .reloadIgnoringLocalCacheData)
         #expect(requests[0].url?.absoluteString.contains("ref=daily/notes") == true)
-        let body = try #require(try JSONSerialization.jsonObject(with: #require(requests[3].httpBody)) as? [String: String])
+        let requestBody = try #require(requests[3].httpBody)
+        let decodedBody = try JSONSerialization.jsonObject(with: requestBody)
+        let body = try #require(decodedBody as? [String: String])
         #expect(body["sha"] == "sha2")
-        let appended = try #require(String(data: #require(Data(base64Encoded: #require(body["content"]))), encoding: .utf8))
+        let encodedContent = try #require(body["content"])
+        let contentData = try #require(Data(base64Encoded: encodedContent))
+        let appended = try #require(String(data: contentData, encoding: .utf8))
         #expect(appended.hasPrefix("old\nconcurrent\n"))
         #expect(appended.contains(note.deliveryMarker))
     }
@@ -169,7 +233,9 @@ struct DirectSendHTTPTests {
         try await route.send(note, to: destination)
         let requests = await fixture.requests
         #expect(requests.map(\.httpMethod) == ["GET", "PUT", "GET"])
-        let body = try #require(try JSONSerialization.jsonObject(with: #require(requests[1].httpBody)) as? [String: String])
+        let requestBody = try #require(requests[1].httpBody)
+        let decodedBody = try JSONSerialization.jsonObject(with: requestBody)
+        let body = try #require(decodedBody as? [String: String])
         #expect(body["sha"] == nil)
     }
 
@@ -238,6 +304,7 @@ struct DirectSendHTTPTests {
         #expect(try await flow.poll(authorization, interval: 5) == .pending(interval: 10))
         #expect(try await flow.poll(authorization, interval: 10) == .authorized(token: "fixture"))
         let requests = await fixture.requests
-        #expect(String(data: try #require(requests[0].httpBody), encoding: .utf8)?.contains("client_id=public%2Bid") == true)
+        let requestBody = try #require(requests[0].httpBody)
+        #expect(String(data: requestBody, encoding: .utf8)?.contains("client_id=public%2Bid") == true)
     }
 }

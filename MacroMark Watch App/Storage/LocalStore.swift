@@ -74,15 +74,30 @@ final class LocalStore {
 
     @discardableResult
     func addNote(_ text: String, timestamp: Date = Date()) -> Bool {
+        guard let note = prepareCapturedNote(text, timestamp: timestamp) else { return false }
+        return saveNote(note)
+    }
+
+    func prepareCapturedNote(_ text: String, timestamp: Date, timeZone: TimeZone = .current) -> CapturedNote? {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return false }
+        guard !trimmed.isEmpty else { return nil }
         do {
-            guard let textQueue else { throw CocoaError(.fileWriteUnknown) }
             let configuration = try DirectSendSettingsStore().current()
             if configuration == nil, UserDefaults.standard.string(forKey: "directSend.selectedMode") == "direct" {
                 throw DirectSendError.credentialsUnavailable
             }
-            let note = CapturedNote(text: trimmed, timestamp: timestamp, route: configuration?.route ?? .phone)
+            return CapturedNote(text: trimmed, timestamp: timestamp, timeZone: timeZone, route: configuration?.route ?? .phone)
+        } catch {
+            captureError = "Your delivery setup could not be read. Keep this text and try again after unlocking the watch."
+            return nil
+        }
+    }
+
+    @discardableResult
+    func saveNote(_ note: CapturedNote) -> Bool {
+        if textQueue == nil { loadTextQueue() }
+        do {
+            guard let textQueue else { throw CocoaError(.fileWriteUnknown) }
             try textQueue.enqueue(note)
             captureError = nil
             updatePendingCount()
@@ -96,6 +111,7 @@ final class LocalStore {
     }
 
     func syncPendingNotes() {
+        if textQueue == nil { loadTextQueue() }
         let now = Date()
         for note in pendingNotes where note.route == .phone {
             if queuedNoteIDs.contains(note.id) {
@@ -155,7 +171,8 @@ final class LocalStore {
     }
 
     func updatePendingCount() {
-        UserDefaults(suiteName: DirectSendSharedState.appGroup)?.set(pendingCount, forKey: DirectSendSharedState.pendingCountKey)
+        UserDefaults(suiteName: DirectSendSharedState.appGroup)?.set(textQueue == nil ? -1 : pendingCount,
+            forKey: DirectSendSharedState.pendingCountKey)
         WidgetCenter.shared.reloadTimelines(ofKind: "DirectSendWidget")
     }
 

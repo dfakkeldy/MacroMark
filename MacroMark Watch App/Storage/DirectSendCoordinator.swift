@@ -52,16 +52,27 @@ final class DirectSendCoordinator {
         await retryTask?.value
     }
 
+    func expireBackgroundRefresh() {
+        if !isForeground { retryTask?.cancel() }
+    }
+
     private func drain() async {
+        if let queue = store.textQueue {
+            let receipts = queue.flushConfirmations()
+            for receipt in receipts where receipt.destination == .webhook { webhooks.removeBody(for: receipt.noteID) }
+            if !receipts.isEmpty { store.updatePendingCount() }
+        }
         await webhooks.reconcile()
         for snapshot in store.pendingNotes {
             if Task.isCancelled { return }
             guard case let .direct(configurationID, _) = snapshot.route else { continue }
-            let eligible = snapshot.eligibleDestinations(at: Date())
+            let eligible = snapshot.eligibleDestinations(at: Date()).filter {
+                store.textQueue?.isConfirmed(snapshot.id, destination: $0) != true
+            }
             guard !eligible.isEmpty else { continue }
             let configuration: DirectSendConfiguration
             do {
-                guard let saved = try settings.configuration(id: configurationID) else {
+                guard let saved = try settings.deliveryConfiguration(id: configurationID) else {
                     throw DirectSendError.credentialsUnavailable
                 }
                 configuration = saved
@@ -97,6 +108,9 @@ final class DirectSendCoordinator {
         guard isForeground else { return }
         let dates = store.pendingNotes.flatMap { note in
             note.pendingDestinations.compactMap { destination -> Date? in
+                if store.textQueue?.isConfirmed(note.id, destination: destination) == true {
+                    return Date().addingTimeInterval(5)
+                }
                 if destination == .webhook && webhooks.activeIDs.contains(note.id) { return nil }
                 return note.retryDate(for: destination)
             }

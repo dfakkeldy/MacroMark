@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Privacy Policy | MacroMark</title>
-  <meta name="description" content="MacroMark's privacy policy: no accounts, no tracking, no developer-operated servers, and no analytics. Notes stay on your devices and in your iCloud Drive.">
+  <meta name="description" content="MacroMark has no tracking, developer-operated note servers, or analytics. Notes go to your devices, iCloud, and destinations you choose.">
   <meta property="og:title" content="MacroMark Privacy Policy">
   <meta property="og:description" content="No accounts, no tracking, no developer-operated servers, and no analytics.">
   <meta property="og:image" content="assets/app-icon.png">
@@ -316,13 +316,14 @@
       <p class="eyebrow">Privacy</p>
       <h1>Privacy Policy</h1>
       <p class="summary">MacroMark is designed so your captured notes stay on your devices and in storage you control. We do not run MacroMark accounts, analytics, advertising, tracking, or developer-operated note servers.</p>
-      <p class="updated">Last updated: June 28, 2026</p>
+      <p class="updated">Last updated: October 16, 2026</p>
 
       <div class="legal-card">
         <section class="policy-section">
           <h2>1. What MacroMark Stores</h2>
           <p>MacroMark stores the content you create so the app can work: dictated or typed captures, processed notes, custom macros, export settings, delivery queues, and related timestamps. This data is stored locally on your Apple devices and, when you use iCloud Drive or iCloud-synchronized Apple services, in your personal Apple iCloud account.</p>
           <p>MacroMark does not send your notes, recordings, macros, or daily Markdown files to servers operated by KinNoKi Labs.</p>
+          <p>If you enable Direct Send in version 1.1 or later, watch text notes also go to the GitHub repository and/or HTTPS webhook you configure. Direct Send sends the note text, a note UUID, its capture timestamp and UTC offset, and an app source identifier. Direct Send does not send audio recordings to those destinations.</p>
         </section>
 
         <section class="policy-section">
@@ -350,6 +351,8 @@
           <h2>5. iCloud Drive and Apple Services</h2>
           <p>MacroMark's default export flow writes plain-text Markdown daily notes to iCloud Drive or another destination you configure. iCloud storage and syncing are provided by Apple through your Apple account. We cannot read your iCloud Drive files.</p>
           <p>MacroMark may also use Apple frameworks such as WatchConnectivity, SwiftData, StoreKit, WidgetKit, and system logging to provide app features. Those frameworks operate on your device or through Apple services as part of the Apple platform.</p>
+          <p>Optional Direct Send requests travel over HTTPS directly from the watch to your configured destination. GitHub and webhook operators process the information under their own privacy policies. You choose those destinations; KinNoKi Labs does not receive the notes. GitHub replies you open are cached on the watch for offline reading.</p>
+          <p>GitHub tokens and webhook connection details are stored in the iPhone and watch Keychains. Setup is transferred using WatchConnectivity. Older setup versions remain in the Keychain so queued notes can reach their original destination. GitHub sign-in, where available, authorizes access to that service and does not create a MacroMark account.</p>
         </section>
 
         <section class="policy-section">
@@ -375,6 +378,7 @@
         <section class="policy-section">
           <h2>10. Data Retention and Deletion</h2>
           <p>Your MacroMark notes, macros, settings, and exported Markdown files remain under your control on your devices and in your Apple/iCloud storage. You can delete app data by deleting notes, macros, exported files, or the app itself. Support emails are retained only as long as needed to handle support, maintain business records, or comply with legal obligations.</p>
+          <p>Direct Send copies remain at the destinations you select until you or their operators delete them. Changing delivery settings does not delete remote files, revoke credentials, or reroute notes that are already queued. Revoke GitHub tokens and webhook keys with their providers when you no longer want those credentials to work. Keychain storage can persist separately from an app installation.</p>
         </section>
 
         <section class="policy-section">

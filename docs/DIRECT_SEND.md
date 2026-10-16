@@ -30,6 +30,10 @@ OAuth app with device flow enabled before setting it. Never bundle a client
 secret. OAuth `repo` scope can cover more repositories than a fine-grained token.
 Expired/revoked credentials leave notes queued for retry; sign-in never silently
 switches them to another destination.
+Saving rotated credentials also repairs queued notes to that same endpoint,
+branch and folder, even after a later destination change. Webhook credential
+repair preserves non-authentication headers. Old endpoint/route snapshots remain
+immutable; authentication refresh does not move a capture to another service.
 
 The Replies and deliveries complication needs the App Group
 `group.com.danfakkeldy.macromark` enabled for both the Watch App and its widget
@@ -51,8 +55,15 @@ Webhook uploads use a durable file and a background URLSession. JSON contains
 The endpoint must persist and deduplicate UUIDs before starting an action.
 Sending a UUID does not, by itself, make an arbitrary webhook exactly once.
 Any 2xx response confirms endpoint acceptance, not completion of a bot's work.
+Confirmation requires a final POST response from the configured URL. Use the
+endpoint's final HTTPS URL. Background URLSession follows redirects automatically;
+a redirected landing-page response does not remove the capture.
 
 Progress and exponential backoff are saved for each destination independently.
+If a server confirms delivery while local confirmation storage is temporarily
+unwritable, MacroMark keeps that receipt in memory and retries the local write
+without repeatedly sending the same upload. A relaunch after such a failure
+still relies on GitHub markers or receiver UUID deduplication.
 When both destinations are selected, one can succeed while the other remains
 queued. Retries reconnect to existing background upload tasks before scheduling
 more. Foreground activation retries eligible notes. Background refreshes schedule

@@ -8,6 +8,8 @@ struct SystemCaptureView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var capturedText: String?
     @State private var capturedTimestamp: Date?
+    @State private var captureTimeZone = TimeZone.current
+    @State private var capturedNote: CapturedNote?
     @State private var didPresent = false
 
     var body: some View {
@@ -44,6 +46,7 @@ struct SystemCaptureView: View {
             Task { @MainActor in
                 capturedText = textResult
                 capturedTimestamp = DaySelection.timestamp(onSelectedDay: targetDate)
+                captureTimeZone = .current
                 saveCapturedText()
             }
         }
@@ -67,7 +70,12 @@ struct SystemCaptureView: View {
 
     private func saveCapturedText() {
         guard let capturedText, let capturedTimestamp else { return }
-        if LocalStore.shared.addNote(capturedText, timestamp: capturedTimestamp) { dismiss() }
+        if capturedNote == nil {
+            capturedNote = LocalStore.shared.prepareCapturedNote(capturedText,
+                timestamp: capturedTimestamp, timeZone: captureTimeZone)
+        }
+        guard let capturedNote else { return }
+        if LocalStore.shared.saveNote(capturedNote) { dismiss() }
     }
 }
 

@@ -101,12 +101,36 @@ public struct CapturedNote: Identifiable, Codable, Equatable, Sendable {
 }
 
 /// One serialized outbox. Publish changes only after an atomic disk write succeeds.
+public struct ConfirmedTextDelivery: Hashable, Sendable {
+    public let noteID: UUID
+    public let destination: DirectDestination
+}
+
 @MainActor
 @Observable
 public final class TextDeliveryQueue {
     public private(set) var notes: [CapturedNote]
     private let fileURL: URL
     private let persist: @MainActor (Data, URL) throws -> Void
+    @ObservationIgnored private var confirmations: Set<ConfirmedTextDelivery> = []
+
+    public var hasUnpersistedConfirmations: Bool { !confirmations.isEmpty }
+
+    public func isConfirmed(_ id: UUID, destination: DirectDestination) -> Bool {
+        confirmations.contains(ConfirmedTextDelivery(noteID: id, destination: destination))
+    }
+
+    /// Retry confirmation persistence locally; never resend an accepted upload in a loop.
+    public func flushConfirmations() -> [ConfirmedTextDelivery] {
+        var saved: [ConfirmedTextDelivery] = []
+        for receipt in confirmations {
+            do {
+                try complete(receipt.noteID, destination: receipt.destination)
+                saved.append(receipt)
+            } catch { continue }
+        }
+        return saved
+    }
 
     public init(fileURL: URL, legacyNotesData: Data? = nil,
                 persist: @escaping @MainActor (Data, URL) throws -> Void = { data, url in
@@ -136,16 +160,23 @@ public final class TextDeliveryQueue {
     }
 
     public func complete(_ id: UUID, destination: DirectDestination) throws {
+        let receipt = ConfirmedTextDelivery(noteID: id, destination: destination)
         guard let index = notes.firstIndex(where: { $0.id == id }),
-              var state = notes[index].progress[destination], !state.delivered else { return }
+              var state = notes[index].progress[destination], !state.delivered else {
+            confirmations.remove(receipt)
+            return
+        }
+        confirmations.insert(receipt)
         var updated = notes
         state.delivered = true
         updated[index].progress[destination] = state
         if updated[index].pendingDestinations.isEmpty { updated.remove(at: index) }
         try replace(updated)
+        confirmations.remove(receipt)
     }
 
     public func recordFailure(_ id: UUID, destination: DirectDestination, now: Date = Date(), retryAfter: TimeInterval? = nil) throws {
+        guard !isConfirmed(id, destination: destination) else { return }
         guard let index = notes.firstIndex(where: { $0.id == id }),
               var state = notes[index].progress[destination], !state.delivered else { return }
         state.attempts = min(20, state.attempts + 1)
@@ -158,7 +189,7 @@ public final class TextDeliveryQueue {
     }
 
     #if DEBUG
-    public func removeAllForTesting() throws { try replace([]) }
+    public func removeAllForTesting() throws { try replace([]); confirmations.removeAll() }
     #endif
 
     private func replace(_ updated: [CapturedNote]) throws {

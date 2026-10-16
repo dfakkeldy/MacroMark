@@ -17,8 +17,9 @@ private struct DirectSendProvider: TimelineProvider {
     }
 
     private func entry() -> DirectSendEntry {
-        DirectSendEntry(date: Date(), pendingCount: max(0, UserDefaults(suiteName: DirectSendSharedState.appGroup)?
-            .integer(forKey: DirectSendSharedState.pendingCountKey) ?? 0))
+        let defaults = UserDefaults(suiteName: DirectSendSharedState.appGroup)
+        let count = defaults?.object(forKey: DirectSendSharedState.pendingCountKey) as? Int ?? -1
+        return DirectSendEntry(date: Date(), pendingCount: count)
     }
 }
 
@@ -29,12 +30,12 @@ struct DirectSendWidget: Widget {
         StaticConfiguration(kind: kind, provider: DirectSendProvider()) { entry in
             VStack(spacing: 2) {
                 Image(systemName: "text.bubble")
-                Text("\(entry.pendingCount) pending").font(.caption2)
+                Text(entry.pendingCount >= 0 ? "\(entry.pendingCount) pending" : "Queue unavailable").font(.caption2)
             }
             .containerBackground(.fill.tertiary, for: .widget)
             .widgetURL(AppRoute.directSendRepliesURL)
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel("MacroMark replies, \(entry.pendingCount) pending notes")
+            .accessibilityLabel(entry.pendingCount >= 0 ? "MacroMark replies, \(entry.pendingCount) pending notes" : "MacroMark replies, queue unavailable")
             .accessibilityHint("Opens replies in MacroMark.")
         }
         .configurationDisplayName("Replies and deliveries")
