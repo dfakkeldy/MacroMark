@@ -2,6 +2,10 @@ import Foundation
 @preconcurrency import WatchConnectivity
 import Observation
 import MacroMarkKit
+import os
+#if os(watchOS)
+import WatchKit
+#endif
 
 @MainActor
 @Observable
@@ -10,6 +14,50 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
 
     private let session: WCSession?
     private var pendingCaptureMode: String?
+    private let deliveryLogger = Logger(subsystem: "com.macromark", category: "direct-setup")
+#if os(watchOS)
+    @ObservationIgnored private var connectivityTasks: [WKWatchConnectivityRefreshBackgroundTask] = []
+    @ObservationIgnored private var pendingContentObservation: NSKeyValueObservation?
+    nonisolated private let receiveWork = OSAllocatedUnfairLock(initialState: 0)
+
+    nonisolated private func receiveOnWatchActor(_ action: @escaping @MainActor @Sendable () -> Void) {
+        receiveWork.withLock { $0 += 1 }
+        Task { @MainActor in
+            action()
+            receiveWork.withLock { $0 -= 1 }
+            completeConnectivityTasksIfReady()
+        }
+    }
+
+    func handleConnectivityRefresh(_ task: WKWatchConnectivityRefreshBackgroundTask) {
+        connectivityTasks.append(task)
+        task.expirationHandler = { [weak self, weak task] in
+            Task { @MainActor in
+                guard let task else { return }
+                self?.finishConnectivityTask(task)
+            }
+        }
+        if pendingContentObservation == nil {
+            pendingContentObservation = session?.observe(\.hasContentPending, options: [.initial, .new]) { [weak self] _, _ in
+                Task { @MainActor in self?.completeConnectivityTasksIfReady() }
+            }
+        }
+        completeConnectivityTasksIfReady()
+    }
+
+    private func completeConnectivityTasksIfReady() {
+        guard let session, session.activationState == .activated, !session.hasContentPending,
+              receiveWork.withLock({ $0 == 0 }) else { return }
+        for task in connectivityTasks { finishConnectivityTask(task) }
+    }
+
+    private func finishConnectivityTask(_ task: WKWatchConnectivityRefreshBackgroundTask) {
+        guard let index = connectivityTasks.firstIndex(where: { $0 === task }) else { return }
+        connectivityTasks.remove(at: index)
+        task.expirationHandler = nil
+        task.setTaskCompletedWithSnapshot(false)
+    }
+#endif
 
     // For iOS to process received notes
     var onNoteReceived: ((UUID, String, Date) -> Void)? {
@@ -65,10 +113,16 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
         print("WCSession activation completed: \(activationState.rawValue), error: \(String(describing: error))")
 #endif
 #if os(watchOS)
+        let directConfiguration = session.receivedApplicationContext["directSendConfiguration"] as? Data
         if activationState == .activated {
-            Task { @MainActor in
+            receiveOnWatchActor {
+                if let directConfiguration { self.receiveDirectConfiguration(directConfiguration) }
                 LocalStore.shared.syncPendingNotes()
                 LocalStore.shared.syncPendingAudio()
+            }
+        } else {
+            receiveOnWatchActor {
+                for task in self.connectivityTasks { self.finishConnectivityTask(task) }
             }
         }
 #elseif os(iOS)
@@ -120,7 +174,7 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
             let processed = (reply["processed"] as? Bool) == true
             guard processed else { return }
 
-            Task { @MainActor in
+            self.receiveOnWatchActor {
                 LocalStore.shared.removeNote(withId: id)
                 LocalStore.shared.removeAudio(withId: id)
             }
@@ -149,6 +203,14 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
         pendingCaptureMode = nil
     }
 
+#if os(iOS)
+    @discardableResult
+    func updateDirectSendSettings() -> Bool {
+        let captureMode = UserDefaults.standard.string(forKey: UserDefaultsKey.captureMode.rawValue) ?? "audio"
+        return sendCaptureModeContext(captureMode)
+    }
+#endif
+
     private func flushPendingSettings() {
         let captureMode = pendingCaptureMode
             ?? UserDefaults.standard.string(forKey: UserDefaultsKey.captureMode.rawValue)
@@ -163,27 +225,77 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
     private func sendCaptureModeContext(_ captureMode: String) -> Bool {
         guard let session = session, session.activationState == .activated else { return false }
         do {
-            try session.updateApplicationContext(["captureMode": captureMode])
+            var context: [String: Any] = ["captureMode": captureMode]
+#if os(iOS)
+            if let setup = try DirectSendSettingsStore().current() {
+                context["directSendConfiguration"] = try JSONEncoder().encode(setup)
+            }
+#endif
+            try session.updateApplicationContext(context)
+#if os(iOS)
+            queueCredentialRepairs()
+#endif
             return true
         } catch {
-#if DEBUG
-            print("Failed to update application context: \(error)")
-#endif
+            deliveryLogger.error("Watch settings context was not sent")
             return false
         }
     }
+
+#if os(iOS)
+    private func queueCredentialRepairs() {
+        guard let session, session.activationState == .activated else { return }
+        do {
+            for repair in try DirectSendSettingsStore().pendingCredentialRepairs() {
+                let identifier = DirectSendSettingsStore.credentialRepairIdentifier(repair)
+                guard !session.outstandingUserInfoTransfers.contains(where: {
+                    $0.userInfo["directSendCredentialRepairID"] as? String == identifier
+                }) else { continue }
+                let data = try JSONEncoder().encode(repair)
+                guard data.count <= 64 * 1024 else { throw DirectSendError.invalidResponse }
+                session.transferUserInfo(["directSendCredentialRepair": data,
+                    "directSendCredentialRepairID": identifier])
+            }
+        } catch {
+            deliveryLogger.error("Credential repairs remain pending for the next settings sync")
+        }
+    }
+#endif
 
     // MARK: - Receiving
 
     nonisolated func session(_ session: WCSession, didReceiveUserInfo userInfo: [String : Any] = [:]) {
         // --- Watch side: handle acknowledgements from phone ---
 #if os(watchOS)
+        if let data = userInfo["directSendCredentialRepair"] as? Data,
+           let identifier = userInfo["directSendCredentialRepairID"] as? String {
+            receiveOnWatchActor { self.receiveDirectCredentialRepair(data, identifier: identifier) }
+            return
+        }
         if let ackId = userInfo["ack"] as? String, let id = UUID(uuidString: ackId) {
-            Task { @MainActor in LocalStore.shared.removeNote(withId: id) }
+            receiveOnWatchActor { LocalStore.shared.removeNote(withId: id) }
             return
         }
         if let ackId = userInfo["ackFile"] as? String, let id = UUID(uuidString: ackId) {
-            Task { @MainActor in LocalStore.shared.removeAudio(withId: id) }
+            receiveOnWatchActor { LocalStore.shared.removeAudio(withId: id) }
+            return
+        }
+#endif
+
+#if os(iOS)
+        if let identifier = userInfo["directSendCredentialRepairAck"] as? String {
+            Task { @MainActor in
+                do { try DirectSendSettingsStore().acknowledgeCredentialRepair(identifier) }
+                catch { self.deliveryLogger.error("Credential repair acknowledgment was not persisted") }
+            }
+            return
+        }
+        if let acknowledgedID = userInfo["directSendConfigurationAck"] as? String,
+           let id = UUID(uuidString: acknowledgedID) {
+            Task { @MainActor in
+                guard let current = try? DirectSendSettingsStore().current(), current.id == id else { return }
+                UserDefaults.standard.set(acknowledgedID, forKey: DirectSendSharedState.configurationAcknowledgedKey)
+            }
             return
         }
 #endif
@@ -303,7 +415,45 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
         if let captureMode = applicationContext["captureMode"] as? String {
             UserDefaults.standard.set(captureMode, forKey: UserDefaultsKey.captureMode.rawValue)
         }
+#if os(watchOS)
+        if let data = applicationContext["directSendConfiguration"] as? Data {
+            receiveOnWatchActor { self.receiveDirectConfiguration(data) }
+        }
+#endif
     }
+
+#if os(watchOS)
+    private func receiveDirectCredentialRepair(_ data: Data, identifier: String) {
+        do {
+            guard data.count <= 64 * 1024 else { throw DirectSendError.invalidResponse }
+            let repair = try JSONDecoder().decode(DirectSendConfiguration.self, from: data)
+            guard DirectSendSettingsStore.credentialRepairIdentifier(repair) == identifier else {
+                throw DirectSendError.invalidResponse
+            }
+            try DirectSendSettingsStore().applyCredentialRepair(repair)
+            session?.transferUserInfo(["directSendCredentialRepairAck": identifier])
+            LocalStore.shared.directDelivery.retry()
+        } catch {
+            deliveryLogger.error("Credential repair was not saved; no acknowledgment sent")
+        }
+    }
+
+    private func receiveDirectConfiguration(_ data: Data) {
+        do {
+            guard data.count <= 256 * 1024 else { throw DirectSendError.invalidResponse }
+            let delivery = try DirectSendSetupDelivery.decode(from: data)
+            let settings = DirectSendSettingsStore()
+            let accepted = try settings.apply(delivery)
+            UserDefaults.standard.set(accepted.mode.rawValue, forKey: "directSend.selectedMode")
+            session?.transferUserInfo(["directSendConfigurationAck": accepted.id.uuidString])
+            LocalStore.shared.deliveryError = nil
+            LocalStore.shared.directDelivery.retry()
+        } catch {
+            deliveryLogger.error("Direct Send setup was not saved; no acknowledgment sent")
+            LocalStore.shared.deliveryError = "Direct Send setup could not be saved. Unlock the watch and resend it from your iPhone."
+        }
+    }
+#endif
 
     // MARK: - Daily File Fetch
 

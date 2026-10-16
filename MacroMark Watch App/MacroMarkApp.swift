@@ -9,6 +9,8 @@ import SwiftUI
 
 @main
 struct MacroMarkWatchApp: App {
+    @WKApplicationDelegateAdaptor(WatchAppDelegate.self) private var appDelegate
+    @Environment(\.scenePhase) private var scenePhase
     init() {
         _ = WatchConnectivityProvider.shared
         _ = LocalStore.shared
@@ -17,6 +19,9 @@ struct MacroMarkWatchApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .onChange(of: scenePhase, initial: true) { _, phase in
+                    LocalStore.shared.directDelivery.setForeground(phase == .active)
+                }
         }
     }
 }

@@ -50,6 +50,7 @@ struct MacroManagerView: View {
             List {
                 // MARK: Settings
                 Section("Settings") {
+                    NavigationLink("Direct Send") { DirectSendSettingsView() }
                     Picker("Watch Double Tap Action", selection: $captureMode) {
                         Text("Instant (Audio)").tag("audio")
                         Text("Standard (Dictation)").tag("system")

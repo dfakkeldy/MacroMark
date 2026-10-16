@@ -7,9 +7,27 @@
 
 import Testing
 import Foundation
+import MacroMarkKit
 @testable import MacroMark_Watch_App
 
+@Suite(.serialized)
 struct MacroMark_Watch_AppTests {
+
+    @Test("Phone acknowledgment cannot remove a direct note")
+    @MainActor
+    func directNoteIgnoresPhoneAck() throws {
+        let store = LocalStore.shared
+        store.debugReset()
+        let note = CapturedNote(text: "direct", route: .direct(configurationID: UUID(), destinations: [.github, .webhook]))
+        try store.debugEnqueueNote(note)
+        store.removeNote(withId: note.id)
+        #expect(store.pendingNotes.contains { $0.id == note.id })
+        #expect(store.completeDirect(note.id, destination: .github))
+        store.debugReloadFromDisk()
+        #expect(store.pendingNotes.first?.pendingDestinations == [.webhook])
+        #expect(store.completeDirect(note.id, destination: .webhook))
+        #expect(store.pendingNotes.isEmpty)
+    }
 
     @Test("Test adding note to LocalStore")
     @MainActor

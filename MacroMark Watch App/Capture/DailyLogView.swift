@@ -130,7 +130,7 @@ struct DailyLogView: View {
     private func pendingContent() -> String {
         let today = Calendar.autoupdatingCurrent.startOfDay(for: Date())
         let pendingNotes = LocalStore.shared.pendingNotes.filter { note in
-            DaySelection.contains(note.timestamp, inSelectedDay: today)
+            note.route == .phone && DaySelection.contains(note.timestamp, inSelectedDay: today)
         }
         let pendingAudio = LocalStore.shared.pendingAudio.filter { audio in
             DaySelection.contains(audio.timestamp, inSelectedDay: today)
