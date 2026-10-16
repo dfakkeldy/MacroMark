@@ -20,9 +20,19 @@ on:
         options:
           - nightly
           - weekly
+      force:
+        description: Rebuild unchanged inputs intentionally, with all existing gates
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
+
+concurrency:
+  group: release-trains
+  cancel-in-progress: false
+  queue: max
 
 jobs:
   resolve:
@@ -43,9 +53,8 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Every scheduled run and every dispatch ships. There is no
-          # "inactive/skip" outcome: the run's conclusion means exactly what
-          # it says — success is a real ship, failure is a real break.
+          # Both trigger types select a train. The separate input comparison
+          # decides whether that train needs another delivery.
           channel="nightly"
           branch="nightly"
           reason="Scheduled nightly internal TestFlight train"
@@ -73,20 +82,66 @@ jobs:
             echo "reason=$reason"
           } >> "$GITHUB_OUTPUT"
 
+  changes:
+    name: Compare delivered build inputs
+    needs: resolve
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      should_run: ${{ steps.changes.outputs.should_run }}
+      source_sha: ${{ steps.changes.outputs.source_sha }}
+      plan: ${{ steps.changes.outputs.plan }}
+      ios: ${{ steps.changes.outputs.ios }}
+      fingerprint_ios: ${{ steps.changes.outputs.fingerprint_ios }}
+    steps:
+      - name: Inspect train source tree
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve.outputs.branch }}
+          sparse-checkout: .github
+
+      - name: Check out delivery guard from controller
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: .release-control
+          sparse-checkout: .github
+
+      - name: Compare successful deliveries
+        id: changes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FORCE_RELEASE: ${{ inputs.force || false }}
+        run: >-
+          python3 .release-control/.github/scripts/release_delivery.py plan
+          --controller .release-control
+          --channel "${{ needs.resolve.outputs.channel }}"
+          --force "$FORCE_RELEASE"
+
   ship:
     name: Build and ship ${{ needs.resolve.outputs.channel }}
-    needs: resolve
+    needs: [resolve, changes]
+    if: needs.changes.outputs.should_run == 'true'
     runs-on: macos-26
     timeout-minutes: 150
-    concurrency:
-      group: release-trains-${{ needs.resolve.outputs.channel }}
-      cancel-in-progress: false
 
+    env:
+      RELEASE_PLAN: ${{ needs.changes.outputs.plan }}
+      RELEASE_CONTROL_SCRIPT: ${{ github.workspace }}/.release-control/.github/scripts/release_delivery.py
     steps:
       - name: Checkout train branch
         uses: actions/checkout@v4
         with:
-          ref: ${{ needs.resolve.outputs.branch }}
+          ref: ${{ needs.changes.outputs.source_sha }}
+
+      - name: Check out delivery recorder from controller
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: .release-control
+          sparse-checkout: .github
 
       - name: Checkout release automation
         uses: actions/checkout@v4
@@ -217,6 +272,7 @@ jobs:
           bundler-cache: true
 
       - name: Ship release train when release secrets are present
+        id: delivery
         env:
           APP_STORE_CONNECT_API_KEY_JSON: ${{ secrets.APP_STORE_CONNECT_API_KEY_JSON }}
           APP_STORE_CONNECT_API_KEY_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY_KEY }}
@@ -252,3 +308,13 @@ jobs:
           ssh-add ~/.ssh/match_git_ssh_key
 
           bundle exec fastlane release_train channel:${{ needs.resolve.outputs.channel }}
+          python3 "$RELEASE_CONTROL_SCRIPT" record --platform ios
+
+      - name: Retain successful ${{ needs.resolve.outputs.channel }} ios delivery receipt
+        if: success() && steps.delivery.outputs.ios_delivered == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-delivery-v1-${{ needs.resolve.outputs.channel }}-ios-${{ github.run_attempt }}-${{ needs.changes.outputs.fingerprint_ios }}
+          path: ${{ runner.temp }}/release-receipts/ios.json
+          retention-days: 90
+          if-no-files-found: error

@@ -1,0 +1,43 @@
+{
+  "platform_excludes": {
+    "ios": []
+  },
+  "controller_overlays": [
+    "Gemfile",
+    "Gemfile.lock",
+    "fastlane/Appfile",
+    "fastlane/Fastfile",
+    "fastlane/Gymfile"
+  ],
+  "build_env": [],
+  "test_inputs": [
+    "MacroMark/Capture.swift",
+    "MacroMark/Assets.xcassets/icon.json",
+    "MacroMark.xcodeproj/project.pbxproj",
+    "MacroMarkKit/Package.swift",
+    "Gemfile.lock",
+    "MacroMark/Info.plist",
+    "MacroMark Watch App/Capture.swift"
+  ],
+  "schema": 1,
+  "exclude_roots": [
+    ".github",
+    ".agents",
+    ".codex",
+    ".claude",
+    ".clinerules",
+    ".superpowers",
+    "docs",
+    "web",
+    "marketing",
+    "output",
+    "reports",
+    "scratch",
+    "iTerm2"
+  ],
+  "exclude_files": [
+    "Makefile",
+    ".swift-format",
+    "skills-lock.json"
+  ]
+}
