@@ -2,6 +2,25 @@ import Foundation
 import Security
 import CryptoKit
 
+/// The latest setup plus every older credential the watch still needs after a later destination change.
+public struct DirectSendSetupDelivery: Codable, Equatable, Sendable {
+    public let current: DirectSendConfiguration
+    public let repairs: [DirectSendConfiguration]
+
+    public init(current: DirectSendConfiguration, repairs: [DirectSendConfiguration]) {
+        self.current = current
+        self.repairs = repairs
+    }
+
+    public static func decode(from data: Data) throws -> DirectSendSetupDelivery {
+        let decoder = JSONDecoder()
+        if let delivery = try? decoder.decode(DirectSendSetupDelivery.self, from: data) {
+            return delivery
+        }
+        return DirectSendSetupDelivery(current: try decoder.decode(DirectSendConfiguration.self, from: data), repairs: [])
+    }
+}
+
 /// Versioned entries keep queued captures tied to the destination chosen at capture.
 public struct DirectSendSettingsStore: Sendable {
     private let service: String
@@ -34,6 +53,39 @@ public struct DirectSendSettingsStore: Sendable {
         return configuration
     }
 
+    public func setupDelivery() throws -> DirectSendSetupDelivery? {
+        guard let current = try current() else { return nil }
+        let repairs = try credentialRepairs().filter { $0.id != current.id }
+        let delivery = DirectSendSetupDelivery(current: current, repairs: repairs)
+        guard try JSONEncoder().encode(delivery).count <= 256 * 1024 else {
+            throw DirectSendError.invalidConfiguration("Direct Send setup is too large to transfer safely to the watch.")
+        }
+        return delivery
+    }
+
+    public func apply(_ delivery: DirectSendSetupDelivery) throws {
+        let repairs = delivery.repairs.sorted { lhs, rhs in
+            lhs.revision == rhs.revision ? lhs.id.uuidString < rhs.id.uuidString : lhs.revision < rhs.revision
+        }
+        for repair in repairs { try applyCredentialRepair(repair) }
+        if let saved = try current(), saved.sourceID == delivery.current.sourceID,
+           saved.revision > delivery.current.revision { return }
+        try save(delivery.current)
+    }
+
+    public func applyCredentialRepair(_ configuration: DirectSendConfiguration) throws {
+        try configuration.validate()
+        let data = try JSONEncoder().encode(configuration)
+        guard data.count <= 64 * 1024 else {
+            throw DirectSendError.invalidConfiguration("Direct Send setup is too large to transfer safely to the watch.")
+        }
+        for account in try credentialAccounts(configuration) {
+            if let saved = try read(account: account), saved.sourceID == configuration.sourceID,
+               saved.revision >= configuration.revision { continue }
+            try write(data, account: account)
+        }
+    }
+
     public func save(_ configuration: DirectSendConfiguration) throws {
         try configuration.validate()
         if let current = try current(), current.sourceID == configuration.sourceID,
@@ -48,11 +100,13 @@ public struct DirectSendSettingsStore: Sendable {
             throw DirectSendError.invalidConfiguration("Direct Send setup is too large to transfer safely to the watch.")
         }
         try write(data, account: "configuration:\(configuration.id.uuidString)")
-        for account in try credentialAccounts(configuration) {
+        let accounts = try credentialAccounts(configuration)
+        for account in accounts {
             if let saved = try read(account: account), saved.sourceID == configuration.sourceID,
                saved.revision > configuration.revision { continue }
             try write(data, account: account)
         }
+        try updateCredentialIndex(accounts)
         try write(data, account: "current")
     }
 
@@ -73,6 +127,48 @@ public struct DirectSendSettingsStore: Sendable {
             keys.append("credentials:" + SHA256.hash(data: identity).map { String(format: "%02x", $0) }.joined())
         }
         return keys
+    }
+
+    private func credentialRepairs() throws -> [DirectSendConfiguration] {
+        var repairs: [UUID: DirectSendConfiguration] = [:]
+        for account in try credentialAccountNames() {
+            guard let configuration = try read(account: account) else { continue }
+            if let existing = repairs[configuration.id], existing.revision >= configuration.revision { continue }
+            repairs[configuration.id] = configuration
+        }
+        return Array(repairs.values)
+    }
+
+    private func credentialAccountNames() throws -> [String] {
+        var names = try readIndex()
+        if readOverride == nil, let listed = try? listKeychainCredentialAccounts() {
+            for name in listed where !names.contains(name) { names.append(name) }
+        }
+        return names
+    }
+
+    private func readIndex() throws -> [String] {
+        guard let data = try readData(account: "credential-index") else { return [] }
+        return try JSONDecoder().decode([String].self, from: data)
+    }
+
+    private func updateCredentialIndex(_ accounts: [String]) throws {
+        var names = try readIndex()
+        let count = names.count
+        for account in accounts where !names.contains(account) { names.append(account) }
+        guard names.count != count else { return }
+        try write(try JSONEncoder().encode(names), account: "credential-index")
+    }
+
+    private func listKeychainCredentialAccounts() throws -> [String] {
+        let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service, kSecAttrSynchronizable as String: false,
+            kSecMatchLimit as String: kSecMatchLimitAll, kSecReturnAttributes as String: true]
+        var item: CFTypeRef?
+        let status = SecItemCopyMatching(query as CFDictionary, &item)
+        if status == errSecItemNotFound { return [] }
+        guard status == errSecSuccess, let items = item as? [[String: Any]] else { throw DirectSendError.credentialStorage }
+        return items.compactMap { $0[kSecAttrAccount as String] as? String }.filter { $0.hasPrefix("credentials:") }
     }
 
     private func query(account: String) -> [String: Any] {

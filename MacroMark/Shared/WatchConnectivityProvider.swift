@@ -227,7 +227,7 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
         do {
             var context: [String: Any] = ["captureMode": captureMode]
 #if os(iOS)
-            if let setup = try DirectSendSettingsStore().current() {
+            if let setup = try DirectSendSettingsStore().setupDelivery() {
                 context["directSendConfiguration"] = try JSONEncoder().encode(setup)
             }
 #endif
@@ -390,14 +390,12 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
 #if os(watchOS)
     private func receiveDirectConfiguration(_ data: Data) {
         do {
-            guard data.count <= 64 * 1024 else { throw DirectSendError.invalidResponse }
-            let configuration = try JSONDecoder().decode(DirectSendConfiguration.self, from: data)
+            guard data.count <= 256 * 1024 else { throw DirectSendError.invalidResponse }
+            let delivery = try DirectSendSetupDelivery.decode(from: data)
             let settings = DirectSendSettingsStore()
-            if let current = try settings.current(), current.id != configuration.id,
-               current.sourceID == configuration.sourceID, current.revision >= configuration.revision { return }
-            try settings.save(configuration)
-            UserDefaults.standard.set(configuration.mode.rawValue, forKey: "directSend.selectedMode")
-            session?.transferUserInfo(["directSendConfigurationAck": configuration.id.uuidString])
+            try settings.apply(delivery)
+            UserDefaults.standard.set(delivery.current.mode.rawValue, forKey: "directSend.selectedMode")
+            session?.transferUserInfo(["directSendConfigurationAck": delivery.current.id.uuidString])
             LocalStore.shared.deliveryError = nil
             LocalStore.shared.directDelivery.retry()
         } catch {

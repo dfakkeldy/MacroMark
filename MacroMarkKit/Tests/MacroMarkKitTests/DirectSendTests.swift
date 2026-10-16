@@ -187,6 +187,48 @@ struct DirectSendHTTPTests {
         #expect(try settings.deliveryConfiguration(id: old.id)?.github?.token == "new")
     }
 
+    @Test("A replaced setup transfer still repairs the previous endpoint")
+    func coalescedSetupTransferRepairsPreviousEndpoint() throws {
+        let phoneData = OSAllocatedUnfairLock(initialState: [String: Data]())
+        let phone = DirectSendSettingsStore(read: { key in phoneData.withLock { $0[key] } },
+            write: { value, key in phoneData.withLock { $0[key] = value } })
+        let watchData = OSAllocatedUnfairLock(initialState: [String: Data]())
+        let watch = DirectSendSettingsStore(read: { key in watchData.withLock { $0[key] } },
+            write: { value, key in watchData.withLock { $0[key] = value } })
+        let sourceID = UUID()
+        let old = DirectSendConfiguration(revision: 1, sourceID: sourceID, mode: .direct,
+            github: GitHubDestination(owner: "me", repository: "notes", token: "old"))
+        let rotated = DirectSendConfiguration(revision: 2, sourceID: sourceID, mode: .direct,
+            github: GitHubDestination(owner: "me", repository: "notes", token: "new"))
+        let elsewhere = DirectSendConfiguration(revision: 3, sourceID: sourceID, mode: .direct,
+            github: GitHubDestination(owner: "me", repository: "elsewhere", token: "other"))
+        try watch.save(old)
+        try phone.save(old)
+        try phone.save(rotated)
+        try phone.save(elsewhere)
+        let delivery = try #require(try phone.setupDelivery())
+        let encoded = try JSONEncoder().encode(delivery)
+        #expect(try DirectSendSetupDelivery.decode(from: encoded) == delivery)
+        let legacy = try DirectSendSetupDelivery.decode(from: try JSONEncoder().encode(elsewhere))
+        #expect(legacy.repairs.isEmpty)
+        #expect(legacy.current == elsewhere)
+        try watch.apply(delivery)
+        #expect(try watch.deliveryConfiguration(id: old.id)?.github?.token == "new")
+        #expect(try watch.deliveryConfiguration(id: old.id)?.route == old.route)
+        #expect(try watch.current()?.id == elsewhere.id)
+        try watch.apply(delivery)
+        #expect(try watch.deliveryConfiguration(id: old.id)?.github?.token == "new")
+
+        let lateData = OSAllocatedUnfairLock(initialState: [String: Data]())
+        let late = DirectSendSettingsStore(read: { key in lateData.withLock { $0[key] } },
+            write: { value, key in lateData.withLock { $0[key] = value } })
+        try late.save(old)
+        try late.save(elsewhere)
+        try late.apply(delivery)
+        #expect(try late.deliveryConfiguration(id: old.id)?.github?.token == "new")
+        #expect(try late.current()?.id == elsewhere.id)
+    }
+
     @Test("Credential rotation repairs the same destination without rerouting old captures")
     func credentialRotation() throws {
         let url = try #require(URL(string: "https://example.com/notes"))
