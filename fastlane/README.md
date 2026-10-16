@@ -118,3 +118,10 @@ privacy/Terms links, manifest coverage and paid-flow tests precede final
 screenshots and release. Metadata/screenshot upload lanes mutate ASC, and
 `appstore`/`release` upload and submit; no such lanes are authorized by a
 preparation-only request. Do not read/rotate credentials to audit readiness.
+
+## Change-aware workflow delivery
+
+The release workflows compare effective build inputs before allocating the
+macOS delivery job. Unchanged platform/channel receipts skip duplicate binaries;
+`force=true` deliberately rebuilds through the existing gates. See
+[delivery behavior and baseline recovery](../.github/RELEASE_DELIVERY.md).

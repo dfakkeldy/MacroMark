@@ -29,6 +29,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Test change-aware delivery guard
+        run: python3 -m unittest discover -s .github/scripts/tests -p test_release_delivery.py -v
+
       - name: Verify release signing automation
         run: ruby fastlane/tests/fastfile_signing_test.rb
 
