@@ -1,7 +1,7 @@
 # MacroMark v1.0 Roadmap
 
 Generated: 2026-06-25
-Last synchronized: 2026-10-06
+Last synchronized: 2026-10-16
 
 > Current release gate: [App Store readiness](APP_STORE_READINESS.md). The
 > approved October 6 launch is fully free; prior product IDs and ownership
@@ -348,14 +348,19 @@ v1.0 is not ready until all gates pass:
 - StoreKit local purchase/restore test: not run yet; release remains blocked until annual, lifetime, purchase, restore, and free capture paths pass locally.
 - Paired-device smoke test: not run yet; release remains blocked until this passes on the tested iPhone and Apple Watch models.
 - Public GitHub Pages privacy/support/terms URLs: verify live `privacy.html` and `terms.html` again after merge and rebuild.
-- Known v1.1 deferrals: none selected yet.
+- Known v1.1 work on `nightly`: Direct Send (GitHub/webhook from the watch)
+  landed in [#125](https://github.com/dfakkeldy/MacroMark/pull/125) (merge
+  `c2de0c1a95aabc9c54d23b70da559b9ae2bf11e9`). Remaining items stay on the
+  deferred list below.
 
 ## Deferred To v1.1+
 
 - AI summaries or rewriting.
 - Full Markdown editing.
 - Collaboration.
-- Non-iCloud cloud destinations.
+- Additional non-iCloud destinations beyond Direct Send (GitHub daily Markdown
+  and HTTPS webhook from the watch; landed on `nightly` in
+  [#125](https://github.com/dfakkeldy/MacroMark/pull/125) for v1.1).
 - Attachments and media capture beyond any already-supported v1.0 paths.
 - Advanced automation marketplace.
 - Analytics dashboards.

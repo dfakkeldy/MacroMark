@@ -2,14 +2,20 @@
 
 MIT-licensed Apple Watch and iPhone capture tool. Dictated or typed captures
 become Markdown daily notes. The watch queues each capture durably in
-`LocalStore` and sends it over WatchConnectivity; the phone transcribes,
-expands macros, records, and exports it.
+`LocalStore`. The default route sends it over WatchConnectivity; the phone
+transcribes, expands macros, records, and exports it. Optional Direct Send
+delivers watch text from the watch to GitHub, an HTTPS webhook, or both after
+one-time iPhone setup. Audio always uses the phone route.
 
 ## Layout
 
 - `MacroMark/`: iOS app. `MacroMark Watch App/`: watch capture and queue.
 - `MacroMarkKit/`: shared models, macro processing, storage, export, StoreKit.
-- `MacroMarkWidget/`: widgets and complications.
+- `MacroMarkKit/Sources/MacroMarkKit/Delivery/`: Direct Send configuration,
+  Keychain setup store, GitHub/webhook routes, and the per-destination
+  `TextDeliveryQueue` outbox.
+- `MacroMarkWidget/`: widgets and complications, including the pending/replies
+  Direct Send complication.
 - Tests: `MacroMarkTests/` and `MacroMarkKit/Tests/`.
 - `ARCHITECTURE.md` describes the design. `CODE_AUDIT.md`,
   `REMEDIATION_PLAN.md`, and `IMPLEMENTATION_PLAN.md` cover known reliability
@@ -25,8 +31,19 @@ xcodebuild -project MacroMark.xcodeproj -scheme "MacroMark Watch App" -destinati
 
 ## Reliability rules
 
-- Never ACK or delete a watch capture until the phone has durably processed it
-  and export has succeeded or is safely queued for retry.
+- Never ACK or delete a phone-routed watch capture until the phone has durably
+  processed it and export has succeeded or is safely queued for retry.
+- Direct Send notes stay in the watch outbox until each selected destination
+  is confirmed. A phone ACK cannot delete a Direct Send capture.
+- GitHub Direct Send is idempotent via standalone `<!-- mm:<uuid> -->` markers
+  and SHA conflict recovery (fresh read, HTTP 409 refetch). Do not replace or
+  truncate files over 256 KiB.
+- Webhook Direct Send uses a file-backed background upload, JSON `id`, and a
+  stable `Idempotency-Key` header with the same UUID. Ambiguous retries require
+  receiver UUID deduplication. Only a 2xx POST to the configured URL confirms
+  acceptance.
+- Per-destination Direct Send progress is independent; keep retryable state if
+  local confirmation persistence fails after the server already accepted.
 - Replayed notes, audio files, transfers, and ACKs must be idempotent.
 - If an iCloud file is unavailable, keep a retryable state; never drop the
   capture.
