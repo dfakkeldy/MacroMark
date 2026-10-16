@@ -116,14 +116,16 @@ public struct WebhookDestination: Codable, Equatable, Sendable {
 public struct DirectSendConfiguration: Identifiable, Codable, Equatable, Sendable {
     public let id: UUID
     public let configuredAt: Date
+    public let revision: UInt64
     public let mode: WatchDeliveryMode
     public let github: GitHubDestination?
     public let webhook: WebhookDestination?
 
-    public init(id: UUID = UUID(), configuredAt: Date = Date(), mode: WatchDeliveryMode,
+    public init(id: UUID = UUID(), configuredAt: Date = Date(), revision: UInt64 = 0, mode: WatchDeliveryMode,
                 github: GitHubDestination? = nil, webhook: WebhookDestination? = nil) {
         self.id = id
         self.configuredAt = configuredAt
+        self.revision = revision
         self.mode = mode
         self.github = github
         self.webhook = webhook

@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-private struct DestinationProgress: Codable, Equatable, Sendable {
+fileprivate struct DestinationProgress: Codable, Equatable, Sendable {
     var delivered = false
     var attempts = 0
     var nextAttemptAt: Date?
@@ -47,6 +47,11 @@ public struct CapturedNote: Identifiable, Codable, Equatable, Sendable {
         progress.values.filter { !$0.delivered }.map { $0.nextAttemptAt ?? .distantPast }.min()
     }
 
+    public func retryDate(for destination: DirectDestination) -> Date? {
+        guard let state = progress[destination], !state.delivered else { return nil }
+        return state.nextAttemptAt ?? .distantPast
+    }
+
     private func formattedTimestamp(_ format: String) -> String {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
@@ -81,7 +86,7 @@ public struct CapturedNote: Identifiable, Codable, Equatable, Sendable {
 
     fileprivate func validate() throws {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-              text.utf8.count <= 32 * 1024, abs(captureUTCOffsetSeconds) <= 18 * 3600,
+              text.utf8.count <= 32 * 1024, (-18 * 3600...18 * 3600).contains(captureUTCOffsetSeconds),
               timestamp.timeIntervalSinceReferenceDate.isFinite else { throw DirectSendError.invalidResponse }
         switch route {
         case .phone:
@@ -152,7 +157,9 @@ public final class TextDeliveryQueue {
         try replace(updated)
     }
 
+    #if DEBUG
     public func removeAllForTesting() throws { try replace([]) }
+    #endif
 
     private func replace(_ updated: [CapturedNote]) throws {
         try persist(JSONEncoder().encode(updated), fileURL)

@@ -5,12 +5,15 @@ enum CaptureMode: Hashable {
     case instant
     case system
     case dailyLog
+    case replies
+    case deliveries
 }
 
 struct ContentView: View {
     @AppStorage(UserDefaultsKey.captureMode.rawValue) private var captureMode: String = "audio"
     @State private var navigationPath = [CaptureMode]()
     @State private var selectedDate = Calendar.autoupdatingCurrent.startOfDay(for: Date())
+    @AppStorage("directSend.selectedMode") private var deliveryMode = "phone"
 
     private var today: Date {
         Calendar.autoupdatingCurrent.startOfDay(for: Date())
@@ -18,7 +21,8 @@ struct ContentView: View {
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
-            VStack(spacing: 8) {
+            ScrollView {
+              VStack(spacing: 8) {
                 Text(today, format: .dateTime.month(.abbreviated).day().year())
                     .foregroundStyle(.secondary)
                     .accessibilityLabel("Today")
@@ -66,6 +70,18 @@ struct ContentView: View {
                     .buttonStyle(.plain)
                     .glassEffect(.regular.tint(.purple).interactive(), in: .rect(cornerRadius: 16))
                 }
+                Text(deliveryMode == "direct" ? "Text: Direct Send · Audio: Phone" : "Delivery: Phone")
+                    .font(.caption2).foregroundStyle(.secondary)
+                NavigationLink(value: CaptureMode.deliveries) {
+                    Label("\(LocalStore.shared.pendingCount) pending", systemImage: "arrow.up.circle")
+                }
+                NavigationLink(value: CaptureMode.replies) {
+                    Label("Replies", systemImage: "text.bubble")
+                }
+                if LocalStore.shared.captureError != nil {
+                    Text("Note queue needs attention").font(.caption2).foregroundStyle(.orange)
+                }
+              }
             }
             .navigationTitle("MacroMark")
             .background {
@@ -86,6 +102,10 @@ struct ContentView: View {
                     SystemCaptureView(targetDate: selectedDate)
                 case .dailyLog:
                     DailyLogView()
+                case .replies:
+                    DirectReplyView()
+                case .deliveries:
+                    DeliveryStatusView()
                 }
             }
         }
@@ -97,6 +117,10 @@ struct ContentView: View {
                 navigationPath.append(.instant)
             } else if url == AppRoute.systemCaptureURL {
                 navigationPath.append(.system)
+            } else if url == AppRoute.directSendRepliesURL {
+                navigationPath.append(.replies)
+            } else if url == AppRoute.deliveryStatusURL {
+                navigationPath.append(.deliveries)
             }
         }
     }

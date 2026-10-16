@@ -6,15 +6,27 @@ struct SystemCaptureView: View {
     let targetDate: Date
 
     @Environment(\.dismiss) private var dismiss
+    @State private var capturedText: String?
+    @State private var capturedTimestamp: Date?
+    @State private var didPresent = false
 
     var body: some View {
         VStack {
-            ProgressView("Listening...")
+            if let capturedText {
+                ScrollView { Text(capturedText) }
+                Text(LocalStore.shared.captureError ?? "Your text is ready to save.")
+                    .font(.caption)
+                Button("Try saving again") { saveCapturedText() }
+            } else {
+                ProgressView("Listening...")
+            }
         }
         .padding()
         .navigationTitle("Dictation")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
+            guard !didPresent else { return }
+            didPresent = true
             Task {
                 try? await Task.sleep(for: .milliseconds(100))
                 presentDictation()
@@ -29,15 +41,10 @@ struct SystemCaptureView: View {
                 return
             }
 
-            dismiss()
-
-            // Enqueue into the durable LocalStore queue directly. The work is
-            // trivial (a UserDefaults write on the MainActor); wrapping it in
-            // `performExpiringActivity` + `DispatchSemaphore.wait()` risks
-            // deadlocking the cooperative pool on watchOS.
-            Task {
-                let timestamp = DaySelection.timestamp(onSelectedDay: targetDate)
-                await SystemCaptureView.finishAndSave(text: textResult, timestamp: timestamp)
+            Task { @MainActor in
+                capturedText = textResult
+                capturedTimestamp = DaySelection.timestamp(onSelectedDay: targetDate)
+                saveCapturedText()
             }
         }
     }
@@ -58,12 +65,9 @@ struct SystemCaptureView: View {
         return trimmed.isEmpty ? nil : trimmed
     }
 
-    private static func finishAndSave(text: String, timestamp: Date) async {
-        if !text.isEmpty {
-            await MainActor.run {
-                LocalStore.shared.addNote(text, timestamp: timestamp)
-            }
-        }
+    private func saveCapturedText() {
+        guard let capturedText, let capturedTimestamp else { return }
+        if LocalStore.shared.addNote(capturedText, timestamp: capturedTimestamp) { dismiss() }
     }
 }
 

@@ -2,6 +2,7 @@ import Foundation
 @preconcurrency import WatchConnectivity
 import Observation
 import MacroMarkKit
+import os
 
 @MainActor
 @Observable
@@ -10,6 +11,7 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
 
     private let session: WCSession?
     private var pendingCaptureMode: String?
+    private let deliveryLogger = Logger(subsystem: "com.macromark", category: "direct-setup")
 
     // For iOS to process received notes
     var onNoteReceived: ((UUID, String, Date) -> Void)? {
@@ -65,8 +67,10 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
         print("WCSession activation completed: \(activationState.rawValue), error: \(String(describing: error))")
 #endif
 #if os(watchOS)
+        let directConfiguration = session.receivedApplicationContext["directSendConfiguration"] as? Data
         if activationState == .activated {
             Task { @MainActor in
+                if let directConfiguration { receiveDirectConfiguration(directConfiguration) }
                 LocalStore.shared.syncPendingNotes()
                 LocalStore.shared.syncPendingAudio()
             }
@@ -149,6 +153,14 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
         pendingCaptureMode = nil
     }
 
+#if os(iOS)
+    @discardableResult
+    func updateDirectSendSettings() -> Bool {
+        let captureMode = UserDefaults.standard.string(forKey: UserDefaultsKey.captureMode.rawValue) ?? "audio"
+        return sendCaptureModeContext(captureMode)
+    }
+#endif
+
     private func flushPendingSettings() {
         let captureMode = pendingCaptureMode
             ?? UserDefaults.standard.string(forKey: UserDefaultsKey.captureMode.rawValue)
@@ -163,7 +175,13 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
     private func sendCaptureModeContext(_ captureMode: String) -> Bool {
         guard let session = session, session.activationState == .activated else { return false }
         do {
-            try session.updateApplicationContext(["captureMode": captureMode])
+            var context: [String: Any] = ["captureMode": captureMode]
+#if os(iOS)
+            if let setup = try DirectSendSettingsStore().current() {
+                context["directSendConfiguration"] = try JSONEncoder().encode(setup)
+            }
+#endif
+            try session.updateApplicationContext(context)
             return true
         } catch {
 #if DEBUG
@@ -184,6 +202,17 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
         }
         if let ackId = userInfo["ackFile"] as? String, let id = UUID(uuidString: ackId) {
             Task { @MainActor in LocalStore.shared.removeAudio(withId: id) }
+            return
+        }
+#endif
+
+#if os(iOS)
+        if let acknowledgedID = userInfo["directSendConfigurationAck"] as? String,
+           let id = UUID(uuidString: acknowledgedID) {
+            Task { @MainActor in
+                guard let current = try? DirectSendSettingsStore().current(), current.id == id else { return }
+                UserDefaults.standard.set(acknowledgedID, forKey: DirectSendSharedState.configurationAcknowledgedKey)
+            }
             return
         }
 #endif
@@ -303,7 +332,32 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
         if let captureMode = applicationContext["captureMode"] as? String {
             UserDefaults.standard.set(captureMode, forKey: UserDefaultsKey.captureMode.rawValue)
         }
+#if os(watchOS)
+        if let data = applicationContext["directSendConfiguration"] as? Data {
+            Task { @MainActor in receiveDirectConfiguration(data) }
+        }
+#endif
     }
+
+#if os(watchOS)
+    private func receiveDirectConfiguration(_ data: Data) {
+        do {
+            guard data.count <= 64 * 1024 else { throw DirectSendError.invalidResponse }
+            let configuration = try JSONDecoder().decode(DirectSendConfiguration.self, from: data)
+            let settings = DirectSendSettingsStore()
+            if let current = try settings.current(), current.id != configuration.id,
+               current.revision >= configuration.revision { return }
+            try settings.save(configuration)
+            UserDefaults.standard.set(configuration.mode.rawValue, forKey: "directSend.selectedMode")
+            session?.transferUserInfo(["directSendConfigurationAck": configuration.id.uuidString])
+            LocalStore.shared.deliveryError = nil
+            LocalStore.shared.directDelivery.retry()
+        } catch {
+            deliveryLogger.error("Direct Send setup was not saved; no acknowledgment sent")
+            LocalStore.shared.deliveryError = "Direct Send setup could not be saved. Unlock the watch and resend it from your iPhone."
+        }
+    }
+#endif
 
     // MARK: - Daily File Fetch
 

@@ -1,11 +1,8 @@
 import Foundation
 import Observation
-
-struct CapturedNote: Identifiable, Codable {
-    var id: UUID = UUID()
-    var text: String
-    var timestamp: Date
-}
+import MacroMarkKit
+import WidgetKit
+import os
 
 /// Metadata for an audio note awaiting transfer to the phone.
 /// The audio bytes live on disk in `audioDirectory`; this only tracks the queue.
@@ -20,12 +17,18 @@ struct PendingAudio: Identifiable, Codable {
 final class LocalStore {
     static let shared = LocalStore()
 
-    var pendingNotes: [CapturedNote] = [] {
-        didSet {
-            if !isLoading {
-                save()
-            }
-        }
+    var pendingNotes: [CapturedNote] { textQueue?.notes ?? [] }
+    private(set) var captureError: String?
+    var deliveryError: String?
+    private(set) var textQueue: TextDeliveryQueue?
+    var pendingCount: Int { pendingNotes.count + pendingAudio.count }
+    @ObservationIgnored lazy var directDelivery = DirectSendCoordinator(store: self)
+    private let phoneRoute = PhoneRoute()
+    private let logger = Logger(subsystem: "com.macromark", category: "watch-delivery")
+
+    private var textQueueURL: URL {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        return base.appendingPathComponent("TextDelivery/queue.json")
     }
 
     /// Audio notes awaiting transfer. Persisted to disk + UserDefaults so they
@@ -62,46 +65,112 @@ final class LocalStore {
 
     private init() {
         load()
+        loadTextQueue()
         syncPendingNotes()
         syncPendingAudio()
     }
 
     // MARK: - Text Notes
 
-    func addNote(_ text: String, timestamp: Date = Date()) {
+    @discardableResult
+    func addNote(_ text: String, timestamp: Date = Date()) -> Bool {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-
-        let note = CapturedNote(text: trimmed, timestamp: timestamp)
-        pendingNotes.append(note)
-        syncPendingNotes()
+        guard !trimmed.isEmpty else { return false }
+        do {
+            guard let textQueue else { throw CocoaError(.fileWriteUnknown) }
+            let configuration = try DirectSendSettingsStore().current()
+            if configuration == nil, UserDefaults.standard.string(forKey: "directSend.selectedMode") == "direct" {
+                throw DirectSendError.credentialsUnavailable
+            }
+            let note = CapturedNote(text: trimmed, timestamp: timestamp, route: configuration?.route ?? .phone)
+            try textQueue.enqueue(note)
+            captureError = nil
+            updatePendingCount()
+            syncPendingNotes()
+            return true
+        } catch {
+            captureError = "Your note could not be saved. Keep this text and try again after unlocking the watch."
+            logger.error("Text capture persistence or secure setup access failed")
+            return false
+        }
     }
 
     func syncPendingNotes() {
         let now = Date()
-        for note in pendingNotes {
+        for note in pendingNotes where note.route == .phone {
             if queuedNoteIDs.contains(note.id) {
                 if let queuedDate = queuedNoteDates[note.id],
                    now.timeIntervalSince(queuedDate) > Self.reconciliationInterval {
-                    WatchConnectivityProvider.shared.queryProcessed(id: note.id)
+                    phoneRoute.queryProcessed(id: note.id)
                     queuedNoteDates[note.id] = now
                 }
                 continue
             }
 
-            if WatchConnectivityProvider.shared.sendNote(note.id, text: note.text, timestamp: note.timestamp) {
+            if phoneRoute.send(note) {
                 queuedNoteIDs.insert(note.id)
                 queuedNoteDates[note.id] = now
             }
         }
         save()
+        directDelivery.retry()
     }
 
     func removeNote(withId id: UUID) {
-        pendingNotes.removeAll { $0.id == id }
+        do {
+            try textQueue?.acknowledgePhone(id)
+        } catch {
+            deliveryError = "Could not save the delivery confirmation. Your note is still queued."
+            logger.error("Phone acknowledgment persistence failed")
+            return
+        }
         queuedNoteIDs.remove(id)
         queuedNoteDates.removeValue(forKey: id)
         save()
+        updatePendingCount()
+    }
+
+    @discardableResult
+    func completeDirect(_ id: UUID, destination: DirectDestination) -> Bool {
+        do {
+            guard let textQueue else { return false }
+            try textQueue.complete(id, destination: destination)
+            deliveryError = nil
+            updatePendingCount()
+            return true
+        } catch {
+            deliveryError = "Could not save the delivery confirmation. Your note is still queued."
+            logger.error("Direct delivery confirmation persistence failed")
+            return false
+        }
+    }
+
+    func failDirect(_ id: UUID, destination: DirectDestination, error: (any Error)? = nil, retryAfter: TimeInterval? = nil) {
+        do {
+            try textQueue?.recordFailure(id, destination: destination, retryAfter: retryAfter ?? (error as? DirectSendError)?.retryAfter)
+        } catch {
+            logger.error("Direct retry state persistence failed")
+        }
+        deliveryError = (error as? DirectSendError)?.errorDescription ?? "Delivery was not confirmed. Your note is still queued."
+    }
+
+    func updatePendingCount() {
+        UserDefaults(suiteName: DirectSendSharedState.appGroup)?.set(pendingCount, forKey: DirectSendSharedState.pendingCountKey)
+        WidgetCenter.shared.reloadTimelines(ofKind: "DirectSendWidget")
+    }
+
+    private func loadTextQueue() {
+        do {
+            textQueue = try TextDeliveryQueue(fileURL: textQueueURL,
+                legacyNotesData: UserDefaults.standard.data(forKey: defaultsKey))
+            captureError = nil
+            // Keep the original legacy data as recovery; the atomic file is authoritative.
+        } catch {
+            textQueue = nil
+            captureError = "The saved note queue could not be opened. Existing notes have been kept on disk."
+            logger.error("Text queue could not be loaded; capture disabled")
+        }
+        updatePendingCount()
     }
 
     /// Allow a note to be re-sent (e.g. after a failed transfer).
@@ -145,6 +214,7 @@ final class LocalStore {
         queuedAudioDates.removeValue(forKey: id)
         pendingAudio.append(PendingAudio(id: id, filename: destURL.lastPathComponent, timestamp: timestamp))
         save()
+        updatePendingCount()
         syncPendingAudio()
     }
 
@@ -177,6 +247,7 @@ final class LocalStore {
             queuedAudioDates.removeValue(forKey: id)
         }
         save()
+        updatePendingCount()
     }
 
     func removeAudio(withId id: UUID) {
@@ -188,6 +259,7 @@ final class LocalStore {
         queuedAudioIDs.remove(id)
         queuedAudioDates.removeValue(forKey: id)
         save()
+        updatePendingCount()
     }
 
     /// Allow an audio note to be re-sent (e.g. after a failed transfer).
@@ -202,8 +274,6 @@ final class LocalStore {
     private func save() {
         do {
             let encoder = JSONEncoder()
-            let data = try encoder.encode(pendingNotes)
-            UserDefaults.standard.set(data, forKey: defaultsKey)
             // Persist queuedNoteIDs so we don't re-send on cold launch
             UserDefaults.standard.set(queuedNoteIDs.map { $0.uuidString }, forKey: queuedKey)
             let noteDateData = try encoder.encode(Self.stringKeyedDates(queuedNoteDates))
@@ -228,15 +298,6 @@ final class LocalStore {
 
         let decoder = JSONDecoder()
 
-        if let data = UserDefaults.standard.data(forKey: defaultsKey) {
-            do {
-                pendingNotes = try decoder.decode([CapturedNote].self, from: data)
-            } catch {
-                #if DEBUG
-                print("Failed to load pending notes: \(error)")
-                #endif
-            }
-        }
         // Restore queuedNoteIDs so we don't re-send notes that were already
         // transferred (but not yet ACK'd) before termination.
         if let queuedArray = UserDefaults.standard.stringArray(forKey: queuedKey) {
@@ -292,6 +353,10 @@ final class LocalStore {
     }
 
     #if DEBUG
+    func debugEnqueueNote(_ note: CapturedNote) throws {
+        try textQueue?.enqueue(note)
+    }
+
     func debugMarkNoteQueued(_ id: UUID, at date: Date) {
         queuedNoteIDs.insert(id)
         queuedNoteDates[id] = date
@@ -324,7 +389,7 @@ final class LocalStore {
 
     func debugReloadFromDisk() {
         isLoading = true
-        pendingNotes = []
+        textQueue = nil
         pendingAudio = []
         queuedNoteIDs = []
         queuedNoteDates = [:]
@@ -332,6 +397,7 @@ final class LocalStore {
         queuedAudioDates = [:]
         isLoading = false
         load()
+        loadTextQueue()
     }
 
     func debugReset() {
@@ -339,13 +405,14 @@ final class LocalStore {
             let url = audioDirectory.appendingPathComponent(item.filename)
             try? FileManager.default.removeItem(at: url)
         }
-        pendingNotes = []
+        try? textQueue?.removeAllForTesting()
         pendingAudio = []
         queuedNoteIDs = []
         queuedNoteDates = [:]
         queuedAudioIDs = []
         queuedAudioDates = [:]
         save()
+        updatePendingCount()
     }
     #endif
 }

@@ -15,7 +15,13 @@ public struct DirectSendSettingsStore: Sendable {
 
     public func save(_ configuration: DirectSendConfiguration) throws {
         try configuration.validate()
+        if let existing = try self.configuration(id: configuration.id), existing != configuration {
+            throw DirectSendError.invalidConfiguration("Create a new setup version when changing a destination.")
+        }
         let data = try JSONEncoder().encode(configuration)
+        guard data.count <= 64 * 1024 else {
+            throw DirectSendError.invalidConfiguration("Direct Send setup is too large to transfer safely to the watch.")
+        }
         try write(data, account: "configuration:\(configuration.id.uuidString)")
         try write(data, account: "current")
     }

@@ -3,6 +3,9 @@ import Foundation
 public enum AppRoute {
     public static let scheme = "macromark"
 
+    public static var directSendRepliesURL: URL { URL(string: "\(scheme)://direct-send/replies")! }
+    public static var deliveryStatusURL: URL { URL(string: "\(scheme)://direct-send/pending")! }
+
     public static var instantCaptureURL: URL {
         URL(string: "\(scheme)://capture/instant")!
     }
