@@ -78,7 +78,7 @@ final class LocalStore {
         return saveNote(note)
     }
 
-    func prepareCapturedNote(_ text: String, timestamp: Date, timeZone: TimeZone = .current) -> CapturedNote? {
+    func prepareCapturedNote(_ text: String, timestamp: Date, timeZone: TimeZone = .current, phoneTargetDay: Date? = nil) -> CapturedNote? {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
         do {
@@ -86,7 +86,8 @@ final class LocalStore {
             if configuration == nil, UserDefaults.standard.string(forKey: "directSend.selectedMode") == "direct" {
                 throw DirectSendError.credentialsUnavailable
             }
-            return CapturedNote(text: trimmed, timestamp: timestamp, timeZone: timeZone, route: configuration?.route ?? .phone)
+            return CapturedNote(text: trimmed, timestamp: timestamp, timeZone: timeZone,
+                route: configuration?.route ?? .phone, phoneTargetDay: phoneTargetDay)
         } catch {
             captureError = "Your delivery setup could not be read. Keep this text and try again after unlocking the watch."
             return nil

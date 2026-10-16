@@ -43,10 +43,12 @@ struct SystemCaptureView: View {
                 return
             }
 
+            let capturedAt = Date()
+            let capturedZone = TimeZone.current
             Task { @MainActor in
                 capturedText = textResult
-                capturedTimestamp = DaySelection.timestamp(onSelectedDay: targetDate)
-                captureTimeZone = .current
+                capturedTimestamp = capturedAt
+                captureTimeZone = capturedZone
                 saveCapturedText()
             }
         }
@@ -72,7 +74,7 @@ struct SystemCaptureView: View {
         guard let capturedText, let capturedTimestamp else { return }
         if capturedNote == nil {
             capturedNote = LocalStore.shared.prepareCapturedNote(capturedText,
-                timestamp: capturedTimestamp, timeZone: captureTimeZone)
+                timestamp: capturedTimestamp, timeZone: captureTimeZone, phoneTargetDay: targetDate)
         }
         guard let capturedNote else { return }
         if LocalStore.shared.saveNote(capturedNote) { dismiss() }

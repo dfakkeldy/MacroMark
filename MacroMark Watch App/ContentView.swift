@@ -73,7 +73,8 @@ struct ContentView: View {
                 Text(deliveryMode == "direct" ? "Text: Direct Send · Audio: Phone" : "Delivery: Phone")
                     .font(.caption2).foregroundStyle(.secondary)
                 NavigationLink(value: CaptureMode.deliveries) {
-                    Label("\(LocalStore.shared.pendingCount) pending", systemImage: "arrow.up.circle")
+                    Label(LocalStore.shared.textQueue == nil ? "Queue unavailable" : "\(LocalStore.shared.pendingCount) pending",
+                        systemImage: "arrow.up.circle")
                 }
                 NavigationLink(value: CaptureMode.replies) {
                     Label("Replies", systemImage: "text.bubble")

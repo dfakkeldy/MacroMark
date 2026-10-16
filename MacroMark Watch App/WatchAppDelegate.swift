@@ -33,6 +33,9 @@ final class WatchAppDelegate: NSObject, WKApplicationDelegate {
                     task.expirationHandler = nil
                     task.setTaskCompletedWithSnapshot(false)
                 }
+            case let task as WKSnapshotRefreshBackgroundTask:
+                task.setTaskCompleted(restoredDefaultState: true,
+                    estimatedSnapshotExpiration: .distantFuture, userInfo: nil)
             default:
                 task.setTaskCompletedWithSnapshot(false)
             }

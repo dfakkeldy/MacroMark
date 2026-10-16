@@ -18,7 +18,9 @@ public enum WebhookRoute {
         for (name, value) in destination.headers { request.setValue(value, forHTTPHeaderField: name) }
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(note.id.uuidString, forHTTPHeaderField: "Idempotency-Key")
-        let body = try JSONEncoder().encode(Payload(id: note.id.uuidString, text: note.text,
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys
+        let body = try encoder.encode(Payload(id: note.id.uuidString, text: note.text,
             capturedAt: note.capturedAtISO8601, source: "macromark-watch"))
         return Upload(request: request, body: body)
     }

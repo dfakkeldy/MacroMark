@@ -16,11 +16,17 @@ public struct CapturedNote: Identifiable, Codable, Equatable, Sendable {
     fileprivate var progress: [DirectDestination: DestinationProgress]
 
     public init(id: UUID = UUID(), text: String, timestamp: Date = Date(),
-                timeZone: TimeZone = .current, route: TextDeliveryRoute = .phone) {
+                timeZone: TimeZone = .current, route: TextDeliveryRoute = .phone, phoneTargetDay: Date? = nil) {
         self.id = id
         self.text = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        self.timestamp = timestamp
-        captureUTCOffsetSeconds = timeZone.secondsFromGMT(for: timestamp)
+        var captureTime = timestamp
+        if route == .phone, let phoneTargetDay {
+            var calendar = Calendar.current
+            calendar.timeZone = timeZone
+            captureTime = DaySelection.timestamp(onSelectedDay: phoneTargetDay, now: timestamp, calendar: calendar)
+        }
+        self.timestamp = captureTime
+        captureUTCOffsetSeconds = timeZone.secondsFromGMT(for: captureTime)
         self.route = route
         if case let .direct(_, destinations) = route {
             progress = Dictionary(uniqueKeysWithValues: destinations.map { ($0, DestinationProgress()) })

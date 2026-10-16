@@ -28,6 +28,20 @@ struct DirectSendQueueTests {
         #expect(note.capturedAtISO8601 == "2026-10-16T23:58:00-03:00")
     }
 
+    @Test("Direct dictation finishing after midnight uses its actual capture day")
+    func dictationCrossesMidnight() throws {
+        let formatter = ISO8601DateFormatter()
+        let opened = try #require(formatter.date(from: "2026-10-16T23:59:00Z"))
+        let captured = try #require(formatter.date(from: "2026-10-17T00:01:00Z"))
+        let zone = try #require(TimeZone(secondsFromGMT: 0))
+        let direct = CapturedNote(text: "after midnight", timestamp: captured, timeZone: zone,
+            route: .direct(configurationID: UUID(), destinations: [.github]), phoneTargetDay: opened)
+        let phone = CapturedNote(text: "selected day", timestamp: captured, timeZone: zone, phoneTargetDay: opened)
+        #expect(direct.timestamp == captured)
+        #expect(direct.captureDay == "2026-10-17")
+        #expect(phone.captureDay == "2026-10-16")
+    }
+
     @Test("Legacy notes migrate to Phone with the same identity and timestamp")
     func migration() throws {
         let url = try file()

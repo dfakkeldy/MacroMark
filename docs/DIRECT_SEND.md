@@ -48,6 +48,10 @@ travel. Each capture includes a standalone `<!-- mm:uuid -->` marker. A retry
 reads fresh contents and skips a marker already present. Conflicts refetch the
 SHA and preserve intervening edits. Files larger than 256 KiB stay queued with
 an error rather than being replaced or truncated.
+Direct dictation that finishes after midnight uses the actual result timestamp,
+even if the input screen opened the previous day. Phone captures retain the
+existing selected-day behavior. The phone's Daily Log preview includes only
+notes routed to the phone.
 
 Webhook uploads use a durable file and a background URLSession. JSON contains
 `id`, `text`, `capturedAt` with the capture-time UTC offset, and
