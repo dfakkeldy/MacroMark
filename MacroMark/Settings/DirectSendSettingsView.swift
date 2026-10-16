@@ -127,7 +127,6 @@ struct DirectSendSettingsView: View {
     private func save() {
         do {
             let settings = DirectSendSettingsStore()
-            let previous = try settings.current()
             let github = useGitHub ? GitHubDestination(owner: owner, repository: repository,
                 branch: branch, folder: folder, token: token) : nil
             var webhook: WebhookDestination?
@@ -146,8 +145,7 @@ struct DirectSendSettingsView: View {
                 }
                 webhook = WebhookDestination(url: url, headers: values)
             }
-            let configuration = DirectSendConfiguration(revision: (previous?.revision ?? 0) + 1, sourceID: previous?.sourceID ?? UUID(),
-                mode: mode, github: github, webhook: webhook)
+            let configuration = try settings.makeConfiguration(mode: mode, github: github, webhook: webhook)
             try settings.save(configuration)
             savedID = configuration.id
             let sent = WatchConnectivityProvider.shared.updateDirectSendSettings()

@@ -227,11 +227,14 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
         do {
             var context: [String: Any] = ["captureMode": captureMode]
 #if os(iOS)
-            if let setup = try DirectSendSettingsStore().setupDelivery() {
+            if let setup = try DirectSendSettingsStore().current() {
                 context["directSendConfiguration"] = try JSONEncoder().encode(setup)
             }
 #endif
             try session.updateApplicationContext(context)
+#if os(iOS)
+            queueCredentialRepairs()
+#endif
             return true
         } catch {
             deliveryLogger.error("Watch settings context was not sent")
@@ -239,11 +242,36 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
         }
     }
 
+#if os(iOS)
+    private func queueCredentialRepairs() {
+        guard let session, session.activationState == .activated else { return }
+        do {
+            for repair in try DirectSendSettingsStore().pendingCredentialRepairs() {
+                let identifier = DirectSendSettingsStore.credentialRepairIdentifier(repair)
+                guard !session.outstandingUserInfoTransfers.contains(where: {
+                    $0.userInfo["directSendCredentialRepairID"] as? String == identifier
+                }) else { continue }
+                let data = try JSONEncoder().encode(repair)
+                guard data.count <= 64 * 1024 else { throw DirectSendError.invalidResponse }
+                session.transferUserInfo(["directSendCredentialRepair": data,
+                    "directSendCredentialRepairID": identifier])
+            }
+        } catch {
+            deliveryLogger.error("Credential repairs remain pending for the next settings sync")
+        }
+    }
+#endif
+
     // MARK: - Receiving
 
     nonisolated func session(_ session: WCSession, didReceiveUserInfo userInfo: [String : Any] = [:]) {
         // --- Watch side: handle acknowledgements from phone ---
 #if os(watchOS)
+        if let data = userInfo["directSendCredentialRepair"] as? Data,
+           let identifier = userInfo["directSendCredentialRepairID"] as? String {
+            receiveOnWatchActor { self.receiveDirectCredentialRepair(data, identifier: identifier) }
+            return
+        }
         if let ackId = userInfo["ack"] as? String, let id = UUID(uuidString: ackId) {
             receiveOnWatchActor { LocalStore.shared.removeNote(withId: id) }
             return
@@ -255,6 +283,13 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
 #endif
 
 #if os(iOS)
+        if let identifier = userInfo["directSendCredentialRepairAck"] as? String {
+            Task { @MainActor in
+                do { try DirectSendSettingsStore().acknowledgeCredentialRepair(identifier) }
+                catch { self.deliveryLogger.error("Credential repair acknowledgment was not persisted") }
+            }
+            return
+        }
         if let acknowledgedID = userInfo["directSendConfigurationAck"] as? String,
            let id = UUID(uuidString: acknowledgedID) {
             Task { @MainActor in
@@ -388,14 +423,29 @@ final class WatchConnectivityProvider: NSObject, WCSessionDelegate {
     }
 
 #if os(watchOS)
+    private func receiveDirectCredentialRepair(_ data: Data, identifier: String) {
+        do {
+            guard data.count <= 64 * 1024 else { throw DirectSendError.invalidResponse }
+            let repair = try JSONDecoder().decode(DirectSendConfiguration.self, from: data)
+            guard DirectSendSettingsStore.credentialRepairIdentifier(repair) == identifier else {
+                throw DirectSendError.invalidResponse
+            }
+            try DirectSendSettingsStore().applyCredentialRepair(repair)
+            session?.transferUserInfo(["directSendCredentialRepairAck": identifier])
+            LocalStore.shared.directDelivery.retry()
+        } catch {
+            deliveryLogger.error("Credential repair was not saved; no acknowledgment sent")
+        }
+    }
+
     private func receiveDirectConfiguration(_ data: Data) {
         do {
             guard data.count <= 256 * 1024 else { throw DirectSendError.invalidResponse }
             let delivery = try DirectSendSetupDelivery.decode(from: data)
             let settings = DirectSendSettingsStore()
-            try settings.apply(delivery)
-            UserDefaults.standard.set(delivery.current.mode.rawValue, forKey: "directSend.selectedMode")
-            session?.transferUserInfo(["directSendConfigurationAck": delivery.current.id.uuidString])
+            let accepted = try settings.apply(delivery)
+            UserDefaults.standard.set(accepted.mode.rawValue, forKey: "directSend.selectedMode")
+            session?.transferUserInfo(["directSendConfigurationAck": accepted.id.uuidString])
             LocalStore.shared.deliveryError = nil
             LocalStore.shared.directDelivery.retry()
         } catch {

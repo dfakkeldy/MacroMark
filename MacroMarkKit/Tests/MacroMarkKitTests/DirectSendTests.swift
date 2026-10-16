@@ -206,7 +206,8 @@ struct DirectSendHTTPTests {
         try phone.save(old)
         try phone.save(rotated)
         try phone.save(elsewhere)
-        let delivery = try #require(try phone.setupDelivery())
+        let delivery = DirectSendSetupDelivery(current: try #require(try phone.current()),
+            repairs: try phone.pendingCredentialRepairs())
         let encoded = try JSONEncoder().encode(delivery)
         #expect(try DirectSendSetupDelivery.decode(from: encoded) == delivery)
         let legacy = try DirectSendSetupDelivery.decode(from: try JSONEncoder().encode(elsewhere))
@@ -227,6 +228,148 @@ struct DirectSendHTTPTests {
         try late.apply(delivery)
         #expect(try late.deliveryConfiguration(id: old.id)?.github?.token == "new")
         #expect(try late.current()?.id == elsewhere.id)
+    }
+
+    @Test("Stale setup repairs credentials but reports the current mode and acknowledgement")
+    func staleSetupReportsAcceptedConfiguration() throws {
+        let data = OSAllocatedUnfairLock(initialState: [String: Data]())
+        let settings = DirectSendSettingsStore(read: { key in data.withLock { $0[key] } },
+            write: { value, key in data.withLock { $0[key] = value } })
+        let sourceID = UUID()
+        let old = DirectSendConfiguration(revision: 1, sourceID: sourceID, mode: .direct,
+            github: GitHubDestination(owner: "me", repository: "notes", token: "old"))
+        let rotated = DirectSendConfiguration(revision: 2, sourceID: sourceID, mode: .phone,
+            github: GitHubDestination(owner: "me", repository: "notes", token: "new"))
+        let current = DirectSendConfiguration(revision: 3, sourceID: sourceID, mode: .direct,
+            github: GitHubDestination(owner: "me", repository: "elsewhere", token: "other"))
+        try settings.save(old)
+        try settings.save(current)
+
+        let accepted = try settings.apply(DirectSendSetupDelivery(current: rotated, repairs: [rotated]))
+
+        #expect(accepted.id == current.id)
+        #expect(accepted.mode == .direct)
+        #expect(try settings.current() == current)
+        #expect(try settings.deliveryConfiguration(id: old.id)?.github?.token == "new")
+        #expect(try settings.deliveryConfiguration(id: old.id)?.route == old.route)
+    }
+
+    @Test("Legacy credential repairs preserve each endpoint's canonical value")
+    func credentialRepairsDoNotReplaySiblingCredentials() throws {
+        let phoneData = OSAllocatedUnfairLock(initialState: [String: Data]())
+        let phone = DirectSendSettingsStore(read: { key in phoneData.withLock { $0[key] } },
+            write: { value, key in phoneData.withLock { $0[key] = value } })
+        let watchData = OSAllocatedUnfairLock(initialState: [String: Data]())
+        let watch = DirectSendSettingsStore(read: { key in watchData.withLock { $0[key] } },
+            write: { value, key in watchData.withLock { $0[key] = value } })
+        let sourceID = UUID()
+        let endpoint = try #require(URL(string: "https://example.com/receive"))
+        let old = DirectSendConfiguration(revision: 1, sourceID: sourceID, mode: .direct,
+            github: GitHubDestination(owner: "me", repository: "notes", token: "old"),
+            webhook: WebhookDestination(url: endpoint, headers: ["Authorization": "old"]))
+        let webhookRotation = DirectSendConfiguration(revision: 2, sourceID: sourceID, mode: .direct,
+            github: old.github, webhook: WebhookDestination(url: endpoint, headers: ["Authorization": "new"]))
+        let githubRotation = DirectSendConfiguration(revision: 2, sourceID: sourceID, mode: .direct,
+            github: GitHubDestination(owner: "me", repository: "notes", token: "new"))
+        let current = DirectSendConfiguration(revision: 3, sourceID: sourceID, mode: .direct,
+            github: GitHubDestination(owner: "me", repository: "elsewhere", token: "other"))
+        try phone.save(old)
+        try phone.save(webhookRotation)
+        try phone.save(githubRotation)
+        try phone.save(current)
+        struct StoredCredential: Decodable { let configuration: DirectSendConfiguration }
+        try phoneData.withLock { values in
+            for (key, data) in values where key.hasPrefix("credentials:") {
+                let credential = try JSONDecoder().decode(StoredCredential.self, from: data).configuration
+                if credential.webhook != nil {
+                    values[key] = try JSONEncoder().encode(webhookRotation)
+                } else if credential.github?.repository == "notes" {
+                    values[key] = try JSONEncoder().encode(githubRotation)
+                }
+            }
+        }
+        #expect(try phone.deliveryConfiguration(id: old.id)?.github?.token == "new")
+        #expect(try phone.deliveryConfiguration(id: old.id)?.webhook?.headers["authorization"] == "new")
+        try watch.save(old)
+        try watch.save(webhookRotation)
+        let repairs = try phone.pendingCredentialRepairs()
+        #expect(repairs.allSatisfy { $0.destinations.count == 1 })
+        for repair in repairs { try watch.applyCredentialRepair(repair) }
+        #expect(try watch.deliveryConfiguration(id: old.id)?.github?.token == "new")
+        #expect(try watch.deliveryConfiguration(id: old.id)?.webhook?.headers["authorization"] == "new")
+        #expect(try watch.deliveryConfiguration(id: old.id)?.route == old.route)
+    }
+
+    @Test("Large credential history travels as bounded repairs without blocking Phone setup")
+    func credentialHistoryDoesNotBlockCurrentSetup() throws {
+        let data = OSAllocatedUnfairLock(initialState: [String: Data]())
+        let settings = DirectSendSettingsStore(read: { key in data.withLock { $0[key] } },
+            write: { value, key in data.withLock { $0[key] = value } })
+        for index in 0..<5 {
+            let configuration = try settings.makeConfiguration(mode: .direct,
+                github: GitHubDestination(owner: "me", repository: "notes\(index)",
+                    token: String(repeating: "x", count: 60_000)))
+            try settings.save(configuration)
+        }
+        let phone = try settings.makeConfiguration(mode: .phone)
+        try settings.save(phone)
+        let repairs = try settings.pendingCredentialRepairs()
+        let sizes = try repairs.map { try JSONEncoder().encode($0).count }
+        #expect(repairs.count == 5)
+        #expect(sizes.allSatisfy { $0 <= 64 * 1024 })
+        #expect(sizes.reduce(0, +) > 256 * 1024)
+        #expect(try JSONEncoder().encode(#require(try settings.current())).count < 64 * 1024)
+        #expect(try settings.current()?.mode == .phone)
+    }
+
+    @Test("Failed setup persistence burns its reserved revision")
+    func configurationRevisionsSurvivePartialSave() throws {
+        let data = OSAllocatedUnfairLock(initialState: [String: Data]())
+        let failCurrent = OSAllocatedUnfairLock(initialState: false)
+        let settings = DirectSendSettingsStore(read: { key in data.withLock { $0[key] } }, write: { value, key in
+            if key == "current", failCurrent.withLock({ $0 }) { throw DirectSendError.credentialStorage }
+            data.withLock { $0[key] = value }
+        })
+        let first = try settings.makeConfiguration(mode: .direct, github: destination)
+        try settings.save(first)
+        failCurrent.withLock { $0 = true }
+        let failed = try settings.makeConfiguration(mode: .direct, github: destination)
+        #expect(throws: (any Error).self) { try settings.save(failed) }
+        #expect(try settings.current()?.id == first.id)
+        failCurrent.withLock { $0 = false }
+        let retry = try settings.makeConfiguration(mode: .direct, github: destination)
+        #expect(retry.sourceID == failed.sourceID)
+        #expect(retry.revision > failed.revision)
+        try settings.save(retry)
+        #expect(try settings.current()?.id == retry.id)
+    }
+
+    @Test("Credential repairs remain pending until durable watch acceptance is acknowledged")
+    func credentialRepairAcknowledgement() throws {
+        let phoneData = OSAllocatedUnfairLock(initialState: [String: Data]())
+        let phone = DirectSendSettingsStore(read: { key in phoneData.withLock { $0[key] } },
+            write: { value, key in phoneData.withLock { $0[key] = value } })
+        let watchData = OSAllocatedUnfairLock(initialState: [String: Data]())
+        let failWrite = OSAllocatedUnfairLock(initialState: true)
+        let watch = DirectSendSettingsStore(read: { key in watchData.withLock { $0[key] } }, write: { value, key in
+            if failWrite.withLock({ $0 }) { throw DirectSendError.credentialStorage }
+            watchData.withLock { $0[key] = value }
+        })
+        try phone.save(try phone.makeConfiguration(mode: .direct, github: destination))
+        let repair = try #require(try phone.pendingCredentialRepairs().first)
+        #expect(throws: (any Error).self) { try watch.applyCredentialRepair(repair) }
+        #expect(try phone.pendingCredentialRepairs() == [repair])
+        failWrite.withLock { $0 = false }
+        try watch.applyCredentialRepair(repair)
+        try watch.applyCredentialRepair(repair)
+        let identifier = DirectSendSettingsStore.credentialRepairIdentifier(repair)
+        try phone.acknowledgeCredentialRepair(identifier)
+        #expect(try phone.pendingCredentialRepairs().isEmpty)
+        let rotated = try phone.makeConfiguration(mode: .direct,
+            github: GitHubDestination(owner: destination.owner, repository: destination.repository, token: "rotated"))
+        try phone.save(rotated)
+        try phone.acknowledgeCredentialRepair(identifier)
+        #expect(try phone.pendingCredentialRepairs().first?.id == rotated.id)
     }
 
     @Test("Credential rotation repairs the same destination without rerouting old captures")
