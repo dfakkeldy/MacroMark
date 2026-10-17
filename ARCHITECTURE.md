@@ -20,10 +20,19 @@ The watchOS app is responsible for the raw capture of user dictation. It bypasse
 Because users often capture notes away from their phones, the sync mechanism must be robust.
 
 ### Components
-- **`WatchConnectivityProvider`**: A shared `@MainActor` singleton wrapping `WCSession`. 
-  - On the Watch, it uses `transferUserInfo` to enqueue notes, ensuring the payload includes the exact origin timestamp generated at the moment of dictation. It listens to the `didFinish` delegate callback to confirm the iPhone received the payload before deleting the note from `LocalStore`.
+- **`WatchConnectivityProvider`**: A shared `@MainActor` singleton wrapping `WCSession`.
+  - Phone route: the Watch uses `transferUserInfo` to enqueue notes, including the origin timestamp from dictation. `didFinish` success does not delete the note. The watch waits for the phone's durable ACK (`ack` / `ackFile`) after iPhone processing and export safety. A failed transfer un-queues the id so it can be retried.
+  - Direct Send: watch text is not delivered through WatchConnectivity. Versioned setup (mode, GitHub token or device-code credentials, webhook URL and headers) is sent from the iPhone after a one-time setup; the watch ACKs only after it has saved that snapshot. Endpoint-specific credential repairs travel separately from the current settings context. A phone ACK cannot delete a Direct Send note.
   - On iOS, it receives the `userInfo` payload in the background and triggers the processing pipeline with the correct timestamp.
   - **Isolation (Swift 6):** `WCSession` invokes its delegate callbacks on a background queue, so every `WCSessionDelegate` method is `nonisolated` and hops to the main actor (`Task { @MainActor in … }`) only for state access. Leaving them `@MainActor` traps at launch under Swift 6 language mode — the runtime executor check fires when WCSession calls them off-main. The incoming-file copy is done synchronously inside the callback, before WCSession reclaims its inbox file.
+
+### Direct Send outbox
+
+Direct Send is optional v1.1 work on `nightly`. Phone/iCloud remains the default; audio always uses the phone transcription path. Enabled Direct Send text is stored in `TextDeliveryQueue` (`MacroMarkKit/Sources/MacroMarkKit/Delivery/`). Each capture keeps its route, UUID, configuration id, local date, and UTC offset. Destinations (GitHub, webhook, or both) are tracked independently: one can succeed while the other stays queued. The note is removed only when every selected destination is confirmed.
+
+GitHub appends `<folder>/YYYY-MM-DD.md` on the configured branch with a standalone `<!-- mm:<uuid> -->` marker, reading fresh contents before write. A retry that already sees the marker is treated as delivered. HTTP 409 responses refetch the SHA and retry so intervening edits are preserved. Files larger than 256 KiB stay queued rather than being replaced or truncated. Webhook delivery uses a file-backed background `URLSession` POST with JSON `id`, `text`, `capturedAt`, and `source: "macromark-watch"`, plus an `Idempotency-Key` header set to the same UUID.
+
+GitHub tokens and webhook credentials live in each device's Keychain (`DirectSendSettingsStore`). Direct Send does not expand macros on the watch. The Replies and deliveries complication reads an App Group pending count and opens GitHub `.reply.md` content cached on the watch.
 
 ## 3. iOS Target (Process & Store)
 
@@ -39,13 +48,15 @@ The iPhone acts as the processing hub and storage engine.
 
 ## 4. Durability And Export State
 
-MacroMark treats captured notes and recordings as user data, not transient messages. The reliability model is:
+MacroMark treats captured notes and recordings as user data, not transient messages. The default (phone) reliability model is:
 
 1. Watch capture persists locally before transfer.
 2. WatchConnectivity delivers text or audio to the iPhone.
 3. The iPhone processes the payload, expands macros, and saves the processed record.
 4. Export status tracks whether the configured target appended successfully, deferred safely, or needs attention.
 5. Watch-side data is acknowledged only after iPhone-side durability and export safety are established.
+
+Direct Send text uses the same local persist-first rule, then a watch-side outbox instead of WatchConnectivity delivery. Each selected destination is confirmed independently (GitHub UUID marker / SHA conflict recovery; webhook UUID and `Idempotency-Key`). The capture stays queued until every selected destination is confirmed. Audio remains on the phone path above.
 
 Initial processing, export retry, and audio WAL recovery share one reservation per capture source UUID. A path acquires it before starting work and releases it when that work ends, so a retry or recovery pass cannot append or retranscribe a capture while another path still owns it. A successful export reports that the note was saved to the daily Markdown file.
 
@@ -64,6 +75,8 @@ are not new offers for this free launch; historical paid-tier plans do not
 change current access.
 
 The app has no account system and no third-party analytics in the v1.0 plan. Privacy disclosures, App Store metadata, and the website must stay consistent with that behavior.
+
+Direct Send (v1.1 on `nightly`) still has no MacroMark account and adds no analytics. When the user enables it, watch text, a UUID, capture timestamp and UTC offset, and a source identifier go to the GitHub repository and/or HTTPS webhook they chose. KinNoKi Labs does not receive those notes. GitHub device-code sign-in, when the iPhone build supplies a public client ID, authorizes GitHub only.
 
 ## 6. Release And Documentation Architecture
 

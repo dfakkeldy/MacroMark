@@ -1,11 +1,11 @@
 # MacroMark
 
-MacroMark is a zero-friction, voice-to-text capture tool designed for personal knowledge management (PKM) power users. Built by KinNoKi Labs, it provides an unparalleled on-the-go dictation experience for your Apple Watch, syncing seamlessly to plain-text Markdown files on your iPhone via iCloud Drive.
+MacroMark is a zero-friction, voice-to-text capture tool designed for personal knowledge management (PKM) power users. Built by KinNoKi Labs, it provides an unparalleled on-the-go dictation experience for your Apple Watch, syncing to plain-text Markdown files on your iPhone via iCloud Drive by default. Direct Send is an optional v1.1 route on `nightly`: after one-time iPhone setup, watch text can go to GitHub daily Markdown files, an HTTPS webhook, or both. See [Direct Send](docs/DIRECT_SEND.md).
 
 ## Features
 
 - **Zero-Friction Capture**: Tap the complication, speak, and lower your wrist. Your note is saved instantly with an accurate, watch-generated timestamp. No fumbling with "Done" buttons or battling system timeouts.
-- **Reliability-First Sync**: Watch captures stay queued until the iPhone has durably processed them and the configured export path has succeeded or is safely queued for retry.
+- **Reliability-First Sync**: Watch captures stay queued until delivery is confirmed. On the default phone/iCloud route, that means the iPhone has durably processed them and the configured export path has succeeded or is safely queued for retry. Direct Send keeps each note until every selected destination confirms delivery.
 - **Beautiful Watch UI**: A modernized liquid glass interface featuring large, clear microphone and keyboard buttons for instant input selection, plus quick access to "Today's Daily Log" directly from your wrist.
 - **The Append Mechanic**: Instead of cluttering your vault with hundreds of tiny files, MacroMark intelligently appends all your captures for a given day to a single `YYYY-MM-DD.md` daily note.
 - **Daily Review by Date**: Inspect captures for today, yesterday, or any previous daily note from the phone inbox or Watch daily log.
@@ -15,10 +15,11 @@ MacroMark is a zero-friction, voice-to-text capture tool designed for personal k
 - **Verbal Macros**: Speak custom trigger words to instantly format your text. Say "Heading One" to output `# `, or use variables like `{date}`, `{time}`, and `{location}` to build clever workflows.
 - **Daily Note Formatting**: Configure timestamp style, separators, and an optional append heading for exported Markdown.
 - **PKM Friendly**: Saves directly to a dedicated iCloud Documents folder, making it instantly accessible to Obsidian, Logseq, and other Markdown-based tools.
+- **Direct Send (v1.1, `nightly`)**: Optional phone-free delivery of watch text to GitHub, an HTTPS webhook, or both. Audio stays on the phone transcription route. The app remains free. Details: [docs/DIRECT_SEND.md](docs/DIRECT_SEND.md).
 
 ## v1.0 Roadmap
 
-MacroMark v1.0 is the trust-and-capture release: Apple Watch quick capture for Markdown daily notes, with visible sync/export state, setup proof, daily-note review by date, App Intents, safer transcription waits, and privacy pages and draft store metadata.
+MacroMark v1.0 is the trust-and-capture release: Apple Watch quick capture for Markdown daily notes, with visible sync/export state, setup proof, daily-note review by date, App Intents, safer transcription waits, and privacy pages and draft store metadata. Direct Send is v1.1 work on `nightly` ([#125](https://github.com/dfakkeldy/MacroMark/pull/125)); it is not in the v1.0 App Review build.
 
 The full roadmap is in [docs/V1_ROADMAP.md](docs/V1_ROADMAP.md). It turns the competitor-review research in [docs/competitive-analysis.md](docs/competitive-analysis.md) into eight v1.0 milestones:
 
@@ -70,9 +71,10 @@ submission; no automatic public release is authorized. See
 
 1. **Speak**: Tap the `macromark://capture/instant` complication. The custom `SFSpeechRecognizer` begins transcribing immediately and *never* times out from silence.
 2. **Wrist-Down Save**: When you lower your wrist, the watchOS `scenePhase` changes, immediately saving your text and the precise origin timestamp to local storage.
-3. **Sync**: `WatchConnectivity` queues the payload and sends it to your iPhone (even in the background).
+3. **Sync (default)**: `WatchConnectivity` queues the payload and sends it to your iPhone (even in the background). The watch keeps the note until the phone ACKs durable processing and export safety.
 4. **Process & Store**: The iOS app processes your text through the Macro Engine and appends it to `YYYY-MM-DD.md` in iCloud Drive.
-5. **Review by Date**: Open the daily log in the app or through Shortcuts to inspect captures for any chosen day.
+5. **Optional Direct Send**: After one-time iPhone setup, watch text can skip the phone and go to GitHub daily Markdown, an HTTPS webhook, or both. Phone/iCloud remains the default. Audio always uses the phone route. See [Direct Send](docs/DIRECT_SEND.md).
+6. **Review by Date**: Open the daily log in the app or through Shortcuts to inspect captures for any chosen day.
 
 ## Tips
 
