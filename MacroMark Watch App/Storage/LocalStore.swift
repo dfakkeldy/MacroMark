@@ -241,12 +241,15 @@ final class LocalStore {
         var missingAudioIDs: [UUID] = []
         for item in pendingAudio {
             if queuedAudioIDs.contains(item.id) {
-                if let queuedDate = queuedAudioDates[item.id],
-                   now.timeIntervalSince(queuedDate) > Self.reconciliationInterval {
-                    WatchConnectivityProvider.shared.queryProcessed(id: item.id)
-                    queuedAudioDates[item.id] = now
-                }
-                continue
+                guard let queuedDate = queuedAudioDates[item.id],
+                      now.timeIntervalSince(queuedDate) > Self.reconciliationInterval else { continue }
+                WatchConnectivityProvider.shared.queryProcessed(id: item.id)
+                // Transport completion does not prove durable phone processing.
+                // A negative or lost query reply must not strand the recording.
+                // Retry with the same ID; the phone deduplicates replays. Keep
+                // the local file until its durable processing ACK arrives.
+                queuedAudioIDs.remove(item.id)
+                queuedAudioDates.removeValue(forKey: item.id)
             }
 
             let url = audioDirectory.appendingPathComponent(item.filename)
