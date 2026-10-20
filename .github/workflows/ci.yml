@@ -33,6 +33,7 @@ jobs:
         run: |
           ruby fastlane/tests/fastfile_signing_test.rb
           ruby fastlane/tests/signing_profiles_test.rb
+          ruby fastlane/tests/profile_recovery_test.rb
           ruby fastlane/tests/release_workflow_test.rb
 
       - name: Test change-aware delivery guard

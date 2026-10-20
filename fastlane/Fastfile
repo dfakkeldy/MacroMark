@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "json"
+require "tmpdir"
 require_relative "lib/signing_profiles"
 
 # ───────────────────────────────────────────────────────────────────────────────
@@ -161,7 +162,7 @@ end
 
 def app_store_profile_mapping
   SIGNING_IDENTIFIERS.to_h do |bundle_identifier|
-    [bundle_identifier, app_store_profile_name(bundle_identifier)]
+    [bundle_identifier, first_present(ENV["sigh_#{bundle_identifier}_appstore"], app_store_profile_name(bundle_identifier))]
   end
 end
 
@@ -205,24 +206,35 @@ platform :ios do
   private_lane :prepare_app_store_signing do |options|
     setup_ci if ci_environment?
 
-    # Deliberate recovery only. Normal trains keep Match read-only; no
-    # certificate revocation or app capability changes are performed here.
-    if options[:repair_profiles]
-      match(
-        type: "appstore",
-        app_identifier: [WATCH_APP_IDENTIFIER, WIDGET_IDENTIFIER],
-        readonly: false,
-        force: true,
-        api_key: @api_key
-      )
-    end
-
     match(
       type: "appstore",
       app_identifier: SIGNING_IDENTIFIERS,
       readonly: true,
       api_key: @api_key
     )
+
+    # Match supplies the certificate/private key through its read-only store.
+    # Profiles come from Apple so stale encrypted copies cannot replace a
+    # renewed profile. Only an explicit repair may regenerate Watch profiles.
+    profile_directory = File.join(ENV.fetch("RUNNER_TEMP", Dir.tmpdir), "macromark-profiles")
+    SIGNING_IDENTIFIERS.each do |identifier|
+      repair = options[:repair_profiles] && [WATCH_APP_IDENTIFIER, WIDGET_IDENTIFIER].include?(identifier)
+      filename = "#{identifier}.mobileprovision"
+      profile_uuid = get_provisioning_profile(
+        app_identifier: identifier,
+        api_key: @api_key,
+        readonly: !repair,
+        force: !!repair,
+        provisioning_name: app_store_profile_name(identifier),
+        ignore_profiles_with_different_name: true,
+        skip_certificate_verification: false,
+        output_path: profile_directory,
+        filename: filename
+      )
+      ENV["sigh_#{identifier}_appstore"] = profile_uuid
+      ENV["sigh_#{identifier}_appstore_profile-path"] = File.join(profile_directory, filename)
+      ENV["sigh_#{identifier}_appstore_profile-name"] = ENV.fetch("SIGH_NAME")
+    end
 
     begin
       SigningProfiles.verify!(
@@ -245,7 +257,7 @@ platform :ios do
         build_configurations: ["Release"],
         code_sign_identity: "Apple Distribution",
         sdk: signing.fetch(:sdk),
-        profile_name: app_store_profile_name(bundle_identifier),
+        profile_name: app_store_profile_mapping.fetch(bundle_identifier),
         bundle_identifier: bundle_identifier
       )
     end
