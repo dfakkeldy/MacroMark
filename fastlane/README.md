@@ -71,16 +71,27 @@ privacy-policy URL. Keep those values in `BETA_APP_LOCALIZED_INFO` in the
 
 The scheduled GitHub Actions release workflow ships only the `nightly`
 internal TestFlight train. Manual dispatch also exposes a `weekly` channel for
-external TestFlight; it builds the workflow ref that was dispatched, so
-dispatch it from the release-candidate branch, usually `weekly` after a
-promotion. The `appstore` Fastlane path remains manual/local only.
+external TestFlight. Weekly dispatch must run from the `main` or `weekly`
+controller; any other ref errors. It always builds the `weekly` branch
+payload. The `appstore` Fastlane path remains manual/local only.
 
 CI expects App Store Connect API key credentials plus `MATCH_PASSWORD`,
 `MATCH_GIT_SSH_KEY`, and `MATCH_GIT_URL` to be present before uploading.
 The API key can be provided either as `APP_STORE_CONNECT_API_KEY_JSON` or as
 the component secrets `APP_STORE_CONNECT_API_KEY_KEY_ID`,
 `APP_STORE_CONNECT_API_KEY_ISSUER_ID`, and `APP_STORE_CONNECT_API_KEY_KEY`.
-Missing secrets leave the release-train workflow in compile-only mode.
+Missing App Store Connect or Match credentials fail the shipping job with
+`Missing release credentials`; no delivery occurs.
+
+Normal trains install existing Match profiles read-only, then verify their
+application identity, expiry and required App Groups against each Release
+target's source entitlements before archiving. Nightly-only
+`repair_profiles=true` on workflow_dispatch, or `repair_profiles:true` on
+the `release_train` lane, performs one forced refresh of the Watch and widget
+profiles and validates the result. Non-nightly channels reject that option.
+It does not revoke certificates or change app capabilities. The repair also
+forces a delivery through the usual tests and signing gates. Leave it false
+for normal runs.
 
 Nightly internal TestFlight deliberately omits Fastlane's `groups` option.
 Fastlane treats any explicit group as a reason to submit the build for external

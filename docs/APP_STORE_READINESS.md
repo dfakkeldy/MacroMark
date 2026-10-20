@@ -51,8 +51,9 @@ Keep `feature/* → nightly → weekly → main`. Dan approved his internal
 acceptance plus required technical checks in place of nonexistent external
 testers. External eligibility/Beta App Review is needed only for claims of
 external distribution; no new tester requirement is introduced.
-Weekly dispatch builds the workflow ref, so dispatching it from nightly would
-bypass the payload ladder. The current release grant authorizes normal promotions through actual gates. Do not
+Weekly dispatches require the `main` or `weekly` controller and always build
+the `weekly` payload; dispatching weekly from nightly errors. The current
+release grant authorizes normal promotions through actual gates. Do not
 backport features or change protections/pipelines to obtain green CI.
 
 ## Source blockers and remaining evidence
