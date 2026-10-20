@@ -71,14 +71,19 @@ and overlays the build automation, including `fastlane/lib`, from the workflow
 commit. Weekly dispatches use the `main` or `weekly` controller and always
 build the `weekly` payload.
 
-Normal trains install existing Match profiles read-only, then verify their
+Normal trains install signing material from Match read-only and fetch current
+profiles from Apple in read-only mode, then verify their
 application identity, expiry and required App Groups against each Release
 target's source entitlements before archiving. To recover stale Watch/widget
 profiles, manually dispatch Nightly with `repair_profiles=true`. This performs
-one forced profile refresh for those two identifiers and validates the result;
+one forced profile refresh through Apple's API for those two identifiers and
+validates the result;
 it does not revoke certificates or change app capabilities. The repair also
 forces a delivery through the usual tests and signing gates because profiles
 are external inputs. Leave the input false for normal runs.
+The Match repository stays read-only during recovery too. Downloaded profile
+paths, names and UUIDs replace the stale Match values before validation and
+signing. Archive and export select the downloaded UUIDs explicitly.
 
 CI and the delivery gate select an available iPhone directly from CoreSimulator's
 JSON inventory. When the hosted image has no phone, they create one for an
