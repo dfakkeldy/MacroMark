@@ -25,6 +25,11 @@ on:
         required: false
         type: boolean
         default: false
+      repair_profiles:
+        description: Regenerate the Watch and widget distribution profiles once before signing
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -65,9 +70,16 @@ jobs:
                 reason="Manual nightly internal TestFlight train"
                 ;;
               weekly)
+                case "$WORKFLOW_REF_NAME" in
+                  main|weekly) ;;
+                  *)
+                    echo "::error::Weekly delivery requires the main or weekly controller."
+                    exit 1
+                    ;;
+                esac
                 channel="weekly"
-                branch="$WORKFLOW_REF_NAME"
-                reason="Manual weekly external TestFlight train from workflow ref ${WORKFLOW_REF_NAME}"
+                branch="weekly"
+                reason="Manual weekly external TestFlight train"
                 ;;
               *)
                 echo "::error title=Unknown release train::Expected nightly or weekly. Got '$REQUESTED_CHANNEL'."
@@ -113,7 +125,7 @@ jobs:
         id: changes
         env:
           GH_TOKEN: ${{ github.token }}
-          FORCE_RELEASE: ${{ inputs.force || false }}
+          FORCE_RELEASE: ${{ inputs.force || inputs.repair_profiles || false }}
         run: >-
           python3 .release-control/.github/scripts/release_delivery.py plan
           --controller .release-control
@@ -154,6 +166,7 @@ jobs:
             fastlane/Appfile
             fastlane/Fastfile
             fastlane/Gymfile
+            fastlane/lib
           sparse-checkout-cone-mode: false
 
       - name: Use release automation from workflow commit
@@ -164,6 +177,8 @@ jobs:
           cp .release-automation/fastlane/Appfile fastlane/Appfile
           cp .release-automation/fastlane/Fastfile fastlane/Fastfile
           cp .release-automation/fastlane/Gymfile fastlane/Gymfile
+          mkdir -p fastlane/lib
+          cp -R .release-automation/fastlane/lib/. fastlane/lib/
           rm -rf .release-automation
 
       - name: Select Xcode 26
@@ -271,7 +286,7 @@ jobs:
         with:
           bundler-cache: true
 
-      - name: Ship release train when release secrets are present
+      - name: Ship release train
         id: delivery
         env:
           APP_STORE_CONNECT_API_KEY_JSON: ${{ secrets.APP_STORE_CONNECT_API_KEY_JSON }}
@@ -282,6 +297,7 @@ jobs:
           MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
           RELEASE_CHANNEL: ${{ needs.resolve.outputs.channel }}
+          REPAIR_PROFILES: ${{ inputs.repair_profiles || false }}
           TESTFLIGHT_EXTERNAL_GROUPS: ${{ vars.TESTFLIGHT_EXTERNAL_GROUPS || 'External Testers' }}
         run: |
           set -euo pipefail
@@ -296,8 +312,8 @@ jobs:
           fi
 
           if { [ "$has_api_key_json" != "true" ] && [ "$has_api_key_parts" != "true" ]; } || [ -z "$MATCH_PASSWORD" ] || [ -z "$MATCH_GIT_SSH_KEY" ] || [ -z "$MATCH_GIT_URL" ]; then
-            echo "::notice title=Compile-only release train::App Store Connect API key credentials plus MATCH_PASSWORD, MATCH_GIT_SSH_KEY, and MATCH_GIT_URL are required for release-train shipping. The compile gate passed; shipping was skipped."
-            exit 0
+            echo "::error title=Missing release credentials::App Store Connect credentials and all Match secrets are required. No delivery occurred."
+            exit 1
           fi
 
           mkdir -p ~/.ssh
@@ -307,7 +323,7 @@ jobs:
           eval "$(ssh-agent -s)"
           ssh-add ~/.ssh/match_git_ssh_key
 
-          bundle exec fastlane release_train channel:${{ needs.resolve.outputs.channel }}
+          bundle exec fastlane release_train channel:"$RELEASE_CHANNEL" repair_profiles:"$REPAIR_PROFILES"
           python3 "$RELEASE_CONTROL_SCRIPT" record --platform ios
 
       - name: Retain successful ${{ needs.resolve.outputs.channel }} ios delivery receipt

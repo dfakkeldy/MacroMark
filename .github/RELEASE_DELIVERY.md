@@ -24,8 +24,9 @@ package inputs conservatively invalidate all affected platform plans.
 
 Each platform and channel has a separate baseline. A receipt is emitted only
 after its real delivery operation returns successfully, including configured
-processing/distribution waits. Compile-only, missing-secret and dry-run paths
-emit none. The next comparison accepts a receipt only from this workflow's
+processing/distribution waits. Compile-only and dry-run paths emit none.
+Missing release credentials fail the shipping job. The next comparison accepts
+a receipt only from this workflow's
 successful completed attempt on an established channel/controller ref. Failed,
 cancelled and in-progress attempts cannot advance the baseline. A completed
 successful earlier attempt remains valid when the same run is retried; its exact
@@ -63,10 +64,21 @@ promotion, signing-resource creation, submission or publication authority.
 Do not bypass existing licensing or release holds.
 
 The scheduler executes the controller on the default branch. Landing a PR only
-on `nightly` does not update the live scheduled controller. Promote through the
-normal ladder with the required review/acceptance before calling this behavior
-live. Echo's source Fastfile also needs the selective-platform recorder on the
-channel being built; an older lane emits no receipts and cannot seed a baseline.
+on `nightly` does not update the live scheduled controller. A release-automation
+hotfix must reach `main` and be backported to `nightly`; this does not promote
+the app payload. The shipping job uses the exact compared channel source SHA
+and overlays the build automation, including `fastlane/lib`, from the workflow
+commit. Weekly dispatches use the `main` or `weekly` controller and always
+build the `weekly` payload.
+
+Normal trains install existing Match profiles read-only, then verify their
+application identity, expiry and required App Groups against each Release
+target's source entitlements before archiving. To recover stale Watch/widget
+profiles, manually dispatch Nightly with `repair_profiles=true`. This performs
+one forced profile refresh for those two identifiers and validates the result;
+it does not revoke certificates or change app capabilities. The repair also
+forces a delivery through the usual tests and signing gates because profiles
+are external inputs. Leave the input false for normal runs.
 
 Run the guard regression suite without Xcode or Apple access:
 
