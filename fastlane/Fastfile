@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "json"
+require_relative "lib/signing_profiles"
 
 # ───────────────────────────────────────────────────────────────────────────────
 # Fastfile for MacroMark
@@ -201,8 +202,20 @@ platform :ios do
     )
   end
 
-  private_lane :prepare_app_store_signing do
+  private_lane :prepare_app_store_signing do |options|
     setup_ci if ci_environment?
+
+    # Deliberate recovery only. Normal trains keep Match read-only; no
+    # certificate revocation or app capability changes are performed here.
+    if options[:repair_profiles]
+      match(
+        type: "appstore",
+        app_identifier: [WATCH_APP_IDENTIFIER, WIDGET_IDENTIFIER],
+        readonly: false,
+        force: true,
+        api_key: @api_key
+      )
+    end
 
     match(
       type: "appstore",
@@ -210,6 +223,16 @@ platform :ios do
       readonly: true,
       api_key: @api_key
     )
+
+    begin
+      SigningProfiles.verify!(
+        project_path: File.expand_path(PROJECT_PATH, File.expand_path("..", __dir__)),
+        signing_targets: SIGNING_TARGETS,
+        team_id: TEAM_ID
+      )
+    rescue ArgumentError => error
+      UI.user_error!(error.message)
+    end
 
     SIGNING_TARGETS.each do |target, signing|
       bundle_identifier = signing.fetch(:bundle_identifier)
@@ -294,7 +317,11 @@ platform :ios do
     require_api_key!
 
     channel = release_train_channel(options)
-    prepare_app_store_signing
+    repair_profiles = truthy_value?(options[:repair_profiles])
+    if repair_profiles && channel != "nightly"
+      UI.user_error!("Profile repair is supported only by an explicit Nightly run.")
+    end
+    prepare_app_store_signing(repair_profiles: repair_profiles)
 
     case channel
     when "nightly"
