@@ -70,10 +70,13 @@ jobs:
                 reason="Manual nightly internal TestFlight train"
                 ;;
               weekly)
-                if [ "$WORKFLOW_REF_NAME" != "weekly" ]; then
-                  echo "::error::Weekly delivery must be dispatched from the weekly branch."
-                  exit 1
-                fi
+                case "$WORKFLOW_REF_NAME" in
+                  main|weekly) ;;
+                  *)
+                    echo "::error::Weekly delivery requires the main or weekly controller."
+                    exit 1
+                    ;;
+                esac
                 channel="weekly"
                 branch="weekly"
                 reason="Manual weekly external TestFlight train"
