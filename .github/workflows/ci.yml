@@ -39,6 +39,14 @@ jobs:
       - name: Test change-aware delivery guard
         run: python3 -m unittest discover -s .github/scripts/tests -p 'test_*.py' -v
 
+      - name: Set up Ruby and Fastlane
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      - name: Validate provisioning options with pinned Fastlane
+        run: bundle exec ruby fastlane/tests/provisioning_options_test.rb
+
       - name: Select Xcode 26
         uses: maxim-lobanov/setup-xcode@v1
         with:

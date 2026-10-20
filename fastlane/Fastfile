@@ -227,13 +227,12 @@ platform :ios do
       profile_uuid = get_provisioning_profile(
         app_identifier: identifier,
         api_key: @api_key,
-        readonly: !repair,
-        force: !!repair,
         provisioning_name: app_store_profile_name(identifier),
         ignore_profiles_with_different_name: true,
         skip_certificate_verification: false,
         output_path: profile_directory,
-        filename: filename
+        filename: filename,
+        **SigningProfiles.provisioning_mode(repair: repair)
       )
       ENV["sigh_#{identifier}_appstore"] = profile_uuid
       ENV["sigh_#{identifier}_appstore_profile-path"] = File.join(profile_directory, filename)

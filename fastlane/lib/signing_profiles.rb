@@ -5,6 +5,10 @@ require "open3"
 module SigningProfiles
   APP_GROUPS = "com.apple.security.application-groups"
 
+  def self.provisioning_mode(repair:)
+    repair ? {force: true} : {readonly: true}
+  end
+
   def self.validate!(profile, bundle_identifier:, team_id:, required_app_groups:, now: Time.now)
     entitlements = profile.fetch("Entitlements", {})
     expected_identifier = "#{team_id}.#{bundle_identifier}"
