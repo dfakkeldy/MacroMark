@@ -68,7 +68,8 @@ on `nightly` does not update the live scheduled controller. A release-automation
 hotfix must reach `main` and be backported to `nightly`; this does not promote
 the app payload. The shipping job uses the exact compared channel source SHA
 and overlays the build automation, including `fastlane/lib`, from the workflow
-commit. Weekly dispatches must run from `weekly` and always build that branch.
+commit. Weekly dispatches use the `main` or `weekly` controller and always
+build the `weekly` payload.
 
 Normal trains install existing Match profiles read-only, then verify their
 application identity, expiry and required App Groups against each Release

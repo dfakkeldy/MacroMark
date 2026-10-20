@@ -45,6 +45,12 @@ class ReleaseWorkflowTest < Minitest::Test
     assert_includes output, "branch=weekly\n"
   end
 
+  def test_weekly_dispatch_uses_default_controller_and_weekly_payload
+    output, status, = resolve(channel: "weekly", ref: "main")
+    assert status.success?
+    assert_includes output, "branch=weekly\n"
+  end
+
   def test_macos_delivery_waits_for_the_input_comparison
     ship = WORKFLOW.fetch("jobs").fetch("ship")
     assert_includes Array(ship.fetch("needs")), "changes",
