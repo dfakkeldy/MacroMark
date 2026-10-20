@@ -50,4 +50,3 @@ class SigningLaneHarness
     instance_exec({repair_profiles: repair_profiles}, &self.class.lanes.fetch(:prepare_app_store_signing))
   end
 end
-
