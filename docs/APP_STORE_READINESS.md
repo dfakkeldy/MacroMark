@@ -33,9 +33,10 @@ read. Ordinary CI can skip iOS tests for unavailable/timed-out simulators.
 
 Keep `feature/* → nightly → weekly → main`: internal testers, then weekly
 external acceptance/Beta App Review as applicable, then main App Store.
-Weekly dispatch builds the workflow ref, so dispatching it from nightly would
-bypass the payload ladder. Promotions need separate authorization. Do not
-backport features or change protections/pipelines to obtain green CI.
+Weekly dispatches require the `main` or `weekly` controller and always build
+the `weekly` payload; dispatching weekly from nightly errors. Promotions need
+separate authorization. Do not backport features or change
+protections/pipelines to obtain green CI.
 
 ## Source blockers and remaining evidence
 
