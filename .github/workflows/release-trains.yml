@@ -213,27 +213,9 @@ jobs:
             -project MacroMark.xcodeproj \
             -scheme "MacroMark"
 
-      - name: Resolve iOS simulator destination
+      - name: Provision iOS test simulator
         id: ios-simulator
-        run: |
-          set -euo pipefail
-          ruby <<'RUBY' >> "$GITHUB_OUTPUT"
-          destinations = `xcodebuild -showdestinations -project MacroMark.xcodeproj -scheme "MacroMark" 2>&1`
-          iphone = destinations.lines.find do |line|
-            line.include?("platform:iOS Simulator") &&
-              line.include?("name:iPhone") &&
-              line.include?("id:") &&
-              !line.include?("placeholder")
-          end
-
-          if iphone && (udid = iphone[/id:([^,}]+)/, 1]&.strip)
-            puts "ios_udid=#{udid}"
-            puts "ios_destination=platform=iOS Simulator,id=#{udid}"
-          else
-            warn "::error title=Release gate blocked::No available iPhone simulator was found; refusing to upload without app-hosted iOS/UI tests."
-            exit 1
-          end
-          RUBY
+        run: python3 .release-control/.github/scripts/ios_simulator.py
 
       - name: Boot iOS simulator
         run: |

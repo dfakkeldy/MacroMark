@@ -80,8 +80,14 @@ it does not revoke certificates or change app capabilities. The repair also
 forces a delivery through the usual tests and signing gates because profiles
 are external inputs. Leave the input false for normal runs.
 
+CI and the delivery gate select an available iPhone directly from CoreSimulator's
+JSON inventory. When the hosted image has no phone, they create one for an
+installed iOS runtime supported by the selected Xcode SDK. If that runtime is
+absent, they provision it first. Simulator setup failure stops the job instead
+of treating an empty destination list as a successful app-hosted test run.
+
 Run the guard regression suite without Xcode or Apple access:
 
 ```sh
-python3 -m unittest discover -s .github/scripts/tests -p test_release_delivery.py -v
+python3 -m unittest discover -s .github/scripts/tests -p 'test_*.py' -v
 ```
