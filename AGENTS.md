@@ -16,7 +16,8 @@ one-time iPhone setup. Audio always uses the phone route.
   `TextDeliveryQueue` outbox.
 - `MacroMarkWidget/`: widgets and complications, including the pending/replies
   Direct Send complication.
-- Tests: `MacroMarkTests/` and `MacroMarkKit/Tests/`.
+- Tests: `MacroMarkTests/`, `MacroMarkKit/Tests/`, and
+  `Tests/WatchAudioQueue/`.
 - `ARCHITECTURE.md` describes the design. `CODE_AUDIT.md`,
   `REMEDIATION_PLAN.md`, and `IMPLEMENTATION_PLAN.md` cover known reliability
   work.
@@ -25,9 +26,13 @@ one-time iPhone setup. Audio always uses the phone route.
 
 ```bash
 swift test --package-path MacroMarkKit
+python3 Tests/WatchAudioQueue/run.py
 xcodebuild -project MacroMark.xcodeproj -scheme "MacroMark" -destination 'generic/platform=iOS' build
 xcodebuild -project MacroMark.xcodeproj -scheme "MacroMark Watch App" -destination 'generic/platform=watchOS' build
 ```
+
+`Tests/WatchAudioQueue/` is a Linux harness for watch audio-queue logic. Hosted
+CI does not run it.
 
 ## Reliability rules
 
