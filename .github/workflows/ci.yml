@@ -29,11 +29,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Verify release signing automation
+        run: |
+          ruby fastlane/tests/fastfile_signing_test.rb
+          ruby fastlane/tests/signing_profiles_test.rb
+          ruby fastlane/tests/release_workflow_test.rb
+
       - name: Test change-aware delivery guard
         run: python3 -m unittest discover -s .github/scripts/tests -p test_release_delivery.py -v
-
-      - name: Verify release signing automation
-        run: ruby fastlane/tests/fastfile_signing_test.rb
 
       - name: Select Xcode 26
         uses: maxim-lobanov/setup-xcode@v1
