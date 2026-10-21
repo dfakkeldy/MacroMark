@@ -33,10 +33,19 @@ jobs:
         run: |
           ruby fastlane/tests/fastfile_signing_test.rb
           ruby fastlane/tests/signing_profiles_test.rb
+          ruby fastlane/tests/profile_recovery_test.rb
           ruby fastlane/tests/release_workflow_test.rb
 
       - name: Test change-aware delivery guard
         run: python3 -m unittest discover -s .github/scripts/tests -p 'test_*.py' -v
+
+      - name: Set up Ruby and Fastlane
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      - name: Validate provisioning options with pinned Fastlane
+        run: bundle exec ruby fastlane/tests/provisioning_options_test.rb
 
       - name: Select Xcode 26
         uses: maxim-lobanov/setup-xcode@v1
