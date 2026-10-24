@@ -3,6 +3,8 @@
 > October 6 release decision: MacroMark launches fully free. This historical
 > paid-product plan is retained for compatibility reference and does not
 > authorize creating products, offers, prices, or paid gates for this launch.
+> Status as of 2026-10-24: 1.0 was released free on 2026-10-23. Prices below
+> are planning values that still need owner confirmation; none is live.
 
 Re-checked: 2026-10-06. No purchase tests ran during the documentation audit.
 See [readiness](APP_STORE_READINESS.md) and [the packet](APP_STORE_PACKET.md).
@@ -20,7 +22,7 @@ For this authorized preparation, preserve the existing isolated fixtures and app
 
 ## Preflight Risks From The Current Code
 
-- `StoreAccessPolicy.paywallDisabled` is currently `true` so internal testing can move past the Pro paywall while App Store Connect and StoreKit setup are unfinished. Flip it back to `false` before final StoreKit gate testing, App Review screenshots, or App Store submission.
+- `StoreAccessPolicy.paywallDisabled` is `true` as the approved free-launch release policy (`StoreAccessPolicy.swift:4–7`), and 1.0 shipped that way. Set it to `false` only for local paid-gate testing, or if the owner chooses paid gates for a later release.
 - Simulator builds currently auto-enable Pro in `EntitlementManager.simulateEntitled` via `#if targetEnvironment(simulator)`. That means a normal simulator run cannot prove the unentitled free-tier gates or paywall-trigger behavior. Use a physical iPhone run from Xcode with the StoreKit configuration for those gate tests, or use a separately reviewed unentitled test path before relying on simulator-only results.
 - The paywall terms copy uses `introOffer.period.debugDescription`. If the UI shows `P1M` instead of user-friendly copy like `1-month free trial`, mark the test failed and file a pre-submission UI fix before taking App Review screenshots.
 - These tests prove local StoreKit behavior only. They do not prove that App Store Connect products exist, that ASC pricing is approved, or that production purchases work.

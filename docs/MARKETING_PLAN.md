@@ -1,12 +1,15 @@
 # MacroMark Marketing Plan
 
-Last synchronized: 2026-10-06
+Last synchronized: 2026-10-24
 
-> Promotion hold: [App Store readiness](APP_STORE_READINESS.md) and the
-> [prepared packet](APP_STORE_PACKET.md) hold current evidence. Prepare copy
-> and assets now; publish no launch claims until the accepted build is live.
+> Status as of 2026-10-24: MacroMark 1.0 is live on the App Store
+> ([listing](https://apps.apple.com/app/macromark/id6785081218)), released
+> 2026-10-23, free. The October 6 promotion hold ("no launch claims until the
+> accepted build is live") is lifted for claims that match 1.0. Direct Send is
+> 1.1 work and must not be described as available yet. The Pro, trial, pre-order
+> and timeline sections below are historical paid-tier planning.
 
-MacroMark is a pre-launch freemium/subscription productivity utility: free Apple Watch and iPhone capture for Markdown daily notes, with MacroMark Pro planned for power-user limits and customization. This plan is intentionally light on high-contact social work and heavy on reusable assets, App Store readiness, and a calm weekly public record.
+MacroMark is a free productivity utility: Apple Watch and iPhone capture for Markdown daily notes. Earlier plans for MacroMark Pro are paused by the free launch. This plan is intentionally light on high-contact social work and heavy on reusable assets, App Store readiness, and a calm weekly public record.
 
 ## App Profile
 
@@ -14,10 +17,10 @@ MacroMark is a pre-launch freemium/subscription productivity utility: free Apple
 | --- | --- |
 | Category | Productivity |
 | Platforms | iOS and watchOS |
-| Lifecycle stage | Release preparation; the old August 4 date has passed, no new date authorized |
-| Monetization | Free download; Pro annual subscription planned at $9.99/year with 1-month free trial; lifetime unlock planned at $24.99 with $16.99 launch intro |
+| Lifecycle stage | Launched: 1.0 released 2026-10-23; 1.1 (Direct Send) in progress on `nightly` |
+| Monetization | Free; no in-app purchase is offered. Historical planning values ($9.99/year, $24.99 lifetime) need owner confirmation and are not live |
 | Audience | Markdown daily-note users, Apple Watch users, Obsidian/Logseq users, field workers, walkers/commuters, PKM power users |
-| Current traction | Internal `1.0 (75)` upload/processing/distribution verified October 5; public availability and current customer reviews unverified |
+| Current traction | Public since 2026-10-23; customer reviews and downloads not checked here |
 | Current ASO | English metadata prepared; July 1 ASO/marketing-tool snapshot is historical, not current ASC evidence |
 
 ## Positioning

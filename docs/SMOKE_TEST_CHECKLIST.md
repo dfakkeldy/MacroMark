@@ -1,8 +1,13 @@
 # MacroMark Paired-Device Smoke Test Checklist
 
-Last updated: 2026-07-02
+Last updated: 2026-10-24
 
-Use this checklist on Dan's paired iPhone and Apple Watch before treating the first TestFlight build as launch-ready. Use staged demo notes only; do not capture personal addresses, routes, client data, or private notes during this test.
+> Status as of 2026-10-24: 1.0 is live on the App Store (released 2026-10-23).
+> No filled-in result for this checklist is recorded in the repository. Use it
+> as a regression pass for 1.1 builds. Direct Send cases are described in
+> [Direct Send](DIRECT_SEND.md) and are not covered here.
+
+Use this checklist on Dan's paired iPhone and Apple Watch before treating a TestFlight build as release-ready. Use staged demo notes only; do not capture personal addresses, routes, client data, or private notes during this test.
 
 ## Prerequisites
 
@@ -51,11 +56,11 @@ Use this checklist on Dan's paired iPhone and Apple Watch before treating the fi
 
 16. [ ] Pass / [ ] Fail - Capture "Heading One Smoke Test".
     - Expected result: The exported Markdown begins with `# Smoke Test` or the configured Heading One macro output.
-17. [ ] Pass / [ ] Fail - Capture a note using the `{date}` macro, such as "Today is date".
-    - Expected result: The exported text contains the current local date in the app's configured format.
-18. [ ] Pass / [ ] Fail - Capture a note using the `{time}` macro, such as "Time is time".
-    - Expected result: The exported text contains the current local time in the app's configured format.
-19. [ ] Pass / [ ] Fail - Capture a note using the `{location}` macro with a non-sensitive test phrase.
+17. [ ] Pass / [ ] Fail - Capture "New Journal Entry" (default replacement `## {date} at {time}`).
+    - Expected result: The exported text contains a heading with today's date as `YYYY-MM-DD` and the current local time.
+18. [ ] Pass / [ ] Fail - Capture "Timestamp smoke test" (default replacement `{time} - `).
+    - Expected result: The exported text starts with the current local time in the device's short time format.
+19. [ ] Pass / [ ] Fail - Capture "Dropoff smoke test" (default replacement `{location} - `) at a non-sensitive test location.
     - Expected result: The app either expands to a reasonable current location string or marks the capture with a visible, retryable/unavailable location state without hanging.
 
 ## Timestamp Correctness

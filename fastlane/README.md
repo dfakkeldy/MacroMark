@@ -114,7 +114,14 @@ App Store submissions use manual release after approval by default. Set
 `APP_STORE_AUTOMATIC_RELEASE=true` only if approved builds should release
 automatically.
 
-### 4. Current release evidence and blockers
+### 4. Release evidence
+
+Status as of 2026-10-24: MacroMark 1.0 is live on the App Store, released
+2026-10-23. The October 14 service check verified internal TestFlight
+`1.0 (83)`. Current evidence lives in
+[App Store readiness](../docs/APP_STORE_READINESS.md). The paragraphs below are
+the October 6 record; the paywall-bypass and paid-flow items were settled by the
+free launch.
 
 Re-checked: 2026-10-06. Scheduled run
 [37306349729](https://github.com/dfakkeldy/MacroMark/actions/runs/37306349729)

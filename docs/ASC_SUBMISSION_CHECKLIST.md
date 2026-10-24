@@ -1,5 +1,9 @@
 # App Store Connect submission checklist
 
+> Status as of 2026-10-24: 1.0 was submitted, approved and released on
+> 2026-10-23 (public App Store lookup). The unchecked boxes below were not
+> updated item by item; they are the October 14 record. Reuse this list for 1.1.
+
 Re-checked: 2026-10-14. [Readiness](APP_STORE_READINESS.md) holds exact branch,
 CI, upload evidence and blockers; [prepared packet](APP_STORE_PACKET.md) holds
 copy, product localizations, review instructions and declaration mappings.

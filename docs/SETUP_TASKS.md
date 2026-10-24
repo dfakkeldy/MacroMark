@@ -10,6 +10,11 @@ Complete these steps in order after adding the local SPM package.
 > `docs/APP_STORE_READINESS.md`; the October 5 internal `1.0 (75)` upload,
 > processing and distribution are already verified. Optional accessibility
 > claims require tests; avoid treating this historical checklist as current.
+>
+> Status as of 2026-10-24: 1.0 is live on the App Store (released 2026-10-23,
+> free). The files in step 2 no longer exist, and the paywall checks in steps 6–7
+> and the IAP steps in section 8 do not apply to the free release
+> (`StoreAccessPolicy.paywallDisabled = true`).
 
 ---
 
@@ -111,7 +116,7 @@ These new views were created and exist on disk but need Xcode target membership:
 - [ ] Follow the current detailed setup in `docs/ASC_IAP_SETUP.md`
 - [ ] Complete App Store privacy answers and Accessibility Nutrition Labels
 - [ ] Upload screenshots and metadata
-- [ ] Submit a processed TestFlight/App Store build for review
+- [x] Submit a processed TestFlight/App Store build for review (1.0 released 2026-10-23)
 
 ---
 

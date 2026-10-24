@@ -4,16 +4,18 @@ MacroMark is composed of two primary targets (watchOS and iOS) communicating asy
 
 ## 1. watchOS Target (Capture & Persist)
 
-The watchOS app is responsible for the raw capture of user dictation. It bypasses the standard Apple shortcuts and dictation UI limitations by using a custom pipeline.
+The watchOS app is responsible for raw capture. Instant capture records audio on the watch and leaves transcription to the iPhone, so silent pauses do not end the session.
 
 ### Components
-- **`SpeechRecognizer`**: An `@Observable`, `@MainActor` class wrapping `SFSpeechRecognizer`. It is configured with `shouldReportPartialResults = true` and `requiresOnDeviceRecognition = true` (where supported) to prevent the OS from automatically timing out during silent pauses.
-- **`LocalStore`**: An `@Observable` singleton that immediately persists captured text to `UserDefaults`. If the Watch is disconnected from the iPhone or the app is killed in the background, no data is lost.
+- **`AudioRecorder`**: An `@Observable`, `@MainActor` wrapper around `AVAudioRecorder`. It records mono AAC (`.m4a`) to a temporary file. The watch does not transcribe audio.
+- **`LocalStore`**: An `@Observable` singleton that persists every capture before any transfer. Text captures go to the `TextDeliveryQueue` file (`Application Support/TextDelivery/queue.json`), written atomically. Audio files move to `Application Support`, with their queue metadata in `UserDefaults`. If the Watch is disconnected from the iPhone or the app is killed in the background, no data is lost.
 - **Capture Views**:
   - **Main Interface**: Features a modern liquid glass aesthetic. Replaces legacy options with large, clear microphone and keyboard buttons for capture, and a prominent "Today's Daily Log" button at the bottom.
-  - `InstantCaptureView`: Starts the `SpeechRecognizer` immediately on appear. It hooks into the SwiftUI `scenePhase` environment variable to automatically save the session with an accurate point-of-origin timestamp the exact moment the user lowers their wrist (`.background` or `.inactive`).
-  - `SystemCaptureView`: A fallback using the native `TextField` for scribble or standard dictation.
-- **Widget Extension**: Exposes complications that use `widgetURL` to deep link directly into the specific capture modes (`macromark://capture/instant`).
+  - `InstantCaptureView`: Starts the `AudioRecorder` immediately on appear. It hooks into the SwiftUI `scenePhase` environment variable to automatically save the session with an accurate point-of-origin timestamp the exact moment the user lowers their wrist (`.background` or `.inactive`).
+  - `SystemCaptureView`: A fallback using the system text input controller for scribble, keyboard or standard dictation.
+  - `DailyLogView` / `DailyLogFileBrowserView`: Fetch a day's Markdown file, or browse the daily files, from the iPhone.
+  - `DeliveryStatusView` / `DirectReplyView`: Direct Send pending deliveries and cached GitHub replies (v1.1, `nightly`).
+- **Widget Extension** (watch complications only): Instant Capture (`macromark://capture/instant`) and System Capture (`macromark://capture/system`) deep link into the capture modes with `widgetURL`. On `nightly`, Replies and deliveries opens Direct Send replies and shows the pending count.
 
 ## 2. The Bridge (WatchConnectivity)
 
@@ -39,12 +41,14 @@ GitHub tokens and webhook credentials live in each device's Keychain (`DirectSen
 The iPhone acts as the processing hub and storage engine.
 
 ### Components
-- **`Macro` (SwiftData Model)**: Stores the user's custom text replacements (e.g., "Heading One" -> "# ").
+- **`Macro` (SwiftData Model)**: Stores the user's text replacements (e.g., "Heading One" -> "# "). The 24 built-in defaults are seeded from `MacroManagerView.defaultMacros` on first launch; restoring defaults replaces only `isDefault` macros.
+- **`AudioTranscriber`**: Transcribes received watch audio with `SFSpeechRecognizer` and `SFSpeechURLRecognitionRequest`. Authorization and recognition waits are bounded, and chunk failures mark the note as partially transcribed.
 - **`MacroProcessor`**: A stateless, `nonisolated` engine that runs off the main actor. It takes raw transcribed text plus a `[MacroRule]` — a `Sendable` value snapshot of each macro's trigger/replacement, taken from the SwiftData `Macro` models on the main actor — so no SwiftData model crosses an isolation boundary. It:
   1. Applies user-defined macros using case-insensitive Regex (compiled patterns are cached behind an `OSAllocatedUnfairLock` for thread-safe reuse across concurrent calls).
-  2. Evaluates dynamic variables (`{date}`, `{time}`, `{newline}`, `{location}` using MapKit reverse geocoding).
+  2. Evaluates dynamic variables: `{date}` (ISO `YYYY-MM-DD`), `{time}` (locale short time), `{newline}`, `{tab}`, `{backspace}`, `{uuid}`, `{clipboard}`, and `{location}` (MapKit reverse geocoding, with a bounded wait).
   3. Cleans up formatting artifacts (e.g., removing spaces inside Markdown wrapping tags like `* bold *`).
-- **`iCloudStorageManager`**: Resolves the app's ubiquitous iCloud Documents container. It formats the current date to locate `YYYY-MM-DD.md` and uses `NSFileCoordinator` and `FileHandle` to safely append the processed string to the end of the file.
+- **`iCloudStorageManager`**: Resolves the export folder: a user-chosen folder bookmark, else the app's iCloud Documents container, else local Documents as a fallback. `FolderSettings` builds the file path from the capture date (default `yyyy-MM-dd.md`; flat, `YYYY-MM/` or `YYYY/MM/` subfolders). `DailyNoteFormatter` renders the entry, and `NSFileCoordinator` with `FileHandle` appends it. An iCloud file that exists but is not downloaded returns `deferred` instead of being overwritten.
+- **App Intents** (`MacroMark/Intents/MacroMarkAppIntents.swift`): Start Instant Capture, Start Typed Capture, Open Daily Log (optional date), and Append Text to Today. Each opens a `macromark://` route in the app.
 
 ## 4. Durability And Export State
 
@@ -74,7 +78,7 @@ identifiers, transaction handling and prior ownership remain compatible. They
 are not new offers for this free launch; historical paid-tier plans do not
 change current access.
 
-The app has no account system and no third-party analytics in the v1.0 plan. Privacy disclosures, App Store metadata, and the website must stay consistent with that behavior.
+The app has no account system and no third-party analytics in v1.0. Privacy disclosures, App Store metadata, and the website must stay consistent with that behavior.
 
 Direct Send (v1.1 on `nightly`) still has no MacroMark account and adds no analytics. When the user enables it, watch text, a UUID, capture timestamp and UTC offset, and a source identifier go to the GitHub repository and/or HTTPS webhook they chose. KinNoKi Labs does not receive those notes. GitHub device-code sign-in, when the iPhone build supplies a public client ID, authorizes GitHub only.
 
@@ -82,8 +86,8 @@ Direct Send (v1.1 on `nightly`) still has no MacroMark account and adds no analy
 
 - Promotion ladder: `feature/* -> nightly -> weekly -> main`.
 - GitHub Pages source: `main /docs`.
-- Release automation source: current workflow on `main`, narrowed to nightly internal TestFlight as of PR #90 and reconciled back toward `nightly` in the release reconciliation branch.
+- Release automation: `.github/workflows/release-trains.yml` ships the scheduled nightly internal TestFlight train; see `fastlane/README.md` for channels and signing.
 - Devlog automation: `Scripts/doc_automation/` updates `docs/guides/devlog.md` and `docs/devlog.html` and opens a reviewable PR.
 - App Store readiness source: `docs/APP_STORE_READINESS.md`.
 
-As of 2026-07-02, the release reconciliation branch brings together `origin/main` release automation/docs work and `origin/nightly` v1 product work. Keep the branch being shipped, the release workflow, README, website, Fastlane metadata, and App Store Connect state aligned before final App Store submission.
+As of 2026-10-24, version 1.0 is live on the App Store (released 2026-10-23) from the `main` line. `nightly` is at version 1.1 with Direct Send and watch audio retry. Keep the branch being shipped, the release workflow, README, website, Fastlane metadata, and App Store Connect state aligned before each submission.

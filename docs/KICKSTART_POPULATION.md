@@ -5,6 +5,8 @@
 > launch dates, zero-build counts, task/ASO counts or price declarations as
 > current facts. Use [readiness](APP_STORE_READINESS.md) and
 > [prepared store packet](APP_STORE_PACKET.md); account data stays private.
+> Status as of 2026-10-24: 1.0 is live on the App Store, free, released
+> 2026-10-23. The August 4 launch date and paid-tier pricing below are historical.
 
 > **Status:** ✅ APPLIED 2026-06-20; refreshed 2026-07-01. The project was created manually in the Kickstart app
 > (the MCP `create_project` endpoint was failing — 7/7 connection drops; all other write

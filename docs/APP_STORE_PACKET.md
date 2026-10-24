@@ -4,6 +4,14 @@ Prepared: 2026-10-06 against nightly `80455834`. Draft fields for the intended
 v1 release, not proof of saved ASC metadata or accepted release. See
 [readiness](APP_STORE_READINESS.md) before using the packet.
 
+> Status as of 2026-10-24: 1.0 was released on the App Store on 2026-10-23,
+> free ([listing](https://apps.apple.com/app/macromark/id6785081218)). The live
+> description says: "MacroMark is free. Capture, daily notes and custom macros
+> are included; no subscription is required." Published screenshots include
+> iPhone and iPad Inbox, Note detail, Macros and New Macro, plus a Watch capture
+> screenshot. Use this packet as the starting point for 1.1; compare it with
+> the live listing first, because the saved ASC text may differ.
+
 ## Listing fields
 
 Copy-ready text lives in `fastlane/metadata/en-US/`.
@@ -71,7 +79,7 @@ or simulator entitlement flags.
 | Surface | Source evidence | Pending |
 | --- | --- | --- |
 | App Privacy | All manifests: no tracking, empty collected-data arrays. No developer servers or ad/analytics SDKs found. User storage, optional location, Apple Speech and StoreKit used. | Map actual runtime to Apple's definition; empty manifests do not select Data Not Collected |
-| Manifest | UserDefaults `CA92.1`; package requests file modification-date key without FileTimestamp reason | Correct audited coverage and inspect the final archive's privacy report |
+| Manifest | UserDefaults `CA92.1`; the unused file modification-date request was removed in `cc2cd9c` (no `contentModificationDateKey` in source) | Inspect the final archive's privacy report |
 | Permissions | Microphone, speech and When In Use location | Confirm denial behavior and purpose strings |
 | Accounts | No app account creation/login found | Account deletion appears inapplicable to this version; confirm no new account flow |
 | Age / capabilities | Private notes; no public social feed, unrestricted browser, ads, gambling or curated mature content found; IAP present | Complete current questionnaire including social-media question; no guessed age rating |
@@ -89,9 +97,9 @@ placement/coverage is a separate check from ASC privacy answers.
 
 | Asset | Existing state | Next capture |
 | --- | --- | --- |
-| iPhone | Ignored June 27 PNGs: 1320 × 2868 and 1170 × 2532 | Current required Dynamic Island medium category: 1179 × 2556 or 1206 × 2622; verify ASC scaling if reusing another category |
-| iPad | Ignored June 27 PNGs: 2064 × 2752 | Current 13-inch layout: successful Inbox, note detail, macro output, destination proof |
-| Watch | No final images / no Watch Fastlane lane | Capture, saved/queued confirmation, daily-log review, complication; one accepted size across locales |
+| iPhone | Published with 1.0: Inbox, Note detail, Macros, New Macro | Recapture only for changed 1.1 UI |
+| iPad | Published with 1.0: Inbox, Note detail, Macros, New Macro | Recapture only for changed 1.1 UI |
+| Watch | Published with 1.0: one capture screenshot; no Watch Fastlane lane | Optional for 1.1: complication, daily-log review, saved/queued confirmation, Direct Send deliveries |
 | IAP review | Free launch | No new purchase review image is required for this launch |
 | Icons | iOS/Watch: 1024 × 1024 RGB PNGs, no alpha | Validate promoted archive; no new artwork required |
 
@@ -111,7 +119,7 @@ at a time. Required Watch sizes include 422 × 514, 410 × 502, 416 × 496,
 396 × 484, 368 × 448 or 312 × 390. No final images were fabricated or
 recaptured in this documentation audit.
 
-## Operator handoff
+## Operator handoff (pre-release record)
 
 After source fixes and candidate checks, compare current ASC fields with this
 packet after sign-in. An authorized operator can enter text/assets; the owner

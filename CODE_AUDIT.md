@@ -8,6 +8,13 @@ Generated 2026-06-20. Scope: 43 Swift source files (~3,700 LOC) across 4 targets
 > Use `docs/V1_ROADMAP.md`, `docs/APP_STORE_READINESS.md`, and
 > `docs/BRANCH_WORKTREE_CLEANUP.md` before using this audit to decide current work.
 
+> Status as of 2026-10-24: re-checked against `nightly` `3b0fe40`. Version 1.0
+> is live on the App Store (released 2026-10-23). The per-item status, with
+> code evidence, is in `REMEDIATION_PLAN.md` → "Status as of 2026-10-24". All
+> ten executive-summary items below are now resolved in code. Line numbers in
+> this audit refer to the June 2026 code and have moved. Newer open bugs are
+> MM-051 to MM-058 (GitHub issues #79–#86).
+
 This audit supersedes the 2026-06-05 snapshot. Since then, commits `0a8a9ec`, `b16c535`, `4e2c3dd`, and `f015c9e` landed an end-to-end ACK protocol, a write-ahead log, and several concurrency fixes. Those changes were re-verified here; the prior report's §3.1 (UIPasteboard off MainActor), §3.3 (AudioTranscriber leaked continuation), §3.4 (sendMessage continuation isolation), §5.4 (StoreManager finish-before-entitlement), and §6.1 (compile-time `#if DEBUG` paywall bypass) are now **resolved** and intentionally not re-raised.
 
 Findings cite `path/to/file.swift:LINE` so you can jump straight to them in Xcode. Each item has a recommended action; no code changes were made during the audit.
@@ -40,16 +47,16 @@ The open data-loss criticals **§5.1 (ACK before iCloud append confirmed) and §
 
 Top items to address, in priority order. Data-loss in the note-sync pipeline is the user's stated #1 concern and dominates this list.
 
-1. **[Critical] ACK is sent before the iCloud append is confirmed** — §5.1 — `MacroMark/MacroMarkApp.swift:424-433`. A note that saves to SwiftData but fails the iCloud append is ACK'd, removed from the WAL, and deleted from the watch — yet never reaches the daily-note file.
-2. **[Critical] iCloud append silently drops notes when the day's file is an un-materialized placeholder** — §5.2 — `MacroMarkKit/Sources/MacroMarkKit/Storage/iCloudStorageManager.swift:111-115`. Combined with §5.1, a note captured right after a device wake is permanently absent from the `.md` output with no retry.
+1. **[Critical · ✅ RESOLVED] ACK is sent before the iCloud append is confirmed** — §5.1 — `MacroMark/MacroMarkApp.swift:424-433`. A note that saves to SwiftData but fails the iCloud append is ACK'd, removed from the WAL, and deleted from the watch — yet never reaches the daily-note file.
+2. **[Critical · ✅ RESOLVED] iCloud append silently drops notes when the day's file is an un-materialized placeholder** — §5.2 — `MacroMarkKit/Sources/MacroMarkKit/Storage/iCloudStorageManager.swift:111-115`. Combined with §5.1, a note captured right after a device wake is permanently absent from the `.md` output with no retry.
 3. **[Critical · ✅ RESOLVED] Data race on the MacroProcessor regex cache** — §3.1 — `MacroMarkKit/Sources/MacroMarkKit/Engine/MacroProcessor.swift:13,37-43`. `nonisolated(unsafe)` dictionary mutated from concurrent `process()` calls; the "benign" comment is wrong — Dictionary mutation is a crash-class data race.
-4. **[High] Stale compiled regex is never invalidated when macros are edited** — §5.3 — `MacroProcessor.invalidateRegexCache()` exists but is called nowhere; editing a trigger leaves the old pattern replacing text.
+4. **[High · ✅ RESOLVED] Stale compiled regex is never invalidated when macros are edited** — §5.3 — `MacroProcessor.invalidateRegexCache()` exists but is called nowhere; editing a trigger leaves the old pattern replacing text.
 5. **[High · ✅ RESOLVED] watchOS semaphore+main-actor pattern can deadlock and lose the recording** — §3.2 — `MacroMark Watch App/Capture/InstantCaptureView.swift:57-69` (and `SystemCaptureView.swift:31-43`). Blocking a cooperative-pool thread on `DispatchSemaphore.wait()` waiting for a MainActor hop.
 6. **[High · ✅ RESOLVED] Blocking `Thread.sleep` on the @MainActor during iCloud download wait** — §3.3 — `iCloudStorageManager.swift:151-154`. Up to 2s UI freeze whenever the daily file isn't local.
-7. **[High] `WatchConnectivityProvider` is byte-for-byte duplicated across the iOS and watch targets** — §9.1 — 301 lines × 2; the ACK/WAL protocol this code implements must not drift.
-8. **[High] Unguarded `print()` calls ship IAP errors and file paths to release logs** — §6.3 — 9 calls in `MacroMarkKit` (incl. `StoreManager` IAP failures), 7 in the watch app, 4 in the iOS app.
-9. **[High] `restoreDefaults` silently deletes the user's custom macros** — §5.4 — `MacroMark/Settings/MacroManagerView.swift:265-273`. No confirmation; deletes everything before re-inserting defaults.
-10. **[High] Magic `UserDefaults`/`@AppStorage` key strings scattered across 6 files** — §9.4 — 18+ raw-string uses of 5 keys; a typo silently breaks a setting.
+7. **[High · ✅ RESOLVED] `WatchConnectivityProvider` is byte-for-byte duplicated across the iOS and watch targets** — §9.1 — 301 lines × 2; the ACK/WAL protocol this code implements must not drift.
+8. **[High · ✅ RESOLVED] Unguarded `print()` calls ship IAP errors and file paths to release logs** — §6.3 — 9 calls in `MacroMarkKit` (incl. `StoreManager` IAP failures), 7 in the watch app, 4 in the iOS app.
+9. **[High · ✅ RESOLVED] `restoreDefaults` silently deletes the user's custom macros** — §5.4 — `MacroMark/Settings/MacroManagerView.swift:265-273`. No confirmation; deletes everything before re-inserting defaults.
+10. **[High · ✅ RESOLVED] Magic `UserDefaults`/`@AppStorage` key strings scattered across 6 files** — §9.4 — 18+ raw-string uses of 5 keys; a typo silently breaks a setting.
 
 ---
 
@@ -162,6 +169,8 @@ Both schemes build clean, so there are no deprecation warnings. The items below 
 ## 5. Bugs / logic errors
 
 ### 5.1 ACK is sent before the iCloud append is confirmed — note saved but never written to the daily file
+> ✅ **Resolved (verified 2026-10-24):** ACK and WAL clearing now wait for `.appended` or `.savedInInbox`; deferred and failed exports keep the WAL entry and a pending-export record (`MacroMark/MacroMarkApp.swift:594–623`). The description below records the prior state.
+
 - **Location:** `MacroMark/MacroMarkApp.swift:424-458` (ACK at `:429`/`:432`, iCloud append at `:442`)
 - **What:** `processAndExport` calls `addProcessedNoteID(noteId)`, removes the WAL entry, and fires `acknowledgeNoteIfDurable`/`acknowledgeFileIfDurable` immediately after `context.save()` succeeds. The iCloud append (`iCloudStorageManager.shared.appendText(...)`) happens *after* the ACK. The comment at line 435 ("failures don't undo the ACK") explicitly accepts this gap.
 - **Why:** The app's entire value proposition is "Markdown appended to iCloud Drive." A note that the watch believes delivered, that disappears from the WAL, and that never lands in the `.md` file is effectively lost from the user's perspective. This directly contradicts the data-loss-prevention intent of the recent ACK/WAL commits.
@@ -169,6 +178,8 @@ Both schemes build clean, so there are no deprecation warnings. The items below 
 - **Severity:** Critical
 
 ### 5.2 iCloud append silently drops notes when the day's file is an un-materialized placeholder
+> ✅ **Resolved (verified 2026-10-24):** `appendText` returns `AppendResult.deferred` for an undownloaded iCloud file, and deferred exports are retried. The description below records the prior state.
+
 - **Location:** `MacroMarkKit/Sources/MacroMarkKit/Storage/iCloudStorageManager.swift:88-128` (deferral at `:111-115`)
 - **What:** When `cloudCopyExistsButNotDownloaded(url)` is true after the 2s `ensureDownloaded` wait, the coordinator prints and leaves `writeSucceeded = false`, so `appendText` returns `false`. The caller (`MacroMarkApp.processAndExport`) only uses that return to set `note.isExported`; it does **not** re-queue. Combined with §5.1, the note is then gone from the WAL.
 - **Why:** Anytime the daily file is an iCloud placeholder (common right after a device wake or mid-sync), a captured note is permanently absent from the `.md` output. There is no retry loop — the deferral only resolves if another note happens to arrive later and triggers a download.
@@ -176,6 +187,8 @@ Both schemes build clean, so there are no deprecation warnings. The items below 
 - **Severity:** Critical
 
 ### 5.3 Stale compiled regex never invalidated when macros are edited
+> ✅ **Resolved (verified 2026-10-24):** all five mutation sites call `MacroProcessor.invalidateRegexCache()`. The description below records the prior state.
+
 - **Location:** `MacroMarkKit/Sources/MacroMarkKit/Engine/MacroProcessor.swift:16-18` (the method); uncalled from `MacroMark/Settings/MacroManagerView.swift:204-216` (`deleteMacros`/`moveMacros`), `:265-273` (`restoreDefaults`), `:310-315` (`AddMacroView` Save), `MacroMark/Settings/MacroEditView.swift:69-77` (Save)
 - **What:** `MacroProcessor` caches compiled regex keyed by the escaped trigger pattern (`MacroProcessor.swift:13,37-43`) and exposes `invalidateRegexCache()`. None of the five mutation sites call it. After a user edits a macro trigger from "Bold" to "Strong", the cached `\bBold\b` regex persists and keeps replacing "Bold" in new notes; "Strong" is compiled lazily on the next `process`, but the stale entry lingers (and any rename of an existing trigger leaves the old pattern firing).
 - **Why:** Users who edit/rename macros see incorrect macro expansion — a real, user-visible correctness bug in the core processing path. Restoring defaults after heavy editing leaves a mix of stale and fresh regexes.
@@ -183,6 +196,8 @@ Both schemes build clean, so there are no deprecation warnings. The items below 
 - **Severity:** High
 
 ### 5.4 "Restore Default Macros" silently deletes the user's custom macros
+> ✅ **Resolved (verified 2026-10-24):** a confirmation dialog guards the action, and only `isDefault` macros are replaced. The description below records the prior state.
+
 - **Location:** `MacroMark/Settings/MacroManagerView.swift:265-273`
 - **What:** The destructive button loops over **all** macros (including user customizations) and deletes them before re-inserting the 23 defaults. `role: .destructive` only styles the row; there is no `.confirmationDialog`.
 - **Why:** User data loss with no confirmation. A user who built custom macros and taps "Restore Defaults" expecting only the defaults to reset loses their custom work.
@@ -367,6 +382,8 @@ Both schemes build clean, so there are no deprecation warnings. The items below 
 - **Severity:** Medium
 
 ### 9.6 Default-macros array (23 entries) private to a View
+> Still open as of 2026-10-24: the list now has 24 entries, with unique `sortOrder` values, and still lives in `MacroManagerView.swift:285–318`.
+
 - **Location:** `MacroMark/Settings/MacroManagerView.swift:220-254` (`defaultMacros`)
 - **What:** The 23 default `Macro` seeds live as a computed property inside `MacroManagerView`, used by `prepopulateIfNeeded` and `restoreDefaults`.
 - **Why:** Business/persistence concern (seed data) coupled to a SwiftUI View; cannot be unit-tested without spinning up the view. AGENTS.md: "Place view logic into view models or similar, so it can be tested."

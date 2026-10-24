@@ -1,8 +1,14 @@
 # Watch Screenshots Plan
 
-Re-checked: 2026-10-06. No final Watch or IAP review images were found.
-The local phone/iPad images are June 27 drafts, not approved release assets.
+Re-checked: 2026-10-24. MacroMark 1.0 is live on the App Store (released
+2026-10-23) with published screenshots: iPhone and iPad Inbox, Note detail,
+Macros and New Macro, plus one Apple Watch capture screenshot. No IAP review
+image was needed for the free launch. The June 27 local drafts are superseded.
 Use [the current packet](APP_STORE_PACKET.md) for the asset inventory.
+
+The published Watch set covers shot 1 (capture). Shots 2–4 below are optional
+additions for a later update. For 1.1, also consider the Direct Send
+Deliveries and Replies screens.
 
 Use fake demo content only. Do not capture personal notes, real routes, private locations, contact names, account identifiers, or production customer data.
 
@@ -12,9 +18,9 @@ Use manual Simulator capture for watchOS screenshots under launch pressure. The 
 
 Apple requires Apple Watch screenshots for Apple Watch apps, and the same Apple Watch screenshot size must be used consistently across all localizations. Upload PNG or JPG files only.
 
-## Required Watch Shots
+## Watch Shots
 
-1. Mid-dictation capture
+1. Mid-dictation capture (published with 1.0)
    - Show the Watch capture UI in an active recording/dictation state.
    - Demo phrase: `Remember to review the launch checklist`.
    - Avoid any real address or personal detail.
@@ -29,7 +35,7 @@ Apple requires Apple Watch screenshots for Apple Watch apps, and the same Apple 
    - Suggested fake entries:
      - `# Launch`
      - `Check screenshots`
-     - `Test restore purchases`
+     - `Pick up groceries`
 
 4. Saved confirmation
    - Show the confirmation state after a successful capture save.
@@ -63,7 +69,8 @@ Preferred capture target: Apple Watch Ultra 4 or Ultra 3 at `422 x 514`, because
 
 ## iPhone And iPad Recapture Check
 
-Recapture iPhone/iPad screenshots if any current screenshot shows:
+The published 1.0 iPhone/iPad set is current. For a later update, recapture
+any screenshot that shows:
 
 - Paywall product cards.
 - StoreKit prices.
@@ -72,13 +79,12 @@ Recapture iPhone/iPad screenshots if any current screenshot shows:
 - Lifetime purchase copy.
 - Trial copy rendered as `P1M` or any other developer-facing period string.
 
-Local planning values are $9.99/year with a one-month trial and $24.99
-lifetime; the proposed $16.99 launch price needs owner confirmation. No ASC
-price or offer has been verified here. The current iPhone required category is Dynamic Island medium (1179 × 2556
-or 1206 × 2622 portrait). Verify actual ASC scaling/acceptance before relying
-on an older large-device set. The current lead Inbox draft shows an Incomplete
-warning and developer task text; recapture neutral core-flow images on the
-final candidate even when no price is visible.
+The app is free, so no screenshot should show a price or purchase. The
+historical planning values ($9.99/year with a one-month trial, $24.99
+lifetime, a proposed $16.99 launch price) were never confirmed by the owner and
+are not current offers. The current iPhone required category is Dynamic Island
+medium (1179 × 2556 or 1206 × 2622 portrait). Verify actual ASC
+scaling/acceptance before replacing the published set.
 
 ## References
 

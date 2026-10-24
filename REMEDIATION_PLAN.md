@@ -7,6 +7,41 @@ Generated 2026-06-20. Companion to `CODE_AUDIT.md` (same date). This plan maps e
 > from `origin/nightly` and release automation fixes from `origin/main`. Read `docs/V1_ROADMAP.md`, `docs/APP_STORE_READINESS.md`, and
 > `docs/BRANCH_WORKTREE_CLEANUP.md` before treating any row below as still open.
 
+## Status as of 2026-10-24
+
+Re-checked against `nightly` at `3b0fe40`. Version 1.0 is live on the App
+Store (released 2026-10-23). Rows are marked from the code only; they are not
+device evidence. Later bug-hunt findings MM-051 to MM-058 are open GitHub
+issues [#79–#86](https://github.com/dfakkeldy/MacroMark/issues?q=is%3Aissue+is%3Aopen+MM-05)
+and are not tracked here.
+
+| Status | Items | Code evidence |
+| --- | --- | --- |
+| Done | P0.1, P0.2 | ACK and WAL clearing only after `.appended` / `.savedInInbox` (`MacroMark/MacroMarkApp.swift:594–615`); `AppendResult.deferred` (`iCloudStorageManager.swift:13`) keeps the WAL and a pending-export record |
+| Done | P0.3, P0.5, P1.1 | Already verified 2026-06-25 (see note below) |
+| Done | P0.4 | `invalidateRegexCache()` called from delete, move, restore, add and edit (`MacroManagerView.swift:267,279,350`, `AddMacroView.swift:72`, `MacroEditView.swift:112`) |
+| Done | P1.2 | No `print()` in MacroMarkKit (uses `os.Logger`, `Support/Logger.swift`); app and watch `print()` calls are inside `#if DEBUG` |
+| Done | P1.3 | Watch `Storage/WatchConnectivityProvider.swift` is a symlink to `MacroMark/Shared/WatchConnectivityProvider.swift` |
+| Done | P1.4 | `MacroMarkKit/Sources/MacroMarkKit/Support/UserDefaultsKey.swift` |
+| Done | P1.5 | `formatWithSettings` removed; `FolderSettingsView.currentDateExample` calls `FolderSettings.format(date:)` |
+| Done | P1.6 | Confirmation dialog (`MacroManagerView.swift:244`); only `isDefault` macros are replaced (`:341–351`) |
+| Done | P1.7 | `hadPartialFailure` (`AudioTranscriber.swift:19`) sets `transcriptionPartial`, shown in `InboxView.swift:110` and `NoteDetailView.swift:10` |
+| Done | P2.3 | Processed-ID set capped (`ProcessedNoteIDStore.swift:15–20`) |
+| Done | P2.4 | Watch queries the phone after a 24 h reconciliation interval (`LocalStore.swift:53,114–123,238–252`); audio is re-sent until ACK ([#145](https://github.com/dfakkeldy/MacroMark/pull/145)) |
+| Done | P2.6 | `kSecAttrSynchronizable` on the lifetime flag (`EntitlementManager.swift:96–126`) |
+| Done | P2.7 | Device builds use the `-MacroMarkSimulateEntitled` launch argument; simulators still auto-entitle (`EntitlementManager.swift:20–26`) |
+| Done | P2.8 | `ContinuationTimeout` in MacroMarkKit, used by `AudioTranscriber.swift:24` and `LocationManager.swift:13` |
+| Done | P2.10 | Reprocessing runs from the scene `.task` (`MacroMarkApp.swift:228–235,1059`) |
+| Done | P2.12, P2.13 | `Settings/AddMacroView.swift`; notes shown in the macro row (`MacroManagerView.swift:149–150`) |
+| Done | P2.17 | `purchaseState`, `isLoadingProducts` and `PurchaseState` removed; `customMacroCount` and `isUsingFallbackStorage` are used |
+| Done | P3.1, P3.2, P3.3, P3.4 | Daily-log page and chunk fetches cancel their timeout tasks (`WatchConnectivityProvider.swift:568–646`); speech task behind `OSAllocatedUnfairLock`; `endBackgroundTask` in a `defer` (`MacroMarkApp.swift:370–376`); no launch-time speech request in `MacroMarkApp.swift` |
+| Done | P3.7, P3.8, P3.10 | `Models/CaptureMode.swift`; `test.swift` and widget template files gone; watch app type is `MacroMarkWatchApp` |
+| Partly done | P2.9 | Non-string input handled (`SystemCaptureView.extractedText`), but the deprecated `WKExtension…presentTextInputController` is still used (`SystemCaptureView.swift:40`); see MM-056 / [#84](https://github.com/dfakkeldy/MacroMark/issues/84) |
+| Partly done | P3.5 | `fetchLimit` on some descriptors (`InboxView.swift:179`, `MacroManagerView.swift:336`); not every `@Query` |
+| Open | P2.11 | Base directory is still resolved on each append (`iCloudStorageManager.swift:47–71`) |
+| Open | P2.16 | Defaults still live in a view (`MacroManagerView.swift:285–318`) |
+| Not re-checked | P2.1, P2.2, P2.5, P2.14, P2.15, P3.6, P3.9 | Related code changed (`NoteDetailView` saves, wrapping placeholders in `MacroProcessor`, no `LocalStore` `didSet`), but these were not re-verified line by line |
+
 Conventions:
 - **§N.M** = finding in `CODE_AUDIT.md`.
 - **Effort** = S (≤30 min) / M (1–3 h) / L (½–1 day).

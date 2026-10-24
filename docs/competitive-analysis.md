@@ -9,7 +9,9 @@ Sources:
 
 Roadmap follow-up: `docs/V1_ROADMAP.md` turns these review themes into the v1.0 launch milestones.
 
-Important source note: MacroMark is still pre-launch, but Kickstart now tracks App Store app ID `6785081218`. There are no first-party reviews as of the 2026-07-01 refresh. The current Kickstart MCP tools expose tracked competitors and keyword rankings, but not competitor review bodies. Competitor review themes below come from Apple's public review RSS feeds.
+Status as of 2026-10-24: MacroMark 1.0 has been live on the App Store since 2026-10-23, free. The review themes below were collected before launch and have not been refreshed.
+
+Important source note (2026-07-01): MacroMark is still pre-launch, but Kickstart now tracks App Store app ID `6785081218`. There are no first-party reviews as of the 2026-07-01 refresh. The current Kickstart MCP tools expose tracked competitors and keyword rankings, but not competitor review bodies. Competitor review themes below come from Apple's public review RSS feeds.
 
 ## Executive Summary
 
