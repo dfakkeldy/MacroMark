@@ -14,10 +14,11 @@ one-time iPhone setup. Audio always uses the phone route.
 - `MacroMarkKit/Sources/MacroMarkKit/Delivery/`: Direct Send configuration,
   Keychain setup store, GitHub/webhook routes, and the per-destination
   `TextDeliveryQueue` outbox.
-- `MacroMarkWidget/`: widgets and complications, including the pending/replies
-  Direct Send complication.
-- Tests: `MacroMarkTests/`, `MacroMarkKit/Tests/`, and
-  `Tests/WatchAudioQueue/`.
+- `MacroMarkWidget/`: watch complications (Instant Capture, System Capture,
+  and the Direct Send pending/replies complication).
+- Tests: `MacroMarkTests/`, `MacroMarkKit/Tests/`, `MacroMark Watch AppTests/`,
+  and `Tests/WatchAudioQueue/`. Hosted CI runs the package and iOS unit tests,
+  not the watch tests.
 - `ARCHITECTURE.md` describes the design. `CODE_AUDIT.md`,
   `REMEDIATION_PLAN.md`, and `IMPLEMENTATION_PLAN.md` cover known reliability
   work.

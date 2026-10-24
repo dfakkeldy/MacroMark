@@ -1,8 +1,8 @@
 # v1.1 Direct Send privacy worksheet
 
-Prepared October 16, 2026 against the implementation on this feature branch.
-This is preparation for v1.1, not an update to the live App Store label or the
-v1.0 candidate's submission packet.
+Prepared October 16, 2026 against the Direct Send implementation, which is now
+on `nightly`. This is preparation for v1.1, not an update to the live 1.0 App
+Store label (1.0 was released on 2026-10-23 without Direct Send).
 
 | Data and destination | Implementation | App Store treatment to resolve for v1.1 |
 | --- | --- | --- |

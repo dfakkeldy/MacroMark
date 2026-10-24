@@ -28,6 +28,7 @@
     <strong>MacroMark</strong>
     <nav aria-label="Devlog navigation">
       <a href="index.html">Home</a>
+      <a href="https://apps.apple.com/app/macromark/id6785081218">App Store</a>
       <a href="https://github.com/dfakkeldy/MacroMark">GitHub</a>
     </nav>
   </header>
@@ -40,30 +41,33 @@
     <div class="devlog-timeline">
             <!-- AUTO-DEVLOG:START -->
             <article class="week-entry automated-devlog">
-                <p class="week-meta">Automated · Jun 22-28, 2026 · 22 commits</p>
+                <p class="week-meta">Automated · Oct 12-18, 2026 · 18 commits</p>
                 <h2>Weekly build digest</h2>
                 <h3>Shipped</h3>
                 <ul>
-                    <li>Add watch dated log and capture <a href="https://github.com/dfakkeldy/MacroMark/commit/2eb484e" target="_blank" rel="noopener noreferrer">2eb484e</a></li>
-                    <li>Fetch watch daily logs by date <a href="https://github.com/dfakkeldy/MacroMark/commit/ef1291f" target="_blank" rel="noopener noreferrer">ef1291f</a></li>
-                    <li>Add iPhone dated note browsing <a href="https://github.com/dfakkeldy/MacroMark/commit/3cd41f4" target="_blank" rel="noopener noreferrer">3cd41f4</a></li>
-                    <li>Add shared day selection helper <a href="https://github.com/dfakkeldy/MacroMark/commit/ff8c738" target="_blank" rel="noopener noreferrer">ff8c738</a></li>
+                    <li>Wire watch Direct Send setup, uploads, replies and pending UI <a href="https://github.com/dfakkeldy/MacroMark/commit/5a3ab63" target="_blank" rel="noopener noreferrer">5a3ab63</a></li>
+                    <li>Add durable text routes and direct HTTPS delivery <a href="https://github.com/dfakkeldy/MacroMark/commit/128537a" target="_blank" rel="noopener noreferrer">128537a</a></li>
                 </ul>
                 <h3>Fixed</h3>
                 <ul>
-                    <li>Make WCSession delegate methods nonisolated to fix Swift 6 launch crash <a href="https://github.com/dfakkeldy/MacroMark/commit/4d81db3" target="_blank" rel="noopener noreferrer">4d81db3</a></li>
+                    <li>Persist and acknowledge endpoint-specific credential repairs <a href="https://github.com/dfakkeldy/MacroMark/commit/12b3dd8" target="_blank" rel="noopener noreferrer">12b3dd8</a></li>
+                    <li>Skip unchanged train deliveries (#124) <a href="https://github.com/dfakkeldy/MacroMark/commit/0c5e2ae" target="_blank" rel="noopener noreferrer">0c5e2ae</a></li>
+                    <li>Repair queued Direct Send credentials after a replaced setup transfer <a href="https://github.com/dfakkeldy/MacroMark/commit/71d7020" target="_blank" rel="noopener noreferrer">71d7020</a></li>
+                    <li>Clear recovered confirmation storage errors <a href="https://github.com/dfakkeldy/MacroMark/commit/688c712" target="_blank" rel="noopener noreferrer">688c712</a></li>
+                    <li>Preserve Direct capture time across midnight and save retries <a href="https://github.com/dfakkeldy/MacroMark/commit/b4f7f09" target="_blank" rel="noopener noreferrer">b4f7f09</a></li>
+                    <li>Harden Direct Send confirmation and credential recovery <a href="https://github.com/dfakkeldy/MacroMark/commit/1918414" target="_blank" rel="noopener noreferrer">1918414</a></li>
                 </ul>
                 <h3>Build, docs, and housekeeping</h3>
                 <ul>
-                    <li>Load App Store Connect key from component secrets <a href="https://github.com/dfakkeldy/MacroMark/commit/fc20612" target="_blank" rel="noopener noreferrer">fc20612</a></li>
-                    <li>Route release trains to TestFlight and App Store <a href="https://github.com/dfakkeldy/MacroMark/commit/f92b7ab" target="_blank" rel="noopener noreferrer">f92b7ab</a></li>
-                    <li>Update bundle identifiers <a href="https://github.com/dfakkeldy/MacroMark/commit/e67ab58" target="_blank" rel="noopener noreferrer">e67ab58</a></li>
-                    <li>Provide match repo URL to release trains <a href="https://github.com/dfakkeldy/MacroMark/commit/997639f" target="_blank" rel="noopener noreferrer">997639f</a></li>
-                    <li>Ignore local signing secrets <a href="https://github.com/dfakkeldy/MacroMark/commit/b9a5286" target="_blank" rel="noopener noreferrer">b9a5286</a></li>
-                    <li>Add release ladder automation <a href="https://github.com/dfakkeldy/MacroMark/commit/811e33b" target="_blank" rel="noopener noreferrer">811e33b</a></li>
-                    <li>Add weekly automation <a href="https://github.com/dfakkeldy/MacroMark/commit/836f513" target="_blank" rel="noopener noreferrer">836f513</a></li>
-                    <li>Re-sync AGENTS.md and record the Swift 6.2 migration <a href="https://github.com/dfakkeldy/MacroMark/commit/bca76e7" target="_blank" rel="noopener noreferrer">bca76e7</a></li>
-                    <li><em>...and 9 more housekeeping items.</em></li>
+                    <li>Hand go:codex and go:grok issues to Audy <a href="https://github.com/dfakkeldy/MacroMark/commit/15f1d05" target="_blank" rel="noopener noreferrer">15f1d05</a></li>
+                    <li>Agent work on GitHub (#132) <a href="https://github.com/dfakkeldy/MacroMark/commit/eb53928" target="_blank" rel="noopener noreferrer">eb53928</a></li>
+                    <li>Say who added the label and link answers at nightly <a href="https://github.com/dfakkeldy/MacroMark/commit/fedfad5" target="_blank" rel="noopener noreferrer">fedfad5</a></li>
+                    <li>Wake Claude when Dan adds go:claude to an issue <a href="https://github.com/dfakkeldy/MacroMark/commit/391b663" target="_blank" rel="noopener noreferrer">391b663</a></li>
+                    <li>Describe Direct Send in README, Architecture and AGENTS.md <a href="https://github.com/dfakkeldy/MacroMark/commit/7db5952" target="_blank" rel="noopener noreferrer">7db5952</a></li>
+                    <li>Define Direct Send durability and HTTP contracts <a href="https://github.com/dfakkeldy/MacroMark/commit/5bfe1ed" target="_blank" rel="noopener noreferrer">5bfe1ed</a></li>
+                    <li>Reconcile granted release submission authority <a href="https://github.com/dfakkeldy/MacroMark/commit/8487f35" target="_blank" rel="noopener noreferrer">8487f35</a></li>
+                    <li>Record weekly and main promotion of free-launch candidate <a href="https://github.com/dfakkeldy/MacroMark/commit/992886c" target="_blank" rel="noopener noreferrer">992886c</a></li>
+                    <li><em>...and 2 more housekeeping items.</em></li>
                 </ul>
             </article>
             <!-- AUTO-DEVLOG:END -->

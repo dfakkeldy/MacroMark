@@ -8,6 +8,13 @@ Generated 2026-06-20. Companion to `CODE_AUDIT.md` and `REMEDIATION_PLAN.md` (sa
 > `docs/BRANCH_WORKTREE_CLEANUP.md` for the current release state before dispatching
 > any remaining remediation batches from this older snapshot.
 
+> Status as of 2026-10-24: most batches have landed. `REMEDIATION_PLAN.md` →
+> "Status as of 2026-10-24" lists each item as done, partly done or open, with
+> code evidence. Still open: 3i (cache base directory), the `defaultMacros`
+> half of 3l, the deprecated-API half of 3j, and parts of 4. File paths and line
+> numbers below are from June 2026. The working directory above is historical;
+> run commands from your own checkout.
+
 All batches assume:
 - Working dir: `/Users/dfakkeldy/Developer/MacroMark`
 - AGENTS.md rules apply (Swift 6.2+, iOS 26 target, `@Observable` + `@MainActor`, no `DispatchQueue`/`Task.sleep(nanoseconds:)`/`ObservableObject`/C-style formatters, `foregroundStyle`/`clipShape(.rect(cornerRadius:))`, etc.).

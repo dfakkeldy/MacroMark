@@ -3,6 +3,8 @@
 > October 6 release decision: MacroMark launches fully free. This historical
 > paid-product plan is retained for compatibility reference and does not
 > authorize creating products, offers, prices, or paid gates for this launch.
+> Status as of 2026-10-24: 1.0 was released free on 2026-10-23. Prices below
+> are planning values that still need owner confirmation; none is live.
 
 Re-checked: 2026-10-06. Use [the prepared packet](APP_STORE_PACKET.md) for
 current copy, source blockers, and owner decisions. This navigation guide

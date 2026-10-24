@@ -21,7 +21,7 @@ jobs:
     outputs:
       should_run: ${{ steps.schedule.outputs.should_run }}
     steps:
-      - name: Keep only the active 01:00 Halifax cron
+      - name: Keep only the active Monday Halifax cron
         id: schedule
         shell: bash
         run: |
@@ -31,7 +31,9 @@ jobs:
           if [ -n "$schedule" ]; then
             offset="$(TZ=America/Halifax date +%z)"
             scheduled_hour="$(printf '%s\n' "$schedule" | awk '{ print $2 }')"
-            local_slot="$(TZ=America/Halifax date +%u-%H)"
+            # GitHub can start scheduled runs hours late, so only require
+            # that the run still lands on Monday in Halifax.
+            local_day="$(TZ=America/Halifax date +%u)"
 
             case "$offset" in
               -0300) active_hour=4 ;;
@@ -42,9 +44,9 @@ jobs:
                 ;;
             esac
 
-            if [ "$scheduled_hour" != "$active_hour" ] || [ "$local_slot" != "1-01" ]; then
+            if [ "$scheduled_hour" != "$active_hour" ] || [ "$local_day" != "1" ]; then
               should_run=false
-              echo "Skipping inactive or delayed cron '$schedule' for current Halifax slot $local_slot and offset $offset."
+              echo "Skipping inactive cron '$schedule' for Halifax weekday $local_day and offset $offset."
             fi
           fi
 

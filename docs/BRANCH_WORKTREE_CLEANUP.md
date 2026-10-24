@@ -2,6 +2,12 @@
 
 Last synchronized: 2026-07-02
 
+> Status as of 2026-10-24: this inventory is stale and was not re-inventoried.
+> The release reconciliation it describes is finished, and 1.0 was released
+> from `main` on 2026-10-23. There are no open GitHub PRs. Issues #79–#86
+> (MM-051 to MM-058) are still open. Many more local worktrees exist now; list
+> them with `git worktree list` and check each one before removing anything.
+
 This inventory is a cleanup map, not a deletion log. Do not remove a branch or worktree until its working tree is clean and any uncommitted user files have been saved or explicitly discarded.
 
 ## Current Repository Shape

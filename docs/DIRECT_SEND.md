@@ -5,8 +5,10 @@ webhook, or both. Phone and iCloud remain the default. Audio recordings always
 use the phone transcription path. Direct text keeps the captured wording;
 macros are not expanded on the watch. GitHub and iCloud files stay separate.
 
-This branch is v1.1 development. It must remain isolated from the v1.0 candidate
-while the submission gate is unverified. No physical watch, live bot routine,
+Direct Send is v1.1 work. It landed on `nightly` in
+[#125](https://github.com/dfakkeldy/MacroMark/pull/125) and is not in the 1.0
+App Store release (live since 2026-10-23). It reaches `weekly` and `main` only
+through the normal promotion ladder. No physical watch, live bot routine,
 GitHub OAuth registration, Apple signing change or App Store update is implied
 by the code or its automated checks.
 

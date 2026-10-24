@@ -1,5 +1,12 @@
 # MacroMark scoped release repair plan
 
+> Status as of 2026-10-24: the owner chose a fully free launch on October 6,
+> and 1.0 was released on the App Store on 2026-10-23. `StoreAccessPolicy`
+> now documents that free launch (`StoreAccessPolicy.swift:4–7`), not a beta
+> hiatus. The trial-eligibility and lifetime-revocation rows below are
+> paid-path findings. They matter only if paid gates return. They are not
+> 1.0 defects. The two "implemented in preparation patch" rows shipped in 1.0.
+
 Source re-checked: 2026-10-06, based on nightly `80455834`. The preparation
 patch adds the existing legal links and removes an unused timestamp request.
 No purchase session, business-policy change or store operation occurred.

@@ -1,5 +1,15 @@
 # MacroMark App Store Readiness
 
+> **Status as of 2026-10-24: released.** MacroMark 1.0 is live on the App Store
+> ([listing](https://apps.apple.com/app/macromark/id6785081218)). The public
+> iTunes lookup for app `6785081218` returns version `1.0`, price `0` (free),
+> and a current-version release date of 2026-10-23T01:45Z. The store text
+> says: "MacroMark is free. Capture, daily notes and custom macros are included;
+> no subscription is required." The lookup does not show which build was
+> submitted; this file does not name one. Sections below are the pre-release
+> record from October 14 and earlier. `nightly` is now version 1.1 (Direct
+> Send, watch audio retry) and has not been submitted.
+
 Re-checked: 2026-10-14. This refresh records weekly and main git promotion of
 the accepted free-launch candidate after
 [PR #120](https://github.com/dfakkeldy/MacroMark/pull/120) merged into `weekly`
@@ -35,7 +45,7 @@ claimed here. Use the [prepared packet](APP_STORE_PACKET.md) and
 | Verified internal TestFlight | `1.0 (83)` | October 14 official read-only service check: processed, internal, unexpired; actual [ship 38396977539](https://github.com/dfakkeldy/MacroMark/actions/runs/38396977539) used app source `085fa70d`. Current selected App Store build/state remains unverified |
 | Main post-merge CI | [38508282631](https://github.com/dfakkeldy/MacroMark/actions/runs/38508282631), success | Passed at actual merge head `aeafeda1`; separate from device acceptance and store state |
 | Historical internal ship | [37306349729](https://github.com/dfakkeldy/MacroMark/actions/runs/37306349729), job `111750878037`, October 5 | Payload nightly `80455834`, automation main `59b96a15`, Xcode 26.6 (`17F113`), 50 package tests; signed IPA uploaded, `1.0 (75)` processed, internal distribution succeeded |
-| External beta / App Review / public store | Not verified; not opened by #120 or #121 | Internal TestFlight processing does not establish external approval, App Review approval, or public availability |
+| External beta / App Review / public store | App Review passed and 1.0 is public (2026-10-23, public App Store lookup checked 2026-10-24) | Submitted build number not recorded here; external TestFlight not verified |
 
 The scheduled main workflow replaces nightly's Fastlane files with main's
 release automation. Its October 5 run did **not** run app-hosted iOS/UI tests.
@@ -66,10 +76,10 @@ backport features or change protections/pipelines to obtain green CI.
 | Lifetime revocation | Lifetime flag/keychain is set and never cleared on revocation, although Apple excludes revoked transactions from current entitlements | **Legacy paid-path finding**; full free access does not depend on cached ownership; review before any future paid policy |
 | Manifest coverage | Four manifests: empty collection, tracking false; app/Watch/package UserDefaults `CA92.1`; unused `.contentModificationDateKey` request removed; filename order/filtering preserved | **Source coverage gap removed; final linked-API/archive report still pending** |
 | Core capture → durable Markdown | WAL, retry, deduplication, original timestamps and visible export status in source | Dan accepted paired capture on source `96c2c13`; build 83 application/configuration/tests match that source (only instructions differ). Preserve that acceptance and verify uncovered cases |
-| Screenshots | Current neutral phone/iPad simulator drafts captured and inspected; Watch finals incomplete | Preserve previously accepted/saved assets; verify current candidate/device coverage and complete actual gaps |
-| ASC configuration | Free launch; existing annual draft is preserved | Weekly (#120) and main (#121) have the accepted candidate. Listing/assets and questionnaires remain pending. Internal TestFlight `1.0 (83)` verified by the October 14 service check; selected store build/fields remain unverified. No IAP attachment for this free launch |
+| Screenshots | Published with 1.0: iPhone and iPad Inbox, Note detail, Macros and New Macro, plus a Watch capture screenshot | **Done for 1.0**; recapture for 1.1 only where the UI changed |
+| ASC configuration | Free launch; existing annual draft is preserved | **1.0 released 2026-10-23.** Listing is live at price 0. Internal TestFlight `1.0 (83)` was verified on October 14; which build was submitted is not recorded here. No IAP attachment for this free launch |
 
-Open June issues #79–#86 are not automatically eight current blockers. The
+Open June issues #79–#86 (MM-051 to MM-058) are still open as of 2026-10-24 and are not automatically eight current blockers. The
 intended bookmark cleanup, WAL ordering, duplicate-audio/retry guards, mixed
 text-input handling, cancelled-log handling and explicit-save changes were
 found in nightly. The old bug-hunt ledger's “fixed locally / PR pending” is not
@@ -77,8 +87,9 @@ current shipping evidence; reproduce on the candidate before closing issues.
 
 ## Source and store inventory
 
-- App ID `6785081218`, version `1.0`. Checked-in build counter `2` is not the
-  current uploaded build: Fastlane increments from TestFlight.
+- App ID `6785081218`. Live version `1.0`; `main` and `weekly` carry
+  `MARKETING_VERSION = 1.0` and `nightly` carries `1.1`. Checked-in build
+  counter `2` is not the uploaded build: Fastlane increments from TestFlight.
 - App targets: iOS/iPadOS 26.5 and watchOS 26.5; source Swift 6. Package platform
   declarations do not lower these targets. The last receipt used Xcode 26.6;
   final archive must satisfy the current Xcode 26/version 26 SDK requirement.
@@ -100,7 +111,10 @@ current shipping evidence; reproduce on the candidate before closing issues.
   privacy and terms returned HTTP 200 on October 6; homepage contains support
   contact. Pages is `main /docs`, so a nightly docs PR does not update the site.
 
-## Next execution sequence
+## Next execution sequence (pre-release, completed)
+
+1.0 was submitted and released on 2026-10-23. The steps below are kept as the
+record of the pre-release plan. Reuse them for 1.1.
 
 1. Review prepared docs/copy and resolve scoped source blockers on nightly
    with focused tests and independent review. The [repair plan](RELEASE_REPAIR_PLAN.md)

@@ -5,29 +5,32 @@ MacroMark's public build record is generated from the real commit history, with 
 ---
 
 <!-- AUTO-DEVLOG:START -->
-## Automated update - Jun 22-28, 2026
+## Automated update - Oct 12-18, 2026
 
-*Generated from 22 commits merged during the week.*
+*Generated from 18 commits merged during the week.*
 
 ### Shipped
-- Add watch dated log and capture ([2eb484e](https://github.com/dfakkeldy/MacroMark/commit/2eb484e))
-- Fetch watch daily logs by date ([ef1291f](https://github.com/dfakkeldy/MacroMark/commit/ef1291f))
-- Add iPhone dated note browsing ([3cd41f4](https://github.com/dfakkeldy/MacroMark/commit/3cd41f4))
-- Add shared day selection helper ([ff8c738](https://github.com/dfakkeldy/MacroMark/commit/ff8c738))
+- Wire watch Direct Send setup, uploads, replies and pending UI ([5a3ab63](https://github.com/dfakkeldy/MacroMark/commit/5a3ab63))
+- Add durable text routes and direct HTTPS delivery ([128537a](https://github.com/dfakkeldy/MacroMark/commit/128537a))
 
 ### Fixed
-- Make WCSession delegate methods nonisolated to fix Swift 6 launch crash ([4d81db3](https://github.com/dfakkeldy/MacroMark/commit/4d81db3))
+- Persist and acknowledge endpoint-specific credential repairs ([12b3dd8](https://github.com/dfakkeldy/MacroMark/commit/12b3dd8))
+- Skip unchanged train deliveries (#124) ([0c5e2ae](https://github.com/dfakkeldy/MacroMark/commit/0c5e2ae))
+- Repair queued Direct Send credentials after a replaced setup transfer ([71d7020](https://github.com/dfakkeldy/MacroMark/commit/71d7020))
+- Clear recovered confirmation storage errors ([688c712](https://github.com/dfakkeldy/MacroMark/commit/688c712))
+- Preserve Direct capture time across midnight and save retries ([b4f7f09](https://github.com/dfakkeldy/MacroMark/commit/b4f7f09))
+- Harden Direct Send confirmation and credential recovery ([1918414](https://github.com/dfakkeldy/MacroMark/commit/1918414))
 
 ### Build, docs, and housekeeping
-- Load App Store Connect key from component secrets ([fc20612](https://github.com/dfakkeldy/MacroMark/commit/fc20612))
-- Route release trains to TestFlight and App Store ([f92b7ab](https://github.com/dfakkeldy/MacroMark/commit/f92b7ab))
-- Update bundle identifiers ([e67ab58](https://github.com/dfakkeldy/MacroMark/commit/e67ab58))
-- Provide match repo URL to release trains ([997639f](https://github.com/dfakkeldy/MacroMark/commit/997639f))
-- Ignore local signing secrets ([b9a5286](https://github.com/dfakkeldy/MacroMark/commit/b9a5286))
-- Add release ladder automation ([811e33b](https://github.com/dfakkeldy/MacroMark/commit/811e33b))
-- Add weekly automation ([836f513](https://github.com/dfakkeldy/MacroMark/commit/836f513))
-- Re-sync AGENTS.md and record the Swift 6.2 migration ([bca76e7](https://github.com/dfakkeldy/MacroMark/commit/bca76e7))
-- ...and 9 more housekeeping items.
+- Hand go:codex and go:grok issues to Audy ([15f1d05](https://github.com/dfakkeldy/MacroMark/commit/15f1d05))
+- Agent work on GitHub (#132) ([eb53928](https://github.com/dfakkeldy/MacroMark/commit/eb53928))
+- Say who added the label and link answers at nightly ([fedfad5](https://github.com/dfakkeldy/MacroMark/commit/fedfad5))
+- Wake Claude when Dan adds go:claude to an issue ([391b663](https://github.com/dfakkeldy/MacroMark/commit/391b663))
+- Describe Direct Send in README, Architecture and AGENTS.md ([7db5952](https://github.com/dfakkeldy/MacroMark/commit/7db5952))
+- Define Direct Send durability and HTTP contracts ([5bfe1ed](https://github.com/dfakkeldy/MacroMark/commit/5bfe1ed))
+- Reconcile granted release submission authority ([8487f35](https://github.com/dfakkeldy/MacroMark/commit/8487f35))
+- Record weekly and main promotion of free-launch candidate ([992886c](https://github.com/dfakkeldy/MacroMark/commit/992886c))
+- ...and 2 more housekeeping items.
 
 <!-- AUTO-DEVLOG:END -->
 

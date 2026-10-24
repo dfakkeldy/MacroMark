@@ -1,9 +1,15 @@
 # MacroMark v1.0 Roadmap
 
 Generated: 2026-06-25
-Last synchronized: 2026-10-16
+Last synchronized: 2026-10-24
 
-> Current release gate: [App Store readiness](APP_STORE_READINESS.md). The
+> Status as of 2026-10-24: **MacroMark 1.0 is live on the App Store**
+> ([listing](https://apps.apple.com/app/macromark/id6785081218)), released
+> 2026-10-23 as a free app. The public lookup does not show a build number.
+> `nightly` is version 1.1 (Direct Send, watch audio retry); 1.1 is not
+> released. Gates below that were "pending before submission" are historical.
+>
+> Release record: [App Store readiness](APP_STORE_READINESS.md). The
 > approved October 6 launch is fully free; prior product IDs and ownership
 > remain compatible. The August milestones below describe historical paid
 > planning. Final candidate assets and weekly/main acceptance still need
@@ -352,6 +358,12 @@ v1.0 is not ready until all gates pass:
   landed in [#125](https://github.com/dfakkeldy/MacroMark/pull/125) (merge
   `c2de0c1a95aabc9c54d23b70da559b9ae2bf11e9`). Remaining items stay on the
   deferred list below.
+  Watch audio retry until phone ACK landed in
+  [#145](https://github.com/dfakkeldy/MacroMark/pull/145).
+- App Store release (2026-10-24 check): version 1.0 is live and free, released
+  2026-10-23 per the public App Store lookup. The free launch replaced the
+  StoreKit purchase gates above; `StoreAccessPolicy.paywallDisabled = true`.
+  This note does not record a paired-device smoke result or a build number.
 
 ## Deferred To v1.1+
 
