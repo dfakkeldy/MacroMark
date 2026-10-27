@@ -13,7 +13,7 @@ MacroMark v1.0 is the trust-and-capture release: Apple Watch quick capture for M
 
 This roadmap is based on:
 - Competitor review research in `docs/competitive-analysis.md`.
-- Reliability findings in `CODE_AUDIT.md`, `REMEDIATION_PLAN.md`, and `IMPLEMENTATION_PLAN.md`.
+- Reliability findings in `docs/audits/CODE_AUDIT.md`, `docs/plans/REMEDIATION_PLAN.md`, and `docs/plans/IMPLEMENTATION_PLAN.md`.
 - Current launch setup in `docs/KICKSTART_POPULATION.md` and `docs/SETUP_TASKS.md`.
 
 ## Implementation Status - 2026-08-29
