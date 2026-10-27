@@ -1,6 +1,6 @@
 # MacroMark Implementation Plan
 
-Generated 2026-06-20. Companion to `CODE_AUDIT.md` and `REMEDIATION_PLAN.md` (same date). This document defines **self-contained batches** that can be dispatched to parallel coding subagents. Each batch lists the exact files to touch, the exact change, the acceptance test, and the build command.
+Generated 2026-06-20. Companion to `docs/audits/CODE_AUDIT.md` and `docs/plans/REMEDIATION_PLAN.md` (same date). This document defines **self-contained batches** that can be dispatched to parallel coding subagents. Each batch lists the exact files to touch, the exact change, the acceptance test, and the build command.
 
 > Status update, 2026-07-02: this file is a historical audit-remediation execution plan.
 > Many P0/P1/P2 items landed later on `nightly`; release automation fixes landed on
@@ -238,14 +238,14 @@ Within a batch, sub-batches (1a, 1b, …) are independent and may run concurrent
 2. Any new test target passes (`xcodebuild test` or Xcode MCP `XcodeTest`).
 3. `grep -rn "print(" MacroMarkKit` (post-2a) returns nothing outside `#if DEBUG`.
 4. `diff` of the two WatchConnectivityProvider files (post-2b) — one file gone.
-5. For P0 batches: re-read `CODE_AUDIT.md` §12 Verification lines and confirm the cited lines no longer exhibit the bug.
+5. For P0 batches: re-read `docs/audits/CODE_AUDIT.md` §12 Verification lines and confirm the cited lines no longer exhibit the bug.
 
 ## Commit message template
 
 ```
 fix(audit): <batch id> <one-line summary>
 
-Addresses CODE_AUDIT.md §<N.M> (<severity>).
+Addresses docs/audits/CODE_AUDIT.md §<N.M> (<severity>).
 <2-3 line description of the change and why>.
 ```
 
