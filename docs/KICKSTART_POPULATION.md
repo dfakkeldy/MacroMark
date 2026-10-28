@@ -80,10 +80,10 @@
 
 **pressKitDeveloperBio** _(DRAFT — outward-facing; confirm before publishing)_:
 
-> Dan Fakkeldy is a mail carrier from Canada who builds focused, privacy-respecting Apple
-> apps in public under the KinNoKi Labs name. MacroMark grew out of his own need to capture
-> fleeting thoughts mid-route without breaking stride — speak into the watch, lower the
-> wrist, and the note lands in his Markdown vault. Built for iOS 26 and watchOS 26, in
+> Dan Fakkeldy builds focused, privacy-respecting Apple apps in public under the KinNoKi
+> Labs name, from Cape Breton, Nova Scotia. MacroMark grew out of his own need to capture
+> fleeting thoughts without breaking stride — speak into the watch, lower the wrist, and
+> the note lands in his Markdown vault. Built for iOS 26 and watchOS 26, in
 > public from commit one.
 
 **pressKitMarkdown** (press release) _(DRAFT)_:
