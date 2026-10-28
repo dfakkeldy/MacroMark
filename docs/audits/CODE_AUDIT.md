@@ -5,8 +5,8 @@ Generated 2026-06-20. Scope: 43 Swift source files (~3,700 LOC) across 4 targets
 > Status update, 2026-07-02: this audit is a historical snapshot. Several findings
 > were resolved on later branches, and the release reconciliation branch is bringing
 > together release automation from `origin/main` and v1 product work from `origin/nightly`.
-> Use `docs/V1_ROADMAP.md`, `docs/APP_STORE_READINESS.md`, and
-> `docs/BRANCH_WORKTREE_CLEANUP.md` before using this audit to decide current work.
+> Use `docs/V1_ROADMAP.md` and `docs/APP_STORE_READINESS.md`
+> before using this audit to decide current work.
 
 > Status as of 2026-10-24: re-checked against `nightly` `3b0fe40`. Version 1.0
 > is live on the App Store (released 2026-10-23). The per-item status, with

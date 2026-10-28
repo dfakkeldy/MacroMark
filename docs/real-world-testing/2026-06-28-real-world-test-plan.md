@@ -2,7 +2,7 @@
 
 ## Current access snapshot
 
-- Repo: `/Users/dfakkeldy/.codex/worktrees/6ab2/MacroMark`
+- Repo: a local MacroMark worktree
 - Remote: `https://github.com/dfakkeldy/MacroMark.git`
 - Branch / commit: detached `HEAD` at `3bba8a244848ce04066ec84a1854d50f0646ed5b` (`origin/nightly`)
 - Dirty state at start: clean
