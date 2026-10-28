@@ -4,8 +4,8 @@ Generated 2026-06-20. Companion to `docs/audits/CODE_AUDIT.md` (same date). This
 
 > Status update, 2026-07-02: this is a historical audit-remediation ledger. The
 > active release reconciliation brings together later v1 product/reliability work
-> from `origin/nightly` and release automation fixes from `origin/main`. Read `docs/V1_ROADMAP.md`, `docs/APP_STORE_READINESS.md`, and
-> `docs/BRANCH_WORKTREE_CLEANUP.md` before treating any row below as still open.
+> from `origin/nightly` and release automation fixes from `origin/main`. Read `docs/V1_ROADMAP.md` and `docs/APP_STORE_READINESS.md`
+> before treating any row below as still open.
 
 ## Status as of 2026-10-24
 
