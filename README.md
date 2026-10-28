@@ -2,6 +2,8 @@
 
 MacroMark is a zero-friction, voice-to-text capture tool designed for personal knowledge management (PKM) power users. Built by KinNoKi Labs, it provides an unparalleled on-the-go dictation experience for your Apple Watch, syncing seamlessly to plain-text Markdown files on your iPhone via iCloud Drive.
 
+[Download MacroMark on the App Store](https://apps.apple.com/ca/app/macromark/id6785081218) (free, iPhone and Apple Watch) · [Website](https://dfakkeldy.github.io/MacroMark/)
+
 ## Features
 
 - **Zero-Friction Capture**: Tap the complication, speak, and lower your wrist. Your note is saved instantly with an accurate, watch-generated timestamp. No fumbling with "Done" buttons or battling system timeouts.
@@ -31,12 +33,11 @@ The full roadmap is in [docs/V1_ROADMAP.md](docs/V1_ROADMAP.md). It turns the co
 7. Transcription integrity.
 8. Free launch and App Store readiness.
 
-Status re-checked 2026-10-06: MacroMark launches fully free, including custom
-macros, default-macro editing and folder customization. Existing ownership and
-product IDs are preserved. Internal TestFlight `1.0 (75)` shipped October 5;
-final candidate checks/assets and the weekly/main ladder still need evidence.
-Hold App Review submission and public release. See [readiness](docs/APP_STORE_READINESS.md)
-and the [prepared packet](docs/APP_STORE_PACKET.md).
+Status: MacroMark 1.0 is available free on the
+[App Store](https://apps.apple.com/ca/app/macromark/id6785081218) for iPhone and
+Apple Watch. Custom macros, default-macro editing and folder customization are
+included, with no in-app purchases. Version 1.1 work, including Direct Send, is
+on the `nightly` branch.
 
 ## Installation
 
