@@ -19,8 +19,9 @@ one-time iPhone setup. Audio always uses the phone route.
 - Tests: `MacroMarkTests/`, `MacroMarkKit/Tests/`, `MacroMark Watch AppTests/`,
   and `Tests/WatchAudioQueue/`. Hosted CI runs the package and iOS unit tests,
   not the watch tests.
-- `ARCHITECTURE.md` describes the design. `CODE_AUDIT.md`,
-  `REMEDIATION_PLAN.md`, and `IMPLEMENTATION_PLAN.md` cover known reliability
+- `ARCHITECTURE.md` describes the design. `docs/audits/CODE_AUDIT.md`,
+  `docs/plans/REMEDIATION_PLAN.md`, and `docs/plans/IMPLEMENTATION_PLAN.md`
+  cover known reliability
   work.
 
 ## Commands

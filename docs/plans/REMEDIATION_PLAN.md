@@ -1,6 +1,6 @@
 # MacroMark Remediation Plan
 
-Generated 2026-06-20. Companion to `CODE_AUDIT.md` (same date). This plan maps every audit finding to a concrete remediation, ordered by severity and dependency, and groups them into batches suitable for parallel subagent execution (see `IMPLEMENTATION_PLAN.md`).
+Generated 2026-06-20. Companion to `docs/audits/CODE_AUDIT.md` (same date). This plan maps every audit finding to a concrete remediation, ordered by severity and dependency, and groups them into batches suitable for parallel subagent execution (see `docs/plans/IMPLEMENTATION_PLAN.md`).
 
 > Status update, 2026-07-02: this is a historical audit-remediation ledger. The
 > active release reconciliation brings together later v1 product/reliability work
@@ -43,14 +43,14 @@ and are not tracked here.
 | Not re-checked | P2.1, P2.2, P2.5, P2.14, P2.15, P3.6, P3.9 | Related code changed (`NoteDetailView` saves, wrapping placeholders in `MacroProcessor`, no `LocalStore` `didSet`), but these were not re-verified line by line |
 
 Conventions:
-- **§N.M** = finding in `CODE_AUDIT.md`.
+- **§N.M** = finding in `docs/audits/CODE_AUDIT.md`.
 - **Effort** = S (≤30 min) / M (1–3 h) / L (½–1 day).
 - **Risk** = the blast radius if the fix is wrong (data-loss / crash / UX / none).
 - **Depends on** = must land after the referenced item.
 
 ---
 
-> **Swift 6.2 migration status (2026-06-25):** P0.3 (§3.1 regex-cache race) and P0.5 (§3.2 watch semaphore deadlock) were verified already complete in the code, as was P1.1 (§3.3 `Thread.sleep` on MainActor). The Swift 6 language-mode migration additionally fixed a **critical `WatchConnectivityProvider` launch crash** (`@MainActor` WCSession delegate invoked off-main), introduced a `Sendable` `MacroRule` so `MacroProcessor` no longer takes SwiftData models off-actor, and hardened `LocationManager` / `AudioTranscriber`. The P0 data-loss items **P0.1 (§5.1) and P0.2 (§5.2) remain open.** See `CODE_AUDIT.md` → "Swift 6.2 Migration Update".
+> **Swift 6.2 migration status (2026-06-25):** P0.3 (§3.1 regex-cache race) and P0.5 (§3.2 watch semaphore deadlock) were verified already complete in the code, as was P1.1 (§3.3 `Thread.sleep` on MainActor). The Swift 6 language-mode migration additionally fixed a **critical `WatchConnectivityProvider` launch crash** (`@MainActor` WCSession delegate invoked off-main), introduced a `Sendable` `MacroRule` so `MacroProcessor` no longer takes SwiftData models off-actor, and hardened `LocationManager` / `AudioTranscriber`. The P0 data-loss items **P0.1 (§5.1) and P0.2 (§5.2) remain open.** See `docs/audits/CODE_AUDIT.md` → "Swift 6.2 Migration Update".
 
 ---
 
@@ -144,7 +144,7 @@ Most P2/P3 items are independent and parallelizable; the dependency edges are no
 
 ## Out of scope for remediation
 
-- Anything listed in `CODE_AUDIT.md` §11 ("What was NOT audited").
+- Anything listed in `docs/audits/CODE_AUDIT.md` §11 ("What was NOT audited").
 - App Store Connect product/pricing validation.
 - Localization / string catalogs.
 - Instruments-based performance profiling (the §7 findings are static; a separate profiling pass can follow).
