@@ -4,12 +4,12 @@ Generated 2026-06-20. Companion to `docs/audits/CODE_AUDIT.md` and `docs/plans/R
 
 > Status update, 2026-07-02: this file is a historical audit-remediation execution plan.
 > Many P0/P1/P2 items landed later on `nightly`; release automation fixes landed on
-> `main` and are being reconciled back toward `nightly`. Use `docs/V1_ROADMAP.md`, `docs/APP_STORE_READINESS.md`, and
-> `docs/BRANCH_WORKTREE_CLEANUP.md` for the current release state before dispatching
+> `main` and are being reconciled back toward `nightly`. Use `docs/V1_ROADMAP.md` and `docs/APP_STORE_READINESS.md`
+> for the current release state before dispatching
 > any remaining remediation batches from this older snapshot.
 
 All batches assume:
-- Working dir: `/Users/dfakkeldy/Developer/MacroMark`
+- Working dir: the root of your MacroMark checkout
 - AGENTS.md rules apply (Swift 6.2+, iOS 26 target, `@Observable` + `@MainActor`, no `DispatchQueue`/`Task.sleep(nanoseconds:)`/`ObservableObject`/C-style formatters, `foregroundStyle`/`clipShape(.rect(cornerRadius:))`, etc.).
 - Build gate after every batch:
   ```

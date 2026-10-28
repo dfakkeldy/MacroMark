@@ -3,1362 +3,982 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MacroMark | Apple Watch capture for Markdown minds</title>
-  <meta name="description" content="MacroMark turns Apple Watch voice capture into clean Markdown daily notes, with spoken macros, Shortcuts support, resilient sync, and iCloud Drive storage for PKM workflows.">
-  <meta property="og:title" content="MacroMark">
-  <meta property="og:description" content="Apple Watch capture for people whose notes live in Markdown.">
-  <meta property="og:image" content="assets/app-icon.png">
+  <title>MacroMark | Apple Watch capture for Markdown daily notes</title>
+  <meta name="description" content="MacroMark turns Apple Watch voice and keyboard captures into plain Markdown daily notes in iCloud Drive, with spoken macros, Shortcuts actions and a capture queue that doesn't drop notes. Free on the App Store.">
+  <meta name="theme-color" content="#050506">
+  <link rel="canonical" href="https://dfakkeldy.github.io/MacroMark/">
+  <meta property="og:title" content="MacroMark: Apple Watch capture for Markdown daily notes">
+  <meta property="og:description" content="Tap your watch, speak, lower your wrist. The thought lands in today's Markdown note. Free on the App Store.">
+  <meta property="og:image" content="https://dfakkeldy.github.io/MacroMark/assets/app-icon.png">
+  <meta property="og:url" content="https://dfakkeldy.github.io/MacroMark/">
   <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary">
+  <meta name="apple-itunes-app" content="app-id=6785081218">
   <link rel="icon" type="image/png" href="assets/favicon.png">
   <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
   <style>
     :root {
       color-scheme: dark;
       --ink: #050506;
-      --ink-2: #101013;
-      --line: #2a2a31;
+      --ink-2: #0e0e11;
+      --panel: #141418;
+      --line: #26262d;
       --paper: #f8f7f2;
-      --muted: #aaa6a0;
-      --dim: #727079;
+      --soft: #d6d1c7;
+      --muted: #a9a59e;
+      --dim: #75737b;
       --blue: #2f8cff;
       --orange: #ff9a3d;
-      --violet: #a56bff;
+      --violet: #c04bf2;
       --green: #72d8a1;
-      --danger: #ff5f63;
+      --amber: #ffcc4d;
       --max: 1160px;
-      --radius: 8px;
-      --shadow: 0 32px 90px rgba(0, 0, 0, .48);
+      --radius: 10px;
+      --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+      --shadow: 0 30px 80px rgba(0, 0, 0, .55);
     }
 
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
-    html {
-      scroll-behavior: smooth;
-    }
+    html { scroll-behavior: smooth; }
 
     body {
       margin: 0;
       background: var(--ink);
       color: var(--paper);
       font-family: "Avenir Next", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      line-height: 1.5;
-      letter-spacing: 0;
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
     }
 
-    body::before {
-      content: "";
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      opacity: .18;
-      background-image:
-        linear-gradient(rgba(248, 247, 242, .08) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(248, 247, 242, .06) 1px, transparent 1px);
-      background-size: 36px 36px;
-      mask-image: linear-gradient(to bottom, rgba(0, 0, 0, .9), transparent 72%);
+    a { color: inherit; text-decoration: none; }
+
+    p a, li a { color: #8fc1ff; text-decoration: underline; text-underline-offset: 2px; }
+
+    code {
+      font-family: var(--mono);
+      font-size: .88em;
+      padding: .08em .35em;
+      border-radius: 5px;
+      background: rgba(248, 247, 242, .08);
     }
 
-    a {
-      color: inherit;
-      text-decoration: none;
-    }
+    img { max-width: 100%; height: auto; display: block; }
 
     .skip-link {
       position: absolute;
       left: 1rem;
       top: 1rem;
-      z-index: 30;
+      z-index: 50;
       padding: .75rem 1rem;
       background: var(--paper);
       color: var(--ink);
       border-radius: var(--radius);
-      transform: translateY(-140%);
+      transform: translateY(-160%);
     }
 
-    .skip-link:focus {
-      transform: translateY(0);
-      outline: 3px solid var(--blue);
-      outline-offset: 3px;
-    }
+    .skip-link:focus { transform: translateY(0); outline: 3px solid var(--blue); outline-offset: 3px; }
 
-    .page-shell {
-      position: relative;
-      overflow: hidden;
-    }
+    .container { width: min(100% - 2.5rem, var(--max)); margin: 0 auto; }
+
+    /* Header */
 
     .site-header {
-      position: absolute;
-      inset: 0 0 auto;
-      z-index: 20;
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      background: rgba(5, 5, 6, .78);
+      backdrop-filter: saturate(160%) blur(16px);
+      -webkit-backdrop-filter: saturate(160%) blur(16px);
+      border-bottom: 1px solid rgba(248, 247, 242, .07);
     }
 
     .nav {
-      width: min(100% - 2rem, var(--max));
-      margin: 0 auto;
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 1rem;
-      padding: 1.25rem 0;
+      min-height: 4rem;
     }
 
-    .brand {
-      display: inline-flex;
-      align-items: center;
-      gap: .65rem;
-      font-weight: 800;
-      font-size: .95rem;
-    }
+    .brand { display: inline-flex; align-items: center; gap: .6rem; font-weight: 800; }
 
-    .brand img {
-      width: 36px;
-      height: 36px;
-      border-radius: 8px;
-      box-shadow: 0 0 0 1px rgba(248, 247, 242, .24);
-    }
+    .brand img { width: 32px; height: 32px; border-radius: 8px; }
 
-    .nav-links {
-      display: flex;
-      align-items: center;
-      gap: .35rem;
-    }
+    .nav-links { display: flex; align-items: center; gap: .15rem; }
 
     .nav-links a {
       color: var(--muted);
       font-size: .9rem;
-      padding: .55rem .75rem;
-      border-radius: var(--radius);
+      padding: .5rem .7rem;
+      border-radius: 8px;
     }
 
     .nav-links a:hover,
-    .nav-links a:focus-visible {
-      color: var(--paper);
-      background: rgba(248, 247, 242, .08);
-      outline: none;
-    }
+    .nav-links a:focus-visible { color: var(--paper); background: rgba(248, 247, 242, .08); outline: none; }
+
+    .nav-links a.nav-cta { color: var(--ink); background: var(--paper); font-weight: 800; margin-left: .4rem; }
+
+    .nav-links a.nav-cta:hover,
+    .nav-links a.nav-cta:focus-visible { background: #fff; color: var(--ink); }
+
+    /* Hero */
 
     .hero {
-      min-height: 88svh;
       position: relative;
-      isolation: isolate;
-      display: grid;
-      align-items: center;
-      padding: 7rem 0 4.5rem;
-      border-bottom: 1px solid var(--line);
-    }
-
-    .hero-scene {
-      position: absolute;
-      inset: 0;
-      z-index: -1;
       overflow: hidden;
+      padding: 5rem 0 5.5rem;
+      border-bottom: 1px solid var(--line);
       background:
-        radial-gradient(circle at 80% 18%, rgba(47, 140, 255, .20), transparent 22rem),
-        radial-gradient(circle at 64% 82%, rgba(255, 154, 61, .15), transparent 18rem),
+        radial-gradient(circle at 78% 30%, rgba(47, 140, 255, .22), transparent 26rem),
+        radial-gradient(circle at 92% 82%, rgba(255, 154, 61, .14), transparent 20rem),
+        radial-gradient(circle at 58% 92%, rgba(192, 75, 242, .12), transparent 18rem),
         var(--ink);
     }
 
-    .hero-scene::after {
-      content: "";
-      position: absolute;
-      inset: auto 0 0;
-      height: 42%;
-      background: linear-gradient(to top, var(--ink), transparent);
-    }
-
-    .signal-rail {
-      position: absolute;
-      width: 46rem;
-      height: .18rem;
-      right: 4%;
-      top: 48%;
-      transform: rotate(-12deg);
-      background: linear-gradient(90deg, transparent, var(--blue), var(--orange), transparent);
-      opacity: .9;
-      box-shadow: 0 0 22px rgba(47, 140, 255, .42);
-    }
-
-    .signal-rail::before,
-    .signal-rail::after {
-      content: "";
-      position: absolute;
-      top: 50%;
-      width: .8rem;
-      height: .8rem;
-      border-radius: 999px;
-      background: var(--paper);
-      box-shadow: 0 0 0 5px rgba(47, 140, 255, .2);
-      transform: translateY(-50%);
-      animation: travel 4.8s ease-in-out infinite;
-    }
-
-    .signal-rail::after {
-      animation-delay: 1.6s;
-      background: var(--orange);
-      box-shadow: 0 0 0 5px rgba(255, 154, 61, .2);
-    }
-
-    .watch-mock {
-      position: absolute;
-      right: 34rem;
-      top: 18%;
-      width: 15.5rem;
-      min-height: 19rem;
-      border-radius: 3rem;
-      padding: 1.15rem;
-      background: #0c0c0f;
-      border: 1px solid rgba(248, 247, 242, .18);
-      box-shadow: var(--shadow), inset 0 0 0 8px #16161a;
-      transform: rotate(-6deg);
-    }
-
-    .watch-screen {
-      min-height: 16.5rem;
-      border-radius: 2.1rem;
-      padding: 1.2rem;
-      background: linear-gradient(155deg, #08080a 0%, #17171d 100%);
-      border: 1px solid rgba(248, 247, 242, .12);
+    .hero-grid {
       display: grid;
-      align-content: center;
-      gap: .75rem;
-    }
-
-    .watch-title {
-      display: flex;
+      grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr);
+      gap: 3rem;
       align-items: center;
-      justify-content: space-between;
-      color: var(--muted);
-      font-size: .72rem;
-      text-transform: uppercase;
-      font-weight: 800;
-    }
-
-    .watch-title img {
-      width: 1.8rem;
-      height: 1.8rem;
-      border-radius: 7px;
-    }
-
-    .watch-buttons {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: .6rem;
-    }
-
-    .watch-button,
-    .watch-log {
-      border: 1px solid rgba(248, 247, 242, .18);
-      border-radius: 1rem;
-      min-height: 4.6rem;
-      display: grid;
-      place-items: center;
-      font-size: 1.45rem;
-      font-weight: 900;
-      backdrop-filter: blur(18px);
-    }
-
-    .watch-button.microphone {
-      background: color-mix(in srgb, var(--blue) 34%, transparent);
-    }
-
-    .watch-button.keyboard {
-      background: color-mix(in srgb, var(--orange) 30%, transparent);
-    }
-
-    .watch-log {
-      min-height: 3.7rem;
-      background: color-mix(in srgb, var(--violet) 32%, transparent);
-      font-size: .88rem;
-    }
-
-    .listening {
-      display: flex;
-      align-items: end;
-      gap: .18rem;
-      height: 3.8rem;
-      justify-content: center;
-    }
-
-    .listening span {
-      display: block;
-      width: .38rem;
-      border-radius: 999px;
-      background: var(--danger);
-      animation: bars 1.2s ease-in-out infinite;
-    }
-
-    .listening span:nth-child(1) { height: 1.3rem; animation-delay: .0s; }
-    .listening span:nth-child(2) { height: 2.5rem; animation-delay: .12s; }
-    .listening span:nth-child(3) { height: 3.4rem; animation-delay: .24s; }
-    .listening span:nth-child(4) { height: 2rem; animation-delay: .36s; }
-    .listening span:nth-child(5) { height: 2.8rem; animation-delay: .48s; }
-
-    .note-window {
-      position: absolute;
-      right: 5%;
-      top: 21%;
-      width: min(39rem, 46vw);
-      border: 1px solid rgba(248, 247, 242, .2);
-      border-radius: var(--radius);
-      background: rgba(12, 12, 15, .9);
-      box-shadow: var(--shadow);
-      overflow: hidden;
-    }
-
-    .note-bar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: .75rem;
-      padding: .85rem 1rem;
-      border-bottom: 1px solid rgba(248, 247, 242, .12);
-      background: rgba(248, 247, 242, .045);
-      color: var(--muted);
-      font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
-      font-size: .8rem;
-    }
-
-    .note-dots {
-      display: flex;
-      gap: .35rem;
-    }
-
-    .note-dots span {
-      width: .58rem;
-      height: .58rem;
-      border-radius: 999px;
-      display: block;
-    }
-
-    .dot-red { background: var(--danger); }
-    .dot-orange { background: var(--orange); }
-    .dot-green { background: var(--green); }
-
-    .note-window pre {
-      margin: 0;
-      padding: 1.2rem;
-      color: #e9e5db;
-      font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
-      font-size: .9rem;
-      line-height: 1.7;
-      white-space: pre-wrap;
-    }
-
-    .code-blue { color: #8fc1ff; }
-    .code-orange { color: #ffc27c; }
-    .code-violet { color: #c9adff; }
-    .code-muted { color: #87838b; }
-
-    .hero-content {
-      width: min(100% - 2rem, var(--max));
-      margin: 0 auto;
-      position: relative;
-      z-index: 2;
-      padding-top: 1rem;
-    }
-
-    .hero-copy {
-      max-width: 41rem;
     }
 
     .eyebrow {
       display: inline-flex;
       align-items: center;
-      gap: .55rem;
+      gap: .6rem;
       color: var(--muted);
-      font-size: .82rem;
+      font-size: .8rem;
       font-weight: 800;
+      letter-spacing: .08em;
       text-transform: uppercase;
-      margin: 0 0 1.4rem;
+      margin: 0 0 1.25rem;
     }
 
     .eyebrow::before {
       content: "";
-      width: 2.6rem;
-      height: .18rem;
+      width: 2.4rem;
+      height: .2rem;
       border-radius: 999px;
       background: linear-gradient(90deg, var(--blue), var(--orange), var(--violet));
     }
 
-    h1,
-    h2,
-    h3,
-    p {
-      margin-top: 0;
-    }
+    h1, h2, h3, p { margin-top: 0; }
 
     h1 {
-      margin-bottom: 1rem;
-      font-size: 6rem;
-      line-height: .92;
+      font-size: clamp(2.7rem, 5.6vw, 4.6rem);
+      line-height: .98;
       font-weight: 900;
-      letter-spacing: 0;
-      max-width: 8ch;
+      letter-spacing: -.02em;
+      margin-bottom: 1.25rem;
     }
 
-    .hero-copy > p {
-      color: #d3cec4;
-      font-size: 1.3rem;
-      max-width: 34rem;
-      margin-bottom: 1.65rem;
+    h1 .accent {
+      background: linear-gradient(90deg, #8fc1ff, #ffc27c 55%, #e1a6ff);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
     }
 
-    .actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: .8rem;
-      margin-bottom: 2rem;
-    }
+    .lede { color: var(--soft); font-size: 1.22rem; max-width: 34rem; margin-bottom: 1.8rem; }
+
+    .actions { display: flex; flex-wrap: wrap; gap: .75rem; margin-bottom: 1.6rem; }
 
     .button {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      min-height: 3.05rem;
-      padding: .84rem 1.05rem;
+      gap: .55rem;
+      min-height: 3.1rem;
+      padding: .8rem 1.15rem;
       border-radius: var(--radius);
       border: 1px solid transparent;
-      font-weight: 850;
-      font-size: .95rem;
-      max-width: 100%;
+      font-weight: 800;
+      font-size: .97rem;
+      transition: transform .15s ease, background .15s ease;
     }
 
-    .button.primary {
-      color: var(--ink);
-      background: var(--paper);
-    }
+    .button svg { width: 1.15rem; height: 1.15rem; flex: none; }
 
-    .button.secondary {
-      color: var(--paper);
-      border-color: rgba(248, 247, 242, .24);
-      background: rgba(248, 247, 242, .06);
-    }
+    .button.primary { color: var(--ink); background: var(--paper); }
+
+    .button.primary:hover { background: #fff; }
+
+    .button.secondary { color: var(--paper); border-color: rgba(248, 247, 242, .22); background: rgba(248, 247, 242, .05); }
+
+    .button.secondary:hover { background: rgba(248, 247, 242, .1); }
 
     .button:hover,
-    .button:focus-visible {
-      transform: translateY(-1px);
-      outline: 3px solid rgba(47, 140, 255, .55);
-      outline-offset: 3px;
-    }
+    .button:focus-visible { transform: translateY(-1px); }
 
-    .proof {
-      display: flex;
-      flex-wrap: wrap;
-      gap: .75rem;
-      color: var(--muted);
-      font-size: .9rem;
-    }
+    .button:focus-visible { outline: 3px solid rgba(47, 140, 255, .6); outline-offset: 3px; }
 
-    .proof span {
+    .facts { display: flex; flex-wrap: wrap; gap: .5rem; padding: 0; margin: 0; list-style: none; color: var(--muted); font-size: .88rem; }
+
+    .facts li {
       display: inline-flex;
       align-items: center;
-      gap: .4rem;
-      padding: .42rem .55rem;
-      border: 1px solid rgba(248, 247, 242, .14);
-      border-radius: var(--radius);
-      background: rgba(5, 5, 6, .44);
+      gap: .45rem;
+      padding: .38rem .65rem;
+      border: 1px solid rgba(248, 247, 242, .12);
+      border-radius: 999px;
+      background: rgba(5, 5, 6, .5);
     }
 
-    .proof span::before {
-      content: "";
-      width: .45rem;
-      height: .45rem;
-      border-radius: 50%;
-      background: var(--green);
-    }
+    .facts li::before { content: ""; width: .42rem; height: .42rem; border-radius: 50%; background: var(--green); }
 
-    .section {
+    /* Device frames around real App Store screenshots */
+
+    .hero-devices {
       position: relative;
-      padding: 6rem 0;
-      border-bottom: 1px solid var(--line);
-      background: var(--ink);
+      min-height: 36rem;
+      display: flex;
+      justify-content: center;
+      align-items: center;
     }
 
-    .section.alt {
-      background: var(--ink-2);
+    .phone {
+      position: relative;
+      width: 17.5rem;
+      padding: .62rem;
+      border-radius: 3rem;
+      background: linear-gradient(145deg, #3a3a40, #17171a 40%, #2b2b30);
+      box-shadow: var(--shadow), inset 0 0 0 1px rgba(255, 255, 255, .12);
     }
 
-    .container {
-      width: min(100% - 2rem, var(--max));
-      margin: 0 auto;
+    .phone img {
+      width: 100%;
+      aspect-ratio: 1320 / 2868;
+      object-fit: cover;
+      border-radius: 2.45rem;
+      background: #f2f2f7;
     }
+
+    .hero-devices .phone { transform: translateX(2.5rem) rotate(2deg); }
+
+    .watch {
+      position: absolute;
+      left: 0;
+      bottom: 2.5rem;
+      width: 12.5rem;
+      padding: .8rem;
+      border-radius: 3.1rem;
+      background: linear-gradient(145deg, #45454c, #1a1a1d 45%, #303036);
+      box-shadow: var(--shadow), inset 0 0 0 1px rgba(255, 255, 255, .14);
+      transform: rotate(-5deg);
+    }
+
+    .watch::after {
+      content: "";
+      position: absolute;
+      right: -.42rem;
+      top: 28%;
+      width: .5rem;
+      height: 2.6rem;
+      border-radius: 0 .4rem .4rem 0;
+      background: linear-gradient(90deg, #2a2a2f, #5a5a62);
+    }
+
+    .watch img {
+      width: 100%;
+      aspect-ratio: 416 / 496;
+      border-radius: 2.4rem;
+      background: #000;
+    }
+
+    .shot-caption { color: var(--dim); font-size: .82rem; text-align: center; margin: 1rem 0 0; }
+
+    /* Sections */
+
+    .section { padding: 6.5rem 0; border-bottom: 1px solid var(--line); }
+
+    .section.alt { background: var(--ink-2); }
 
     .section-heading {
       display: grid;
-      grid-template-columns: 1fr minmax(18rem, 30rem);
+      grid-template-columns: minmax(0, 1fr) minmax(18rem, 30rem);
       gap: 2rem;
       align-items: end;
       margin-bottom: 3rem;
     }
 
-    .section-heading h2 {
-      font-size: 3rem;
-      line-height: 1;
+    .section-heading h2,
+    .split-copy h2 {
+      font-size: clamp(2.1rem, 4vw, 3.1rem);
+      line-height: 1.02;
       font-weight: 900;
-      letter-spacing: 0;
+      letter-spacing: -.015em;
       margin-bottom: 0;
-      max-width: 14ch;
+      max-width: 15ch;
     }
 
-    .section-heading p {
-      color: var(--muted);
-      font-size: 1.05rem;
-      margin-bottom: .2rem;
+    .section-heading p { color: var(--muted); font-size: 1.06rem; margin-bottom: .2rem; }
+
+    .kicker {
+      display: block;
+      color: var(--orange);
+      font-size: .78rem;
+      font-weight: 800;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      margin-bottom: .9rem;
     }
 
-    .workflow {
+    /* Steps */
+
+    .steps {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+      padding: 0;
+      margin: 0;
+      list-style: none;
+      counter-reset: step;
+    }
+
+    .step {
+      position: relative;
+      padding: 1.4rem;
       border: 1px solid var(--line);
       border-radius: var(--radius);
-      overflow: hidden;
-    }
-
-    .flow-step {
-      min-height: 18rem;
-      padding: 1.4rem;
-      border-right: 1px solid var(--line);
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
       background: rgba(248, 247, 242, .025);
+      counter-increment: step;
     }
 
-    .flow-step:last-child {
-      border-right: 0;
-    }
-
-    .flow-step strong {
-      font-size: .82rem;
-      color: var(--muted);
-      text-transform: uppercase;
-    }
-
-    .flow-step h3 {
-      font-size: 1.45rem;
-      line-height: 1.08;
-      margin: 1rem 0 .75rem;
-    }
-
-    .flow-step p {
-      color: var(--muted);
-      margin-bottom: 0;
-    }
-
-    .flow-icon {
-      width: 3.35rem;
-      height: 3.35rem;
+    .step::before {
+      content: counter(step, decimal-leading-zero);
       display: grid;
       place-items: center;
-      border-radius: var(--radius);
+      width: 2.6rem;
+      height: 2.6rem;
+      margin-bottom: 1.3rem;
+      border-radius: 9px;
       color: var(--ink);
-      font-weight: 950;
-      font-size: 1.2rem;
+      font-weight: 900;
+      font-size: .95rem;
     }
 
-    .flow-step:nth-child(1) .flow-icon { background: var(--blue); }
-    .flow-step:nth-child(2) .flow-icon { background: var(--orange); }
-    .flow-step:nth-child(3) .flow-icon { background: var(--violet); }
-    .flow-step:nth-child(4) .flow-icon { background: var(--green); }
+    .step:nth-child(1)::before { background: var(--blue); }
+    .step:nth-child(2)::before { background: var(--orange); }
+    .step:nth-child(3)::before { background: var(--violet); }
+    .step:nth-child(4)::before { background: var(--green); }
 
-    .vault-section {
+    .step h3 { font-size: 1.22rem; line-height: 1.15; margin-bottom: .55rem; }
+
+    .step p { color: var(--muted); margin: 0; font-size: .97rem; }
+
+    /* Split sections: copy beside a screenshot or code sample */
+
+    .split {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(20rem, 31rem);
-      gap: 3rem;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 4rem;
       align-items: center;
     }
 
-    .vault-visual {
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      overflow: hidden;
-      background: #0b0b0e;
-      box-shadow: var(--shadow);
-    }
+    .split.reverse .split-media { order: -1; }
 
-    .vault-visual pre {
-      margin: 0;
-      padding: 1.4rem;
-      font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
-      font-size: .95rem;
-      line-height: 1.8;
-      color: #eee8dc;
-      white-space: pre-wrap;
-    }
+    .split-copy h2 { margin-bottom: 1.1rem; }
 
-    .vault-copy h2 {
-      font-size: 3rem;
-      line-height: 1;
-      margin-bottom: 1rem;
-    }
+    .split-copy > p { color: var(--muted); font-size: 1.07rem; }
 
-    .vault-copy p {
-      color: var(--muted);
-      font-size: 1.08rem;
-    }
+    .split-media { display: flex; justify-content: center; align-items: center; gap: 1.5rem; }
 
-    .check-list {
-      list-style: none;
-      padding: 0;
-      margin: 1.6rem 0 0;
-      display: grid;
-      gap: .75rem;
-    }
+    .split-media .phone { width: 16rem; }
 
-    .check-list li {
-      display: grid;
-      grid-template-columns: 1rem 1fr;
-      gap: .75rem;
-      color: #ded9ce;
-    }
+    .check-list { list-style: none; padding: 0; margin: 1.6rem 0 0; display: grid; gap: .8rem; }
+
+    .check-list li { position: relative; padding-left: 1.75rem; color: var(--soft); }
 
     .check-list li::before {
       content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
       width: .6rem;
       height: .6rem;
+      margin-top: .5rem;
       border-radius: 50%;
-      margin-top: .48rem;
       background: var(--orange);
-      box-shadow: 0 0 0 4px rgba(255, 154, 61, .12);
+      box-shadow: 0 0 0 4px rgba(255, 154, 61, .14);
     }
 
-    .macro-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 1rem;
-    }
-
-    .macro-tile {
-      border: 1px solid var(--line);
+    .file {
+      width: 100%;
+      max-width: 30rem;
+      border: 1px solid rgba(248, 247, 242, .16);
       border-radius: var(--radius);
-      padding: 1.1rem;
-      min-height: 13.5rem;
-      background: rgba(248, 247, 242, .025);
+      background: #0b0b0e;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .file-bar {
       display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-    }
-
-    .macro-tile span {
+      align-items: center;
+      gap: .75rem;
+      padding: .75rem 1rem;
+      border-bottom: 1px solid rgba(248, 247, 242, .1);
+      background: rgba(248, 247, 242, .04);
       color: var(--muted);
-      font-size: .82rem;
-      text-transform: uppercase;
-      font-weight: 800;
+      font-family: var(--mono);
+      font-size: .8rem;
     }
 
-    .macro-tile strong {
-      display: block;
-      font-size: 1.45rem;
-      line-height: 1.12;
-      margin: .75rem 0;
-    }
+    .file-bar .dots { display: flex; gap: .35rem; }
 
-    .macro-output {
-      font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
-      color: var(--green);
-      border-top: 1px solid var(--line);
-      padding-top: .9rem;
+    .file-bar .dots span { width: .6rem; height: .6rem; border-radius: 50%; background: #3a3a42; }
+
+    .file pre {
+      margin: 0;
+      padding: 1.25rem 1.35rem;
+      font-family: var(--mono);
+      font-size: .9rem;
+      line-height: 1.75;
+      color: #ebe6db;
+      white-space: pre-wrap;
       overflow-wrap: anywhere;
     }
 
-    .platform-band {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 0;
+    .md-h { color: #8fc1ff; }
+    .md-time { color: var(--dim); }
+    .md-task { color: #ffc27c; }
+    .md-mark { color: #6b6871; }
+
+    .file-note { color: var(--dim); font-size: .85rem; margin: .9rem 0 0; }
+
+    /* Macros */
+
+    .macro-table {
+      width: 100%;
+      border-collapse: collapse;
       border: 1px solid var(--line);
       border-radius: var(--radius);
       overflow: hidden;
-    }
-
-    .platform-item {
-      padding: 1.35rem;
-      border-right: 1px solid var(--line);
-      min-height: 12rem;
-      background: rgba(248, 247, 242, .025);
-    }
-
-    .platform-item:last-child {
-      border-right: 0;
-    }
-
-    .platform-item h3 {
-      font-size: 1.18rem;
-      margin-bottom: .65rem;
-    }
-
-    .platform-item p {
-      color: var(--muted);
-      margin-bottom: 0;
-    }
-
-    .roadmap-band {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      overflow: hidden;
-      background: rgba(248, 247, 242, .025);
-    }
-
-    .roadmap-item {
-      padding: 1.25rem;
-      border-right: 1px solid var(--line);
-      min-height: 12.5rem;
-      display: flex;
-      flex-direction: column;
-      gap: .7rem;
-    }
-
-    .roadmap-item:nth-child(4n) {
-      border-right: 0;
-    }
-
-    .roadmap-item:nth-child(-n + 4) {
-      border-bottom: 1px solid var(--line);
-    }
-
-    .roadmap-item strong {
-      color: var(--orange);
-      font-size: .78rem;
-      text-transform: uppercase;
-      letter-spacing: .08em;
-    }
-
-    .roadmap-item h3 {
-      font-size: 1.08rem;
-      line-height: 1.2;
-      margin-bottom: 0;
-    }
-
-    .roadmap-item p {
-      color: var(--muted);
-      margin-bottom: 0;
       font-size: .95rem;
     }
+
+    .macro-table th,
+    .macro-table td { text-align: left; padding: .72rem 1rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+
+    .macro-table tr:last-child td { border-bottom: 0; }
+
+    .macro-table th { color: var(--muted); font-size: .76rem; letter-spacing: .08em; text-transform: uppercase; background: rgba(248, 247, 242, .035); }
+
+    .macro-table td:first-child { font-weight: 700; white-space: nowrap; }
+
+    .macro-table td code { color: var(--green); background: rgba(114, 216, 161, .08); white-space: pre; }
+
+    .macro-table td:last-child { color: var(--muted); }
+
+    /* Card grids */
+
+    .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+
+    .cards.three { grid-template-columns: repeat(3, 1fr); }
+
+    .card { padding: 1.4rem; border: 1px solid var(--line); border-radius: var(--radius); background: rgba(248, 247, 242, .025); }
+
+    .card h3 { font-size: 1.12rem; margin-bottom: .55rem; }
+
+    .card p { color: var(--muted); margin: 0; font-size: .96rem; }
+
+    .card .tag {
+      display: inline-block;
+      margin-bottom: .9rem;
+      padding: .2rem .55rem;
+      border-radius: 999px;
+      font-size: .74rem;
+      font-weight: 800;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      color: var(--ink);
+      background: var(--blue);
+    }
+
+    .card .tag.orange { background: var(--orange); }
+    .card .tag.violet { background: var(--violet); }
+    .card .tag.green { background: var(--green); }
+
+    /* Direct Send */
+
+    .badge-soon {
+      display: inline-flex;
+      align-items: center;
+      gap: .45rem;
+      padding: .32rem .7rem;
+      margin-bottom: 1rem;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 204, 77, .35);
+      color: var(--amber);
+      background: rgba(255, 204, 77, .08);
+      font-size: .8rem;
+      font-weight: 800;
+    }
+
+    .route {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 1rem;
+      padding: 1.5rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(248, 247, 242, .025);
+    }
+
+    .route-node { padding: 1rem; border-radius: 9px; background: var(--panel); border: 1px solid var(--line); }
+
+    .route-node strong { display: block; margin-bottom: .2rem; }
+
+    .route-node span { color: var(--muted); font-size: .88rem; }
+
+    .route-arrow { color: var(--dim); font-size: 1.5rem; text-align: center; }
+
+    .route-targets { display: grid; gap: .7rem; }
+
+    /* Status */
+
+    .status { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+
+    .status .card h3 { display: flex; align-items: center; gap: .6rem; }
+
+    .dot { width: .6rem; height: .6rem; border-radius: 50%; flex: none; }
+
+    .dot.live { background: var(--green); box-shadow: 0 0 0 4px rgba(114, 216, 161, .16); }
+
+    .dot.next { background: var(--amber); box-shadow: 0 0 0 4px rgba(255, 204, 77, .16); }
+
+    /* CTA and footer */
 
     .final-cta {
       padding: 6rem 0;
       background:
-        linear-gradient(90deg, rgba(47, 140, 255, .14), transparent 32%),
-        linear-gradient(270deg, rgba(165, 107, 255, .13), transparent 35%),
+        radial-gradient(circle at 15% 50%, rgba(47, 140, 255, .16), transparent 24rem),
+        radial-gradient(circle at 85% 50%, rgba(192, 75, 242, .13), transparent 24rem),
         var(--ink);
     }
 
     .cta-panel {
       display: grid;
-      grid-template-columns: 1fr auto;
+      grid-template-columns: auto 1fr auto;
       gap: 2rem;
       align-items: center;
-      border: 1px solid rgba(248, 247, 242, .22);
-      border-radius: var(--radius);
-      padding: 2rem;
-      background: rgba(248, 247, 242, .045);
+      padding: 2.2rem;
+      border: 1px solid rgba(248, 247, 242, .18);
+      border-radius: 16px;
+      background: rgba(248, 247, 242, .04);
     }
 
-    .cta-panel h2 {
-      font-size: 2.35rem;
-      line-height: 1.05;
-      margin-bottom: .65rem;
-    }
+    .cta-panel > img { width: 5.5rem; height: 5.5rem; border-radius: 22%; box-shadow: 0 12px 30px rgba(0, 0, 0, .5); }
 
-    .cta-panel p {
-      color: var(--muted);
-      margin-bottom: 0;
-      max-width: 44rem;
-    }
+    .cta-panel h2 { font-size: 2.2rem; line-height: 1.05; margin-bottom: .55rem; }
 
-    footer {
-      padding: 2rem 0;
-      color: var(--dim);
-      font-size: .9rem;
-      background: var(--ink);
-    }
+    .cta-panel p { color: var(--muted); margin: 0; max-width: 40rem; }
 
-    footer .container {
-      display: flex;
-      justify-content: space-between;
-      gap: 1rem;
-      flex-wrap: wrap;
-    }
+    .cta-panel .actions { margin: 0; }
 
-    footer a {
-      color: var(--muted);
-    }
+    footer { padding: 2.2rem 0; color: var(--dim); font-size: .9rem; }
 
-    @keyframes bars {
-      0%, 100% { transform: scaleY(.68); opacity: .68; }
-      50% { transform: scaleY(1); opacity: 1; }
-    }
+    footer .container { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
 
-    @keyframes travel {
-      0% { left: 6%; opacity: 0; }
-      18% { opacity: 1; }
-      78% { opacity: 1; }
-      100% { left: 92%; opacity: 0; }
-    }
+    footer nav { display: flex; flex-wrap: wrap; gap: .3rem 1.1rem; }
+
+    footer a { color: var(--muted); }
+
+    footer a:hover { color: var(--paper); }
+
+    /* Responsive */
 
     @media (max-width: 1080px) {
-      .watch-mock {
-        right: 25rem;
-        width: 13.5rem;
-      }
+      .nav-links a.hide-md { display: none; }
 
-      .note-window {
-        width: 32rem;
-      }
+      .section-heading { grid-template-columns: 1fr; align-items: start; }
 
-      .section-heading,
-      .vault-section {
-        grid-template-columns: 1fr;
-      }
+      .steps,
+      .cards { grid-template-columns: repeat(2, 1fr); }
 
-      .workflow,
-      .platform-band,
-      .roadmap-band {
-        grid-template-columns: repeat(2, 1fr);
-      }
-
-      .flow-step:nth-child(2),
-      .platform-item:nth-child(2),
-      .roadmap-item:nth-child(2n) {
-        border-right: 0;
-      }
-
-      .flow-step:nth-child(-n + 2),
-      .platform-item:nth-child(-n + 2),
-      .roadmap-item:nth-child(-n + 6) {
-        border-bottom: 1px solid var(--line);
-      }
+      .split { gap: 2.5rem; }
     }
 
-    @media (max-width: 800px) {
-      .nav {
-        align-items: flex-start;
-      }
+    @media (max-width: 860px) {
+      .hero { padding: 3.5rem 0 4rem; }
 
-      .nav-links {
-        display: none;
-      }
+      .hero-grid,
+      .split { grid-template-columns: minmax(0, 1fr); }
 
-      .hero {
-        min-height: auto;
-        padding: 6.25rem 0 28rem;
-      }
+      .split.reverse .split-media { order: 0; }
 
-      .hero-scene {
-        background:
-          radial-gradient(circle at 70% 36%, rgba(47, 140, 255, .18), transparent 16rem),
-          radial-gradient(circle at 24% 82%, rgba(255, 154, 61, .12), transparent 13rem),
-          var(--ink);
-      }
+      .hero-devices { min-height: 0; padding: 1rem 0 0; }
 
-      .watch-mock {
-        left: .7rem;
-        right: auto;
-        top: auto;
-        bottom: 5rem;
-        width: 11.6rem;
-        min-height: 15rem;
-      }
+      .hero-devices .phone { transform: none; width: 15rem; margin-left: 5rem; }
 
-      .watch-screen {
-        min-height: 12.7rem;
-        padding: .9rem;
-      }
+      .watch { width: 10rem; left: calc(50% - 12.5rem); bottom: 1rem; }
 
-      .watch-button {
-        min-height: 3.6rem;
-      }
+      .cards.three,
+      .status { grid-template-columns: 1fr; }
 
-      .watch-log {
-        min-height: 3rem;
-      }
+      .route { grid-template-columns: 1fr; }
 
-      .note-window {
-        right: .9rem;
-        top: auto;
-        bottom: 1.8rem;
-        width: min(23rem, 72vw);
-      }
+      .route-arrow { transform: rotate(90deg); }
 
-      .note-window pre {
-        font-size: .75rem;
-        max-height: 16rem;
-        overflow: hidden;
-      }
+      .cta-panel { grid-template-columns: 1fr; }
 
-      .signal-rail {
-        width: 24rem;
-        right: -3rem;
-        top: auto;
-        bottom: 15.5rem;
-      }
-
-      h1 {
-        font-size: 4.25rem;
-      }
-
-      .hero-copy > p {
-        font-size: 1.1rem;
-      }
-
-      .section {
-        padding: 4rem 0;
-      }
-
-      .section-heading h2,
-      .vault-copy h2 {
-        font-size: 2.35rem;
-      }
-
-      .macro-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .cta-panel {
-        grid-template-columns: 1fr;
-      }
+      .section { padding: 4.5rem 0; }
     }
 
-    @media (max-width: 560px) {
-      .hero {
-        padding-bottom: 31rem;
-      }
+    @media (max-width: 640px) {
+      .nav-links a:not(.nav-cta) { display: none; }
 
-      h1 {
-        font-size: 3.35rem;
-      }
+      .steps,
+      .cards { grid-template-columns: 1fr; }
 
-      .actions {
-        flex-direction: column;
-      }
+      .actions { flex-direction: column; }
 
-      .button {
-        width: 100%;
-      }
+      .button { width: 100%; }
 
-      .workflow,
-      .platform-band,
-      .roadmap-band {
-        grid-template-columns: 1fr;
-      }
+      .hero-devices .phone { width: 13rem; margin-left: 4.5rem; }
 
-      .flow-step,
-      .flow-step:nth-child(2),
-      .platform-item,
-      .platform-item:nth-child(2),
-      .roadmap-item,
-      .roadmap-item:nth-child(2n),
-      .roadmap-item:nth-child(4n) {
-        border-right: 0;
-        border-bottom: 1px solid var(--line);
-      }
+      .watch { width: 8.4rem; left: calc(50% - 10rem); border-radius: 2.4rem; padding: .6rem; }
 
-      .flow-step:last-child,
-      .platform-item:last-child,
-      .roadmap-item:last-child {
-        border-bottom: 0;
-      }
+      .watch img { border-radius: 1.9rem; }
 
-      .watch-mock {
-        transform: rotate(-4deg) scale(.92);
-        transform-origin: left bottom;
-      }
+      .split-media .phone { width: 14rem; }
 
-      .note-window {
-        width: min(19.6rem, 76vw);
-      }
+      .macro-table td:last-child,
+      .macro-table th:last-child { display: none; }
+
+      .macro-table td:first-child { white-space: normal; }
+
+      .macro-table td code { white-space: pre-wrap; }
     }
 
     @media (prefers-reduced-motion: reduce) {
-      html {
-        scroll-behavior: auto;
-      }
+      html { scroll-behavior: auto; }
 
-      *,
-      *::before,
-      *::after {
-        animation-duration: .001ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: .001ms !important;
-        scroll-behavior: auto !important;
-      }
+      .button { transition: none; }
 
       .button:hover,
-      .button:focus-visible {
-        transform: none;
-      }
+      .button:focus-visible { transform: none; }
     }
   </style>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
 
-  <div class="page-shell">
-    <header class="site-header" aria-label="Site navigation">
-      <nav class="nav">
-        <a class="brand" href="#top" aria-label="MacroMark home">
-          <img src="assets/app-icon.png" alt="" width="36" height="36">
-          <span>MacroMark</span>
-        </a>
-        <div class="nav-links" aria-label="Primary">
-          <a href="#workflow">Workflow</a>
-          <a href="#macros">Macros</a>
-          <a href="#platform">Platform</a>
-          <a href="#roadmap">Roadmap</a>
-          <a href="privacy.html">Privacy</a>
-          <a href="#support">Support</a>
-          <a href="terms.html">Terms</a>
-          <a href="devlog.html">Devlog</a>
-          <a href="https://github.com/dfakkeldy/MacroMark">GitHub</a>
-        </div>
-      </nav>
-    </header>
-
-    <main id="main">
-      <section class="hero" id="top" aria-labelledby="hero-title">
-        <div class="hero-scene" aria-hidden="true">
-          <div class="signal-rail"></div>
-
-          <div class="watch-mock">
-            <div class="watch-screen">
-              <div class="watch-title">
-                <span>MacroMark</span>
-                <img src="assets/app-icon.png" alt="">
-              </div>
-              <div class="watch-buttons">
-                <div class="watch-button microphone">mic</div>
-                <div class="watch-button keyboard">keys</div>
-              </div>
-              <div class="listening">
-                <span></span><span></span><span></span><span></span><span></span>
-              </div>
-              <div class="watch-log">Today's Log</div>
-            </div>
-          </div>
-
-          <div class="note-window">
-            <div class="note-bar">
-              <div class="note-dots">
-                <span class="dot-red"></span>
-                <span class="dot-orange"></span>
-                <span class="dot-green"></span>
-              </div>
-              <span>2026-06-24.md</span>
-            </div>
-<pre aria-label="Example Markdown daily note"><span class="code-blue">##</span> 8:42 PM - Walk notes
-
-- Capture idea for <span class="code-orange">MacroMark</span> page
-- Add <span class="code-violet">#watch</span> and <span class="code-violet">#pkm</span>
-- Follow up at {time}
-
-<span class="code-muted">Saved from Apple Watch</span></pre>
-          </div>
-        </div>
-
-        <div class="hero-content">
-          <div class="hero-copy">
-            <p class="eyebrow">Apple Watch to Markdown</p>
-            <h1 id="hero-title">MacroMark</h1>
-            <p>Voice capture for people whose notes live in Markdown. Tap your Watch complication, speak, lower your wrist, and let MacroMark append the thought to today's note.</p>
-            <div class="actions" aria-label="Calls to action">
-              <a class="button primary" href="https://github.com/dfakkeldy/MacroMark">View on GitHub</a>
-              <a class="button secondary" href="#roadmap">See v1.0 status</a>
-            </div>
-            <div class="proof" aria-label="Product highlights">
-              <span>Watch-first capture</span>
-              <span>Plain-text daily notes</span>
-              <span>Browse notes by date</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="section" id="workflow" aria-labelledby="workflow-title">
-        <div class="container">
-          <div class="section-heading">
-            <h2 id="workflow-title">A note before the thought cools.</h2>
-            <p>MacroMark is built around the moment when opening a phone would be enough friction to lose the idea. The Watch collects, the phone processes, and your vault receives one clean Markdown entry.</p>
-          </div>
-
-          <div class="workflow">
-            <article class="flow-step">
-              <div>
-                <strong>Complication</strong>
-                <h3>Tap from your watch face.</h3>
-                <p>Deep links open instant capture without a hunt through app screens.</p>
-              </div>
-              <div class="flow-icon">01</div>
-            </article>
-
-            <article class="flow-step">
-              <div>
-                <strong>Capture</strong>
-                <h3>Speak, pause, keep going.</h3>
-                <p>The custom audio path is designed for long, messy thoughts instead of tiny dictated snippets.</p>
-              </div>
-              <div class="flow-icon">02</div>
-            </article>
-
-            <article class="flow-step">
-              <div>
-                <strong>Sync</strong>
-                <h3>Lower your wrist to save.</h3>
-                <p>Recordings are queued durably on the Watch and delivered to iPhone when the connection is ready.</p>
-              </div>
-              <div class="flow-icon">03</div>
-            </article>
-
-            <article class="flow-step">
-              <div>
-                <strong>Append</strong>
-                <h3>Land in today's file.</h3>
-                <p>Processed notes append to a dated Markdown file instead of scattering across throwaway documents.</p>
-              </div>
-              <div class="flow-icon">04</div>
-            </article>
-          </div>
-        </div>
-      </section>
-
-      <section class="section alt" aria-labelledby="vault-title">
-        <div class="container vault-section">
-          <div class="vault-visual">
-<pre aria-label="Example processed Markdown note"><span class="code-blue">#</span> Daily Log
-
-<span class="code-blue">##</span> 2026-06-24 at 8:42 PM
-
-<span class="code-orange">- [ ]</span> Send landing page draft
-<span class="code-orange">- [ ]</span> Test capture from complication
-
-<span class="code-blue">&gt;</span> The good capture tool disappears
-  before the idea does.
-
-<span class="code-muted">^id-6F8B0B9A</span></pre>
-          </div>
-
-          <div class="vault-copy">
-            <h2 id="vault-title">Designed for vaults, not inboxes.</h2>
-            <p>MacroMark saves to plain text in iCloud Drive, with folder and export options for people who already have a system. Obsidian, Logseq, Drafts, Bear, and Day One can fit around the workflow instead of replacing it.</p>
-            <ul class="check-list">
-              <li>Append captures into daily notes named like <code>YYYY-MM-DD.md</code>.</li>
-              <li>Review captures by date so yesterday's thought is findable today.</li>
-              <li>Keep accurate origin timestamps from the moment the Watch captured the thought.</li>
-              <li>Use custom save locations and folder structures when your vault has rules.</li>
-            </ul>
-          </div>
-        </div>
-      </section>
-
-      <section class="section" id="macros" aria-labelledby="macros-title">
-        <div class="container">
-          <div class="section-heading">
-            <h2 id="macros-title">Say the shape of the note.</h2>
-            <p>Verbal macros turn natural speech into structure. Use the built-in Markdown triggers or create your own phrases for the way you actually capture.</p>
-          </div>
-
-          <div class="macro-grid">
-            <article class="macro-tile">
-              <div>
-                <span>You say</span>
-                <strong>Heading Two</strong>
-              </div>
-              <div class="macro-output">## </div>
-            </article>
-
-            <article class="macro-tile">
-              <div>
-                <span>You say</span>
-                <strong>Task</strong>
-              </div>
-              <div class="macro-output">- [ ] </div>
-            </article>
-
-            <article class="macro-tile">
-              <div>
-                <span>You say</span>
-                <strong>New Journal Entry</strong>
-              </div>
-              <div class="macro-output">## {date} at {time}</div>
-            </article>
-
-            <article class="macro-tile">
-              <div>
-                <span>You say</span>
-                <strong>Dropoff</strong>
-              </div>
-              <div class="macro-output">{location} - </div>
-            </article>
-
-            <article class="macro-tile">
-              <div>
-                <span>You say</span>
-                <strong>Block ID</strong>
-              </div>
-              <div class="macro-output">^id-{uuid}</div>
-            </article>
-
-            <article class="macro-tile">
-              <div>
-                <span>You say</span>
-                <strong>Not</strong>
-              </div>
-              <div class="macro-output">{backspace}</div>
-            </article>
-          </div>
-        </div>
-      </section>
-
-      <section class="section alt" id="platform" aria-labelledby="platform-title">
-        <div class="container">
-          <div class="section-heading">
-            <h2 id="platform-title">Native where reliability matters.</h2>
-            <p>The app leans into Apple platform primitives instead of hiding your words in a proprietary service.</p>
-          </div>
-
-          <div class="platform-band">
-            <article class="platform-item">
-              <h3>watchOS capture</h3>
-              <p>Instant audio and keyboard modes put the fastest input on your wrist.</p>
-            </article>
-
-            <article class="platform-item">
-              <h3>WatchConnectivity</h3>
-              <p>Transfers stay queued until the receiving side can process and export them safely.</p>
-            </article>
-
-            <article class="platform-item">
-              <h3>iCloud Drive</h3>
-              <p>Your Markdown files remain readable, movable, automation-friendly, and reviewable by date.</p>
-            </article>
-
-            <article class="platform-item">
-              <h3>SwiftUI and SwiftData</h3>
-              <p>Modern Apple frameworks power macro editing, settings, widgets, and the phone inbox.</p>
-            </article>
-          </div>
-        </div>
-      </section>
-
-      <section class="section" id="roadmap" aria-labelledby="roadmap-title">
-        <div class="container">
-          <div class="section-heading">
-            <h2 id="roadmap-title">v1.0 is about trust.</h2>
-            <p>As of 2026-08-29, the current v1 work covers the core trust surfaces: no silent loss, visible export state, date-based review, setup proof, App Intents, safer transcription waits, and launch privacy artifacts. StoreKit, screenshots, Accessibility Nutrition Labels, a current App Store Connect TestFlight check, and paired-device checks remain before App Store submission.</p>
-          </div>
-
-          <div class="roadmap-band">
-            <article class="roadmap-item">
-              <strong>01</strong>
-              <h3>Reliability core</h3>
-              <p>Implemented: export outcomes, retryable pending exports, and idempotent processing state.</p>
-            </article>
-
-            <article class="roadmap-item">
-              <strong>02</strong>
-              <h3>Status and recovery</h3>
-              <p>Implemented: inbox status, needs-attention filtering, detail status, and retry action.</p>
-            </article>
-
-            <article class="roadmap-item">
-              <strong>03</strong>
-              <h3>Review by date</h3>
-              <p>Supported: pick dates in the phone inbox and Watch daily log to inspect captures.</p>
-            </article>
-
-            <article class="roadmap-item">
-              <strong>04</strong>
-              <h3>App Intents</h3>
-              <p>Implemented: start capture, append text, and open daily logs from system surfaces.</p>
-            </article>
-
-            <article class="roadmap-item">
-              <strong>05</strong>
-              <h3>Setup proof</h3>
-              <p>Implemented: active destination, test note, and last successful export details.</p>
-            </article>
-
-            <article class="roadmap-item">
-              <strong>06</strong>
-              <h3>Daily-note shape</h3>
-              <p>Implemented: timestamp style, separators, optional headings, and macro previews.</p>
-            </article>
-
-            <article class="roadmap-item">
-              <strong>07</strong>
-              <h3>Transcription integrity</h3>
-              <p>Implemented: partial warnings plus bounded speech and location waits; long-recording device smoke remains.</p>
-            </article>
-
-            <article class="roadmap-item">
-              <strong>08</strong>
-              <h3>Launch readiness</h3>
-              <p>In progress: privacy pages and metadata are in place; screenshots, Accessibility Nutrition Labels, and a current App Store Connect TestFlight check remain.</p>
-            </article>
-          </div>
-        </div>
-      </section>
-
-      <section class="section alt" id="privacy" aria-labelledby="privacy-title">
-        <div class="container">
-          <div class="section-heading">
-            <h2 id="privacy-title">Privacy stays plain.</h2>
-            <p>MacroMark does not sell personal data, does not include third-party analytics in v1.0, and does not require an account.</p>
-          </div>
-
-          <div class="platform-band">
-            <article class="platform-item">
-              <h3>Capture data</h3>
-              <p>Captured notes, queued audio, macro settings, and export status stay on your devices or in your iCloud Drive while MacroMark moves them through the durable capture pipeline.</p>
-            </article>
-
-            <article class="platform-item">
-              <h3>Speech</h3>
-              <p>Dictation uses Apple's Speech framework. Depending on Apple's language, device, and network support, dictated audio may be processed by Apple to produce the transcript.</p>
-            </article>
-
-            <article class="platform-item">
-              <h3>Location</h3>
-              <p>Location access is used only when you use a location macro. MacroMark does not include third-party tracking or analytics SDKs.</p>
-            </article>
-          </div>
-        </div>
-      </section>
-
-      <section class="section" id="support" aria-labelledby="support-title">
-        <div class="container">
-          <div class="section-heading">
-            <h2 id="support-title">Support</h2>
-            <p>For setup help, privacy questions, purchase support, or App Store review contact, email <a href="mailto:dan@kinnokilabs.com">dan@kinnokilabs.com</a>.</p>
-          </div>
-        </div>
-      </section>
-
-      <section class="final-cta" aria-labelledby="cta-title">
-        <div class="container">
-          <div class="cta-panel">
-            <div>
-              <h2 id="cta-title">Make your Watch a Markdown button.</h2>
-              <p>Build MacroMark from source, add the complication, and review the current v1.0 status before relying on a release build.</p>
-            </div>
-            <div class="actions">
-              <a class="button primary" href="https://github.com/dfakkeldy/MacroMark">Get the source</a>
-              <a class="button secondary" href="https://github.com/dfakkeldy/MacroMark/blob/main/docs/V1_ROADMAP.md">Read v1.0 status</a>
-              <a class="button secondary" href="https://github.com/dfakkeldy/MacroMark/blob/main/docs/APP_STORE_READINESS.md">App Store checklist</a>
-            </div>
-          </div>
-        </div>
-      </section>
-    </main>
-
-    <footer>
-      <div class="container">
-        <span>MacroMark by KinNoKi Labs.</span>
-        <span><a href="privacy.html">Privacy</a> &middot; <a href="#support">Support</a> &middot; <a href="terms.html">Terms</a> &middot; <a href="https://github.com/dfakkeldy/MacroMark">GitHub</a> &middot; <a href="https://github.com/dfakkeldy/MacroMark#readme">README</a> &middot; <a href="https://github.com/dfakkeldy/MacroMark/blob/main/docs/V1_ROADMAP.md">Roadmap</a> &middot; <a href="devlog.html">Devlog</a></span>
+  <header class="site-header">
+    <nav class="nav container" aria-label="Primary">
+      <a class="brand" href="#top" aria-label="MacroMark home">
+        <img src="assets/app-icon.png" alt="" width="32" height="32">
+        <span>MacroMark</span>
+      </a>
+      <div class="nav-links">
+        <a href="#how">How it works</a>
+        <a href="#macros">Macros</a>
+        <a href="#direct-send" class="hide-md">Direct Send</a>
+        <a href="privacy.html" class="hide-md">Privacy</a>
+        <a href="#support">Support</a>
+        <a href="https://github.com/dfakkeldy/MacroMark">GitHub</a>
+        <a class="nav-cta" href="https://apps.apple.com/app/macromark/id6785081218">Get the app</a>
       </div>
-    </footer>
-  </div>
+    </nav>
+  </header>
+
+  <main id="main">
+    <section class="hero" id="top" aria-labelledby="hero-title">
+      <div class="container hero-grid">
+        <div class="hero-copy">
+          <p class="eyebrow">Apple Watch to Markdown</p>
+          <h1 id="hero-title">Speak it on your wrist. <span class="accent">Find it in today's note.</span></h1>
+          <p class="lede">MacroMark is a capture tool for people whose notes live in Markdown. Tap the complication, talk or type, and lower your wrist. The thought is added to today's <code>YYYY-MM-DD.md</code> file in iCloud Drive.</p>
+          <div class="actions">
+            <a class="button primary" href="https://apps.apple.com/app/macromark/id6785081218">
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M16.37 12.6c-.03-2.6 2.12-3.85 2.22-3.91-1.21-1.77-3.09-2.01-3.76-2.04-1.6-.16-3.12.94-3.93.94-.81 0-2.06-.92-3.39-.89-1.74.03-3.35 1.01-4.25 2.57-1.81 3.14-.46 7.79 1.3 10.34.86 1.25 1.89 2.65 3.24 2.6 1.3-.05 1.79-.84 3.36-.84 1.57 0 2.01.84 3.38.81 1.4-.03 2.28-1.27 3.13-2.52.99-1.45 1.4-2.85 1.42-2.92-.03-.01-2.72-1.04-2.75-4.14zM13.8 4.96c.71-.86 1.19-2.06 1.06-3.26-1.03.04-2.27.69-3.01 1.55-.66.76-1.24 1.98-1.08 3.16 1.14.09 2.31-.58 3.03-1.45z"/></svg>
+              Download on the App Store
+            </a>
+            <a class="button secondary" href="#how">See how it works</a>
+          </div>
+          <ul class="facts" aria-label="At a glance">
+            <li>Free, no subscription</li>
+            <li>No account</li>
+            <li>Plain-text daily notes</li>
+            <li>iPhone + Apple Watch</li>
+          </ul>
+        </div>
+
+        <figure class="hero-devices" aria-label="MacroMark screenshots">
+          <div class="phone">
+            <img src="assets/screens/iphone-inbox.jpg" width="760" height="1651" alt="MacroMark iPhone inbox for one day, listing three captures with their export status: one incomplete transcription and two saved to iCloud Drive.">
+          </div>
+          <div class="watch">
+            <img src="assets/screens/watch-capture.png" width="416" height="496" alt="MacroMark on Apple Watch: a blue microphone button, an orange keyboard button and a purple Daily Log button.">
+          </div>
+        </figure>
+      </div>
+    </section>
+
+    <section class="section" id="how" aria-labelledby="how-title">
+      <div class="container">
+        <div class="section-heading">
+          <h2 id="how-title">A note before the thought cools.</h2>
+          <p>MacroMark is built for the moment when taking out your phone is enough friction to lose the idea. The watch captures, the iPhone processes, and your notes folder gets one clean Markdown entry.</p>
+        </div>
+
+        <ol class="steps">
+          <li class="step">
+            <h3>Tap the complication.</h3>
+            <p>Open straight into capture from your watch face, or double-tap to start your chosen capture mode.</p>
+          </li>
+          <li class="step">
+            <h3>Speak or type.</h3>
+            <p>Instant audio capture handles long, rambling thoughts. The keyboard button opens the watchOS text input for dictation or typing.</p>
+          </li>
+          <li class="step">
+            <h3>Lower your wrist.</h3>
+            <p>The capture is saved on the watch with its original timestamp and waits there until the iPhone confirms it's safe.</p>
+          </li>
+          <li class="step">
+            <h3>Find it in today's file.</h3>
+            <p>The iPhone transcribes, expands macros and appends the entry to that day's Markdown file.</p>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="section alt" aria-labelledby="vault-title">
+      <div class="container split">
+        <div class="split-copy">
+          <span class="kicker">Your notes, your files</span>
+          <h2 id="vault-title">Designed for vaults, not inboxes.</h2>
+          <p>Captures go to plain text in iCloud Drive, or a folder you choose, so Obsidian, Logseq and any folder-based notes setup can read them. You can also send a capture to Drafts, Obsidian, Bear or Day One, or share it anywhere.</p>
+          <ul class="check-list">
+            <li>One file per day, named <code>YYYY-MM-DD.md</code>, instead of hundreds of tiny notes.</li>
+            <li>Timestamp style, separator and an optional heading are yours to set.</li>
+            <li>Browse any day's captures on iPhone or in the watch's Daily Log.</li>
+            <li>Every capture shows whether it was saved or needs attention, with a retry.</li>
+          </ul>
+        </div>
+        <div class="split-media">
+          <div>
+            <div class="file">
+              <div class="file-bar"><span class="dots" aria-hidden="true"><span></span><span></span><span></span></span><span>2026-06-27.md</span></div>
+<pre aria-label="Example daily note written with the default formatting"><span class="md-time">9:05 AM</span>
+
+<span class="md-h">## Standup</span>
+- Shipped App Store metadata
+- Wire screenshot automation
+
+<span class="md-time">11:20 AM</span>
+
+Meeting follow-up
+<span class="md-task">- [ ]</span> Send beta invite
+<span class="md-task">- [ ]</span> Draft release notes
+
+<span class="md-time">2:35 PM</span>
+
+Idea: double tap on Apple Watch starts a durable audio capture.</pre>
+            </div>
+            <p class="file-note">An example daily file in the default format: time-only timestamps with a blank line between entries.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="status-title">
+      <div class="container split reverse">
+        <div class="split-copy">
+          <span class="kicker">Nothing silently dropped</span>
+          <h2 id="status-title">You can see where every capture is.</h2>
+          <p>Each capture stays queued on the watch until the iPhone has processed it and the export has succeeded or is saved for a retry. If a transcription only partly works, MacroMark keeps what it heard and tells you, so you never get a half-saved note without warning.</p>
+          <ul class="check-list">
+            <li>Status on every note: saved, pending, or needs attention.</li>
+            <li>Replays, retries and reconnects never duplicate an entry.</li>
+            <li>If iCloud Drive isn't available, the note waits and retries.</li>
+            <li>Settings can write a test note to prove your save location works.</li>
+          </ul>
+        </div>
+        <div class="split-media">
+          <figure class="phone" style="margin:0">
+            <img src="assets/screens/iphone-detail.jpg" width="760" height="1651" loading="lazy" alt="Note Details on iPhone, warning that some of a dictation may be missing, with export buttons for iCloud Drive, Drafts, Obsidian, Bear, Day One and Share Sheet.">
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="section alt" id="macros" aria-labelledby="macros-title">
+      <div class="container split">
+        <div class="split-copy">
+          <span class="kicker">Verbal macros</span>
+          <h2 id="macros-title">Say the shape of the note.</h2>
+          <p>Spoken trigger words turn into Markdown. Built-in macros cover headings, lists, tasks, quotes and code. Variables like <code>{date}</code>, <code>{time}</code>, <code>{location}</code> and <code>{clipboard}</code> fill in when the note is processed. Add your own, edit the defaults, or restore them anytime.</p>
+          <table class="macro-table">
+            <thead>
+              <tr><th scope="col">You say</th><th scope="col">You get</th><th scope="col">Use</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Heading Two</td><td><code>## </code></td><td>Section heading</td></tr>
+              <tr><td>Task</td><td><code>- [ ] </code></td><td>Checkbox item</td></tr>
+              <tr><td>New Journal Entry</td><td><code>## {date} at {time}</code></td><td>Dated journal heading</td></tr>
+              <tr><td>Timestamp</td><td><code>{time} - </code></td><td>Inline time</td></tr>
+              <tr><td>Dropoff</td><td><code>{location} - </code></td><td>Where you were</td></tr>
+              <tr><td>Block ID</td><td><code>^id-{uuid}</code></td><td>Block reference</td></tr>
+              <tr><td>Backspace</td><td><code>{backspace}</code></td><td>Delete the last character</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="split-media">
+          <figure class="phone" style="margin:0">
+            <img src="assets/screens/iphone-macros.jpg" width="760" height="1651" loading="lazy" alt="The Macros screen on iPhone, with watch double-tap, save location and export settings above custom macros such as Standup and Capture Idea.">
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="platform" aria-labelledby="platform-title">
+      <div class="container">
+        <div class="section-heading">
+          <h2 id="platform-title">Works with the rest of your Apple setup.</h2>
+          <p>MacroMark uses Apple's own frameworks rather than a proprietary sync service, so your words stay in files you control.</p>
+        </div>
+
+        <div class="cards">
+          <article class="card">
+            <span class="tag">Watch</span>
+            <h3>Complications and double tap</h3>
+            <p>Start capture from the watch face or with a double-tap gesture. The Daily Log shows any day's notes on your wrist.</p>
+          </article>
+          <article class="card">
+            <span class="tag orange">Shortcuts</span>
+            <h3>App Intents</h3>
+            <p>Start an instant or typed capture, open a daily log, or append text to today's note from Shortcuts and Siri.</p>
+          </article>
+          <article class="card">
+            <span class="tag violet">Sync</span>
+            <h3>WatchConnectivity</h3>
+            <p>Captures and audio wait in a queue that survives restarts, and leave the watch only after the iPhone confirms them.</p>
+          </article>
+          <article class="card">
+            <span class="tag green">Storage</span>
+            <h3>iCloud Drive</h3>
+            <p>Markdown files stay readable, portable and easy to automate, organised by date in a folder you choose.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section alt" id="direct-send" aria-labelledby="direct-send-title">
+      <div class="container">
+        <div class="section-heading">
+          <div>
+            <span class="badge-soon">Coming in 1.1</span>
+            <h2 id="direct-send-title">Direct Send: straight from your watch.</h2>
+          </div>
+          <p>After a one-time setup on iPhone, typed and dictated watch text can go directly to a GitHub repository, an HTTPS webhook, or both. Your phone doesn't need to be nearby. Phone and iCloud delivery stay the default, and audio recordings always go through the iPhone.</p>
+        </div>
+
+        <div class="route" aria-label="Direct Send delivery route">
+          <div class="route-node">
+            <strong>Apple Watch</strong>
+            <span>Each note stays in the watch outbox until every destination you chose confirms it.</span>
+          </div>
+          <div class="route-arrow" aria-hidden="true">&rarr;</div>
+          <div class="route-targets">
+            <div class="route-node">
+              <strong>GitHub</strong>
+              <span>Appends to <code>YYYY-MM-DD.md</code> on your branch. A hidden marker in each entry stops retries from adding it twice.</span>
+            </div>
+            <div class="route-node">
+              <strong>HTTPS webhook</strong>
+              <span>A JSON POST with a stable <code>Idempotency-Key</code>, so your receiver can deduplicate.</span>
+            </div>
+          </div>
+        </div>
+        <p class="shot-caption">Replies written to a GitHub <code>.reply.md</code> file can be read on the watch. Details are in <a href="https://github.com/dfakkeldy/MacroMark/blob/nightly/docs/DIRECT_SEND.md">the Direct Send guide</a>.</p>
+      </div>
+    </section>
+
+    <section class="section" id="privacy" aria-labelledby="privacy-title">
+      <div class="container">
+        <div class="section-heading">
+          <h2 id="privacy-title">Privacy stays plain.</h2>
+          <p>No account, no analytics or tracking SDKs, and no selling of personal data. KinNoKi Labs doesn't run servers that receive your notes. The full <a href="privacy.html">privacy policy</a> has the details.</p>
+        </div>
+
+        <div class="cards three">
+          <article class="card">
+            <h3>Your notes</h3>
+            <p>Captures, queued audio, macros and export status stay on your devices and in your iCloud Drive as they move through the capture queue.</p>
+          </article>
+          <article class="card">
+            <h3>Speech</h3>
+            <p>Dictation uses Apple's Speech framework. Depending on language, device and network, Apple may process the audio to produce a transcript.</p>
+          </article>
+          <article class="card">
+            <h3>Location</h3>
+            <p>Location is used only when a macro asks for <code>{location}</code>. Direct Send, if you turn it on, sends text only to destinations you set up.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section alt" id="status" aria-labelledby="release-title">
+      <div class="container">
+        <div class="section-heading">
+          <h2 id="release-title">Where MacroMark is now.</h2>
+          <p>MacroMark is open source under the MIT licence. The <a href="https://github.com/dfakkeldy/MacroMark">source</a> and the weekly <a href="devlog.html">devlog</a> follow the work in public.</p>
+        </div>
+
+        <div class="status">
+          <article class="card">
+            <h3><span class="dot live" aria-hidden="true"></span>1.0 on the App Store</h3>
+            <p>Released October 2026 for iPhone and Apple Watch: watch capture, daily Markdown notes, verbal macros, browsing by date, visible export status and Shortcuts actions. Free, with every feature included.</p>
+          </article>
+          <article class="card">
+            <h3><span class="dot next" aria-hidden="true"></span>1.1 in testing</h3>
+            <p>Direct Send to GitHub and webhooks, replies on the watch, a complication for pending and reply counts, and audio transfers that keep retrying until the iPhone confirms them.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="support" aria-labelledby="support-title">
+      <div class="container">
+        <div class="section-heading">
+          <h2 id="support-title">Support</h2>
+          <p>For setup help or privacy questions, email <a href="mailto:dan@kinnokilabs.com">dan@kinnokilabs.com</a>. Bugs and feature ideas are welcome as <a href="https://github.com/dfakkeldy/MacroMark/issues">GitHub issues</a>.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="final-cta" aria-labelledby="cta-title">
+      <div class="container">
+        <div class="cta-panel">
+          <img src="assets/app-icon.png" alt="" width="88" height="88" loading="lazy">
+          <div>
+            <h2 id="cta-title">Make your Watch a Markdown button.</h2>
+            <p>Free on the App Store for iPhone and Apple Watch. Or build it yourself from the MIT-licensed source.</p>
+          </div>
+          <div class="actions">
+            <a class="button primary" href="https://apps.apple.com/app/macromark/id6785081218">Get MacroMark</a>
+            <a class="button secondary" href="https://github.com/dfakkeldy/MacroMark">View source</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container">
+      <span>MacroMark by KinNoKi Labs.</span>
+      <nav aria-label="Footer">
+        <a href="https://apps.apple.com/app/macromark/id6785081218">App Store</a>
+        <a href="privacy.html">Privacy</a>
+        <a href="terms.html">Terms</a>
+        <a href="#support">Support</a>
+        <a href="devlog.html">Devlog</a>
+        <a href="https://github.com/dfakkeldy/MacroMark">GitHub</a>
+      </nav>
+    </div>
+  </footer>
 </body>
 </html>
