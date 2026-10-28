@@ -19,9 +19,25 @@ on:
         type: choice
         options:
           - nightly
+          - weekly
+      force:
+        description: Rebuild unchanged inputs intentionally, with all existing gates
+        required: false
+        type: boolean
+        default: false
+      repair_profiles:
+        description: Regenerate the Watch and widget distribution profiles once before signing
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
+
+concurrency:
+  group: release-trains
+  cancel-in-progress: false
+  queue: max
 
 jobs:
   resolve:
@@ -38,47 +54,106 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           REQUESTED_CHANNEL: ${{ github.event.inputs.channel || '' }}
+          WORKFLOW_REF_NAME: ${{ github.ref_name }}
         run: |
           set -euo pipefail
 
-          # Both triggers resolve to the nightly train. There is no longer an
-          # "inactive/skip" outcome: every scheduled run and every dispatch
-          # ships, so the run's conclusion means exactly what it says —
-          # success is a real ship, failure is a real break.
+          # Both trigger types select a train. The separate input comparison
+          # decides whether that train needs another delivery.
+          channel="nightly"
+          branch="nightly"
+          reason="Scheduled nightly internal TestFlight train"
+
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             case "$REQUESTED_CHANNEL" in
               nightly)
                 reason="Manual nightly internal TestFlight train"
                 ;;
+              weekly)
+                case "$WORKFLOW_REF_NAME" in
+                  main|weekly) ;;
+                  *)
+                    echo "::error::Weekly delivery requires the main or weekly controller."
+                    exit 1
+                    ;;
+                esac
+                channel="weekly"
+                branch="weekly"
+                reason="Manual weekly external TestFlight train"
+                ;;
               *)
-                echo "::error title=Unknown release train::Expected nightly. Got '$REQUESTED_CHANNEL'."
+                echo "::error title=Unknown release train::Expected nightly or weekly. Got '$REQUESTED_CHANNEL'."
                 exit 1
                 ;;
             esac
-          else
-            reason="Scheduled nightly internal TestFlight train"
           fi
 
           {
-            echo "channel=nightly"
-            echo "branch=nightly"
+            echo "channel=$channel"
+            echo "branch=$branch"
             echo "reason=$reason"
           } >> "$GITHUB_OUTPUT"
 
+  changes:
+    name: Compare delivered build inputs
+    needs: resolve
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      should_run: ${{ steps.changes.outputs.should_run }}
+      source_sha: ${{ steps.changes.outputs.source_sha }}
+      plan: ${{ steps.changes.outputs.plan }}
+      ios: ${{ steps.changes.outputs.ios }}
+      fingerprint_ios: ${{ steps.changes.outputs.fingerprint_ios }}
+    steps:
+      - name: Inspect train source tree
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve.outputs.branch }}
+          sparse-checkout: .github
+
+      - name: Check out delivery guard from controller
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: .release-control
+          sparse-checkout: .github
+
+      - name: Compare successful deliveries
+        id: changes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FORCE_RELEASE: ${{ inputs.force || inputs.repair_profiles || false }}
+        run: >-
+          python3 .release-control/.github/scripts/release_delivery.py plan
+          --controller .release-control
+          --channel "${{ needs.resolve.outputs.channel }}"
+          --force "$FORCE_RELEASE"
+
   ship:
     name: Build and ship ${{ needs.resolve.outputs.channel }}
-    needs: resolve
+    needs: [resolve, changes]
+    if: needs.changes.outputs.should_run == 'true'
     runs-on: macos-26
-    timeout-minutes: 90
-    concurrency:
-      group: release-trains-${{ needs.resolve.outputs.channel }}
-      cancel-in-progress: false
+    timeout-minutes: 150
 
+    env:
+      RELEASE_PLAN: ${{ needs.changes.outputs.plan }}
+      RELEASE_CONTROL_SCRIPT: ${{ github.workspace }}/.release-control/.github/scripts/release_delivery.py
     steps:
       - name: Checkout train branch
         uses: actions/checkout@v4
         with:
-          ref: ${{ needs.resolve.outputs.branch }}
+          ref: ${{ needs.changes.outputs.source_sha }}
+
+      - name: Check out delivery recorder from controller
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: .release-control
+          sparse-checkout: .github
 
       - name: Checkout release automation
         uses: actions/checkout@v4
@@ -91,6 +166,7 @@ jobs:
             fastlane/Appfile
             fastlane/Fastfile
             fastlane/Gymfile
+            fastlane/lib
           sparse-checkout-cone-mode: false
 
       - name: Use release automation from workflow commit
@@ -101,6 +177,8 @@ jobs:
           cp .release-automation/fastlane/Appfile fastlane/Appfile
           cp .release-automation/fastlane/Fastfile fastlane/Fastfile
           cp .release-automation/fastlane/Gymfile fastlane/Gymfile
+          mkdir -p fastlane/lib
+          cp -R .release-automation/fastlane/lib/. fastlane/lib/
           rm -rf .release-automation
 
       - name: Select Xcode 26
@@ -135,6 +213,16 @@ jobs:
             -project MacroMark.xcodeproj \
             -scheme "MacroMark"
 
+      - name: Provision iOS test simulator
+        id: ios-simulator
+        run: python3 .release-control/.github/scripts/ios_simulator.py
+
+      - name: Boot iOS simulator
+        run: |
+          set -euo pipefail
+          xcrun simctl boot "${{ steps.ios-simulator.outputs.ios_udid }}" >/dev/null 2>&1 || true
+          xcrun simctl bootstatus "${{ steps.ios-simulator.outputs.ios_udid }}" -b
+
       - name: Build iOS app for testing
         run: |
           set -euo pipefail
@@ -142,7 +230,7 @@ jobs:
             -project MacroMark.xcodeproj \
             -scheme "MacroMark" \
             -configuration Debug \
-            -destination "generic/platform=iOS Simulator" \
+            -destination "${{ steps.ios-simulator.outputs.ios_destination }}" \
             -derivedDataPath DerivedData \
             CODE_SIGNING_ALLOWED=NO
 
@@ -162,12 +250,26 @@ jobs:
           set -euo pipefail
           swift test --package-path MacroMarkKit
 
+      - name: Run iOS app and UI tests without rebuilding
+        run: |
+          set -euo pipefail
+          xcodebuild test-without-building \
+            -project MacroMark.xcodeproj \
+            -scheme "MacroMark" \
+            -configuration Debug \
+            -destination "${{ steps.ios-simulator.outputs.ios_destination }}" \
+            -derivedDataPath DerivedData \
+            -parallel-testing-enabled NO \
+            -only-testing:MacroMarkTests \
+            -only-testing:MacroMarkUITests
+
       - name: Set up Ruby and Fastlane
         uses: ruby/setup-ruby@v1
         with:
           bundler-cache: true
 
-      - name: Ship release train when release secrets are present
+      - name: Ship release train
+        id: delivery
         env:
           APP_STORE_CONNECT_API_KEY_JSON: ${{ secrets.APP_STORE_CONNECT_API_KEY_JSON }}
           APP_STORE_CONNECT_API_KEY_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY_KEY }}
@@ -177,6 +279,8 @@ jobs:
           MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
           RELEASE_CHANNEL: ${{ needs.resolve.outputs.channel }}
+          REPAIR_PROFILES: ${{ inputs.repair_profiles || false }}
+          TESTFLIGHT_EXTERNAL_GROUPS: ${{ vars.TESTFLIGHT_EXTERNAL_GROUPS || 'External Testers' }}
         run: |
           set -euo pipefail
 
@@ -190,8 +294,8 @@ jobs:
           fi
 
           if { [ "$has_api_key_json" != "true" ] && [ "$has_api_key_parts" != "true" ]; } || [ -z "$MATCH_PASSWORD" ] || [ -z "$MATCH_GIT_SSH_KEY" ] || [ -z "$MATCH_GIT_URL" ]; then
-            echo "::notice title=Compile-only release train::App Store Connect API key credentials plus MATCH_PASSWORD, MATCH_GIT_SSH_KEY, and MATCH_GIT_URL are required for release-train shipping. The compile gate passed; shipping was skipped."
-            exit 0
+            echo "::error title=Missing release credentials::App Store Connect credentials and all Match secrets are required. No delivery occurred."
+            exit 1
           fi
 
           mkdir -p ~/.ssh
@@ -201,4 +305,14 @@ jobs:
           eval "$(ssh-agent -s)"
           ssh-add ~/.ssh/match_git_ssh_key
 
-          bundle exec fastlane release_train channel:${{ needs.resolve.outputs.channel }}
+          bundle exec fastlane release_train channel:"$RELEASE_CHANNEL" repair_profiles:"$REPAIR_PROFILES"
+          python3 "$RELEASE_CONTROL_SCRIPT" record --platform ios
+
+      - name: Retain successful ${{ needs.resolve.outputs.channel }} ios delivery receipt
+        if: success() && steps.delivery.outputs.ios_delivered == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-delivery-v1-${{ needs.resolve.outputs.channel }}-ios-${{ github.run_attempt }}-${{ needs.changes.outputs.fingerprint_ios }}
+          path: ${{ runner.temp }}/release-receipts/ios.json
+          retention-days: 90
+          if-no-files-found: error

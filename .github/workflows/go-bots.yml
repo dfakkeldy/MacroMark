@@ -1,0 +1,53 @@
+name: go:codex and go:grok
+
+# Dan adds go:codex or go:grok to an issue. This hands the issue to Audy, his
+# Grok bot, through her github routine's webhook: she gives go:codex to the
+# codex bot and treats go:grok as Dan writing to her. Then the label comes off.
+# GitHub runs issue workflows from the default branch only.
+
+on:
+  issues:
+    types: [labeled]
+
+permissions: {}
+
+jobs:
+  wake:
+    # The agent Apps can add labels too, so Dan must be the one who added it.
+    if: (github.event.label.name == 'go:codex' || github.event.label.name == 'go:grok') && github.event.sender.login == 'dfakkeldy'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write # remove the label; comment if the hand-off fails
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ISSUE: ${{ github.event.issue.number }}
+      LABEL: ${{ github.event.label.name }}
+    steps:
+      - name: Hand the issue to Audy
+        env:
+          AUDY_WAKE_URL: ${{ secrets.AUDY_WAKE_URL }}
+          AUDY_WAKE_KEY: ${{ secrets.AUDY_WAKE_KEY }}
+          ISSUE_URL: ${{ github.event.issue.html_url }}
+        # Sends only the repo, number, label and link; Audy reads the issue
+        # herself. The reply isn't printed.
+        run: |
+          body=$(jq -n --arg repo "$GITHUB_REPOSITORY" --argjson issue "$ISSUE" \
+            --arg label "$LABEL" --arg url "$ISSUE_URL" \
+            '{repo: $repo, issue: $issue, label: $label, url: $url}')
+          curl --fail --silent --show-error --max-time 30 --output /dev/null \
+            --request POST "$AUDY_WAKE_URL" \
+            --header "Authorization: Bearer $AUDY_WAKE_KEY" \
+            --header "Content-Type: application/json" \
+            --data "$body"
+
+      - name: Say the hand-off failed
+        if: failure()
+        run: >-
+          gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY"
+          --body "$LABEL couldn't reach Audy, so nothing was handed off.
+          Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+
+      - name: Hand back
+        if: always()
+        run: gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "$LABEL"

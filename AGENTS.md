@@ -11,8 +11,8 @@ expands macros, records, and exports it.
 - `MacroMarkKit/`: shared models, macro processing, storage, export, StoreKit.
 - `MacroMarkWidget/`: widgets and complications.
 - Tests: `MacroMarkTests/` and `MacroMarkKit/Tests/`.
-- `ARCHITECTURE.md` describes the design. `CODE_AUDIT.md`,
-  `REMEDIATION_PLAN.md`, and `IMPLEMENTATION_PLAN.md` cover known reliability
+- `ARCHITECTURE.md` describes the design. `docs/audits/CODE_AUDIT.md`,
+  `docs/plans/REMEDIATION_PLAN.md`, and `docs/plans/IMPLEMENTATION_PLAN.md` cover known reliability
   work.
 
 ## Commands
