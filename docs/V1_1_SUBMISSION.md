@@ -312,3 +312,11 @@ cause is not established. The interactive device session was closed before the
 17e final shutdown; the later model test runners completed before shutdown.
 Screenshot and smoke observations are unchanged. All model work was already
 complete when the host report arrived, so no additional boots were attempted.
+
+The host subsequently confirmed that xcodebuild test-without-building shuts
+down a Shutdown destination it boots when the test exits. The iPad booted at
+18:22:23 UTC and shut down at 18:23:58 UTC, before our later device_close cleanup.
+Its five PNGs exist, were inspected, and its retained test summary records one
+pass and zero failures. No retry is needed. We withdraw the earlier no-runner-
+shutdown claim and do not certify continuous boot state between earlier test
+invocations. No Fastlane lane or explicit erase command was used.

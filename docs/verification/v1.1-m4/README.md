@@ -7,7 +7,7 @@ November 15, Xcode 27.2 / iOS Simulator 27.2. These observations supersede the i
 The project screenshot test runs through xcodebuild test-without-building, with an explicit owned destination, parallel testing disabled, and no erase or clone options. Fastlane snapshot itself is not invoked, so its default erase setting does not run. Its screenshot helper uses en-US / en_US cache files.
 
 - iPhone 17e: passed, five images inspected. Direct Send has no secure-settings warning; the full macro list is visible above the tab bar after the framing correction. Built-in macro lock markers are the existing default-macro markers, not a purchase prompt. Note previews intentionally truncate; the incomplete capture is existing sample data. The compact Inbox filter abbreviates Needs Attention, and note-detail export actions continue below the viewport.
-- iPhone 17 Pro Max: passed; five settled-run images inspected. First post-boot capture had transient section spacing, so the same booted device was rerun after capacity recovered. The retained Direct Send image has clean spacing; all macro descriptions are visible. Website JPEGs derive from this set at 760 pixels wide.
+- iPhone 17 Pro Max: passed; five settled-run images inspected. First post-boot capture had transient section spacing, so the same device was rerun after capacity recovered. Continuous boot state between runner invocations was not independently verified. The retained Direct Send image has clean spacing; all macro descriptions are visible. Website JPEGs derive from this set at 760 pixels wide.
 - iPad Pro 13-inch M5: passed, five images inspected. Direct Send is clean; both custom macros and every built-in description are visible. The settings content above the macro section scrolls under the top toolbar as expected. The New Macro sheet is fully visible.
 
 ## Interactive smoke on iPhone 17e
@@ -58,9 +58,13 @@ locale is en-US / en_US; preserve originals before cleanup.
 One initial boot was requested per model, but the host observed an intermediate
 17e shutdown/restart as recorded above. No explicit erase or restart command was
 issued; no Fastlane lane was invoked. The 17e session was closed before its final
-shutdown; all three final shutdowns used device_close under the explicit
-sequential-model approval. The Pro Max and iPad project test runners finished
-before their final shutdowns. No further boots are planned.
+shutdown. Cleanup called device_close with shutdown enabled for each model.
+The host later confirmed that xcodebuild test-without-building automatically
+shut down the iPad at exit: boot 18:22:23 UTC, shutdown 18:23:58 UTC. Thus our
+later device_close was cleanup, not the cause of that shutdown. The earlier
+claim that no runner shut down a device is withdrawn. Continuous boot state
+between earlier runner invocations was not independently verified; a single
+boot per model is not certified. No further boots are planned.
 The temporary Pro Max instance was deleted after shutdown; pre-existing devices
 were retained. Retained build/results measured about 895 MB before cleanup.
 Temporary DerivedData, full result bundles, logs and our Fastlane cache files
