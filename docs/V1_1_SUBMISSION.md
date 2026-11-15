@@ -92,8 +92,9 @@ Release automation checks passed: 22 Ruby tests, real Fastlane provisioning
 option validation, 43 workflow/simulator Python tests and 14 doc-automation
 tests. Metadata character limits and website local links passed local checks.
 
-Unit execution and screenshot capture are pending the shared host's health
-gate. The dispatcher capacity tool reported swap above its 8 GB limit; do not
+Unit execution and screenshot capture were blocked by the shared host's health
+gate. After more than ten minutes of unhealthy checks, the waiting command
+was stopped without starting tests. No screenshot set was generated. The dispatcher capacity tool reported swap above its 8 GB limit; do not
 start another Apple build while unhealthy. The screenshot test now includes
 Direct Send alongside Inbox, Note detail, Macros and New Macro. Its UI run
 must pass before treating newly captured images as approved assets.
@@ -110,3 +111,47 @@ Physical watch networking, setup acknowledgement, background webhook retry,
 reply delivery and the one-day audio retry remain outside simulator-only
 acceptance. Dan still needs those observations and final ASC/privacy/build
 checks before submission. This record does not claim submission readiness.
+
+## Resume on a healthy Mac
+
+Keep this PR draft. Recheck current nightly and do not overwrite other work.
+Use the three models from Snapfile: iPhone 17 Pro Max, iPhone 17e and
+iPad Pro 13-inch M5, in en-US. On a shared machine, create dedicated devices,
+select them explicitly and do not erase someone else's simulator.
+
+1. Check the dispatcher's capacity script and the number of xcodebuild
+   processes before each Apple run. Use one Apple run at a time for this task.
+2. Build-for-testing with the CI command, an iOS Simulator destination,
+   `-derivedDataPath DerivedData` and `CODE_SIGNING_ALLOWED=NO`.
+3. Run `xcodebuild test-without-building -project MacroMark.xcodeproj
+   -scheme MacroMark -configuration Debug -destination 'platform=iOS Simulator,id=<dedicated-udid>'
+   -only-testing:MacroMarkTests -derivedDataPath DerivedData
+   -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO`.
+4. Run `swift test --package-path MacroMarkKit`. The PR gate does not run
+   general UI tests; screenshot UI execution is still required here.
+5. Run the project's local `bundle exec fastlane snapshot`, using Snapfile
+   and overriding `--devices` with dedicated instances of all three listed
+   models. Use `--test_without_building true --derived_data_path <absolute-DerivedData>`
+   after building, `--erase_simulator false`, and sequential simulators.
+   Do not invoke upload, deliver, pilot or release lanes.
+6. Inspect every full-resolution PNG for clipping, overlays, unexpected
+   placeholders and stale paid UI. Preserve the approved originals and a
+   dimensions/SHA256 manifest in git, since fastlane/screenshots is ignored.
+   Replace the website images from these originals. The existing Macros image
+   was visually inspected and lacks Direct Send while showing old lock icons;
+   it is not accepted as a v1.1 screenshot. The other old images have not been
+   recertified for v1.1. Existing screenshot fixtures intentionally show one
+   incomplete transcript; assess that warning in the actual captures.
+7. Use T3 device_list, device_open and its returned agent-device command for
+   a short interactive pass. Open Direct Send, check destination controls and
+   invalid/empty configuration feedback without credentials or sign-in;
+   verify normal note and macro navigation. Save any broken behavior with a
+   screenshot. Capture/setup on a physical Watch remains a separate check.
+8. Update this record and the PR with actual results, then hand it back to Dan.
+
+Host-only tooling installed for this run: Ruby 3.3.6, Bundler 2.5.22 and the
+existing locked Fastlane 2.236.1 dependency set. The repository requests Ruby
+3.3.11; no Ruby version file, Gemfile or lockfile was changed. Ruby 2.6 initially
+could not parse newer test syntax; rerunning with Ruby 3.3.6 passed. Native gem
+setup initially lacked a working compiler/SDK path; local Xcode compiler links
+and SDKROOT resolved it. No new app dependency was added.
