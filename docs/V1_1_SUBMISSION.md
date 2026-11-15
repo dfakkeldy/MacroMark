@@ -114,10 +114,17 @@ checks before submission. This record does not claim submission readiness.
 
 ## Resume on a healthy Mac
 
-Keep this PR draft. Recheck current nightly and do not overwrite other work.
+Keep this PR draft until the checks below pass. Then mark it ready and land
+into nightly with the reviewed landing procedure. Recheck current nightly and
+do not overwrite other work.
 Use the three models from Snapfile: iPhone 17 Pro Max, iPhone 17e and
 iPad Pro 13-inch M5, in en-US. On a shared machine, create dedicated devices,
 select them explicitly and do not erase someone else's simulator.
+
+Run every Apple build and test below through
+`/Users/dfakkeldy/.claude/bin/xcode-build-slot.sh -- <command>`, including
+Swift package tests and Fastlane snapshot. The wrapper owns scheduling and
+resource admission.
 
 1. Check the dispatcher's capacity script and the number of xcodebuild
    processes before each Apple run. Use one Apple run at a time for this task.
@@ -147,7 +154,10 @@ select them explicitly and do not erase someone else's simulator.
    invalid/empty configuration feedback without credentials or sign-in;
    verify normal note and macro navigation. Save any broken behavior with a
    screenshot. Capture/setup on a physical Watch remains a separate check.
-8. Update this record and the PR with actual results, then hand it back to Dan.
+8. Update this record and the PR with actual results, complete independent
+   review, and land into nightly with `land_pr.py`. Record the result on the
+   preparation issue. Release binary choice, signed-device checks and Apple
+   submission remain Dan's steps.
 
 Host-only tooling installed for this run: Ruby 3.3.6, Bundler 2.5.22 and the
 existing locked Fastlane 2.236.1 dependency set. The repository requests Ruby
@@ -155,3 +165,41 @@ existing locked Fastlane 2.236.1 dependency set. The repository requests Ruby
 could not parse newer test syntax; rerunning with Ruby 3.3.6 passed. Native gem
 setup initially lacked a working compiler/SDK path; local Xcode compiler links
 and SDKROOT resolved it. No new app dependency was added.
+
+## Follow-up verification — November 15
+
+The branch already contains nightly `ef67296`; no merge conflicts required resolution.
+A fresh-context GPT-6-Astra reviewer found no blocking source/store-copy issue.
+The reviewer requested the build-wrapper and landing-instruction corrections above.
+
+On the follow-up Mac, Xcode 27.2 (27B52) with iOS Simulator 27.0 passed:
+- Simulator build-for-testing with signing disabled.
+- All 73 package tests and 13 iOS unit tests.
+- Screenshot UI execution on dedicated iPhone 17 Pro Max, iPhone 17e and
+  iPad Pro 13-inch (M5) simulators: 15 PNGs generated.
+- 22 Ruby automation tests, pinned Fastlane provisioning validation,
+  43 Python workflow/tooling tests, 14 documentation tests and diff whitespace checks.
+
+Every Apple run used the build-slot wrapper. Dan approved up to 10 GB of
+temporary output and the off-hours override. Temporary workspace output stayed
+below 1 GB at the measured checkpoints. The first Fastlane attempt incorrectly
+selected macOS because dedicated simulator names began with `Mac`; renaming
+them to `MM1161-*` fixed destination selection, and the complete rerun passed.
+
+**Still blocked; keep the PR draft:** visual inspection of the Pro Max set
+found a secure-settings read error on Direct Send and an inadequately framed
+Macros list. Passing navigation assertions did not detect these problems.
+The generated originals and dimensions/SHA256 manifest are retained as
+[unapproved evidence](verification/v1.1-unapproved/README.md), not release assets.
+Existing website screenshots have not been replaced or recertified.
+
+Interactive smoke also remains blocked: T3 could not open the dedicated
+simulator, including after the prescribed device-list refresh and retry.
+No alternate interactive control was used. No signing/release/workflow
+configuration was changed, and nothing was archived, uploaded or submitted.
+
+Agent work remains: resolve the screenshot environment/fixture and framing,
+review a clean image set, replace website images, complete interactive smoke
+on a discoverable dedicated device, then finish the review and landing gate.
+Dan-only release steps remain binary selection, signed-device checks, and
+App Store submission including final privacy answers.
