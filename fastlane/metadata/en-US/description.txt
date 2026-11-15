@@ -1,24 +1,26 @@
-MacroMark is a fast Apple Watch and iPhone capture tool for people who live in Markdown.
+Capture thoughts on Apple Watch and iPhone and keep them as Markdown daily notes.
 
-Tap your watch, speak or type, and MacroMark turns the thought into a plain-text daily note entry. Your captures append to date-based Markdown files in iCloud Drive, ready for Obsidian, Logseq, or any folder-based notes workflow.
+Tap the watch microphone to record, or use system dictation and keyboard input. On the default phone route, iPhone transcribes audio, expands your verbal macros and appends captures to dated Markdown files in iCloud Drive or a folder you choose. Open those files with Obsidian, Logseq or another Markdown app.
 
-Key features
-- Capture from Apple Watch with microphone or keyboard input
-- Save quickly when the moment passes, with the original capture timestamp preserved
-- Queue watch captures until iPhone processing and export are durable or safely retryable
-- Append notes to daily Markdown files instead of creating scattered one-off files
-- Use verbal macros to turn spoken triggers into Markdown formatting, dates, times, locations, and reusable text
-- Review daily notes by date from iPhone or Apple Watch
-- Keep your notes in plain text, in storage you control
+Direct Send in version 1.1
+After setup on iPhone, send watch text directly to a GitHub repository, an HTTPS webhook, or both. Your watch needs a network connection, but the phone does not need to be nearby. GitHub delivery runs while MacroMark is open on the watch. Direct Send preserves the captured text without expanding macros. Audio recordings always use the phone transcription route.
 
-How it works
-Start a capture from the app or watch complication. MacroMark records the thought, transfers it to the iPhone, expands any macros, and appends the result to the configured daily note. The workflow is designed for quick capture first: fewer taps, durable delivery, and Markdown output you can keep using anywhere.
+Check pending deliveries on the watch. Read replies that your own automation writes to GitHub reply files, with cached replies available offline. The Replies and deliveries complication opens the watch reply view. GitHub requires repository access, and webhooks require an endpoint you configure. MacroMark does not provide a bot or webhook service.
 
-MacroMark is for note-takers, writers, field workers, Obsidian and Logseq users, and anyone who wants quick thoughts to land in a real Markdown system instead of a closed notes silo.
+Capture and review
+- Append captures to daily Markdown files with the original capture timestamp
+- Keep watch captures queued until delivery is confirmed
+- Use built-in and custom verbal macros on the phone route for Markdown formatting and reusable text
+- Review daily notes by date on iPhone and Apple Watch
+- See export status and retry notes that need attention
+- Use capture and daily-log actions in Shortcuts
+- Choose timestamp formatting, separators and an export folder
 
-Questions or feedback? Use the support link on this App Store page.
+MacroMark is free. Capture, daily notes, custom macros, default-macro editing, folder settings and Direct Send do not require a purchase.
 
-MacroMark is free. Capture, daily-note append, unlimited custom macros, default macro editing, and folder customization do not require a purchase.
+No MacroMark account is needed. Apple speech recognition availability depends on device, language and network support. Optional Direct Send sends text to the providers you choose; their privacy policies apply.
+
+Questions or feedback? Use the support link on this page.
 
 Terms of Use: https://dfakkeldy.github.io/MacroMark/terms.html
 Privacy Policy: https://dfakkeldy.github.io/MacroMark/privacy.html

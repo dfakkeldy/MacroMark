@@ -34,6 +34,13 @@ final class MacroMarkScreenshotUITests: XCTestCase {
         captureScreenshot(named: "02-note-detail")
 
         switchToMacros()
+        let directSend = app.buttons["Direct Send"]
+        XCTAssertTrue(directSend.waitForExistence(timeout: 5))
+        directSend.tap()
+        XCTAssertTrue(app.navigationBars["Direct Send"].waitForExistence(timeout: 5))
+        captureScreenshot(named: "05-direct-send")
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+
         XCTAssertTrue(scrollToTextContaining("Standup"))
         captureScreenshot(named: "03-macros")
 

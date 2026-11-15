@@ -1,5 +1,11 @@
 # MacroMark App Store Readiness
 
+> v1.1 preparation, 2026-11-15: use [the current change and verification record](V1_1_SUBMISSION.md),
+> [Direct Send privacy worksheet](DIRECT_SEND_PRIVACY.md) and the updated
+> `fastlane/metadata/en-US/` copy. No upload or submission is authorized in this
+> preparation task. The 1.0 records and historical grants below do not change that scope.
+
+
 > **Status as of 2026-10-24: released.** MacroMark 1.0 is live on the App Store
 > ([listing](https://apps.apple.com/app/macromark/id6785081218)). The public
 > iTunes lookup for app `6785081218` returns version `1.0`, price `0` (free),

@@ -1,5 +1,11 @@
 # MacroMark prepared App Store packet
 
+> v1.1 preparation, 2026-11-15: use [the current change and verification record](V1_1_SUBMISSION.md),
+> [Direct Send privacy worksheet](DIRECT_SEND_PRIVACY.md) and the updated
+> `fastlane/metadata/en-US/` copy. No upload or submission is authorized in this
+> preparation task. The 1.0 records and historical grants below do not change that scope.
+
+
 Prepared: 2026-10-06 against nightly `80455834`. Draft fields for the intended
 v1 release, not proof of saved ASC metadata or accepted release. See
 [readiness](APP_STORE_READINESS.md) before using the packet.
@@ -20,7 +26,7 @@ Copy-ready text lives in `fastlane/metadata/en-US/`.
 | --- | --- |
 | Name / subtitle | MacroMark / Voice Capture for Markdown |
 | Categories / locale | Productivity, Utilities / en-US |
-| Keywords | `notes,dictation,watch,obsidian,logseq,daily,journal,memo,transcribe,vault,shortcut,inbox,quick` |
+| Keywords | `notes,dictation,watch,markdown,obsidian,logseq,daily,journal,github,webhook,shortcut,inbox` |
 | Marketing | https://dfakkeldy.github.io/MacroMark/ |
 | Support | https://dfakkeldy.github.io/MacroMark/#support |
 | Privacy | https://dfakkeldy.github.io/MacroMark/privacy.html |
@@ -29,9 +35,8 @@ Copy-ready text lives in `fastlane/metadata/en-US/`.
 
 URLs were reachable October 6. A public Terms page does not itself select an
 ASC EULA. Confirm the standard/custom license and content-rights declaration
-with the owner; do not adopt legal terms by implication. Existing release
-notes are prepared for future updates; ASC's first-version surface does not
-have What's New.
+with the owner; do not adopt legal terms by implication. The checked-in release notes now describe the 1.1 update. The first-release
+notes below are historical.
 
 ## App Review notes — paste after candidate verification
 
@@ -53,6 +58,13 @@ is requested for voice capture. Location is optional for location macros.
 MacroMark is free. Capture, daily-note append, unlimited custom macros,
 editing default macros and folder customization do not require a purchase.
 No paid product needs to be attached to this free launch.
+
+Version 1.1 also offers optional Direct Send in Macros > Direct Send. Configure
+GitHub repository access or an HTTPS webhook on iPhone, then send setup to the
+paired Watch. Text can go directly to those destinations. Audio still uses the
+phone. Direct text does not expand macros. Replies are files written by the
+user's own automation in the configured GitHub repository, not a MacroMark bot
+service. No provider credentials are included with the app.
 
 MacroMark uses local storage, the user's iCloud/document destination,
 WatchConnectivity, Apple Speech and StoreKit. It has no developer-operated
@@ -78,7 +90,7 @@ or simulator entitlement flags.
 
 | Surface | Source evidence | Pending |
 | --- | --- | --- |
-| App Privacy | All manifests: no tracking, empty collected-data arrays. No developer servers or ad/analytics SDKs found. User storage, optional location, Apple Speech and StoreKit used. | Map actual runtime to Apple's definition; empty manifests do not select Data Not Collected |
+| App Privacy | All manifests: no tracking, empty collected-data arrays. No developer servers or ad/analytics SDKs found. User storage, optional location, Apple Speech and StoreKit used. Optional Direct Send transmits text, UUID and capture time to GitHub/webhooks and reads GitHub replies. See DIRECT_SEND_PRIVACY.md. | Map actual runtime to Apple's definition; empty manifests do not select Data Not Collected |
 | Manifest | UserDefaults `CA92.1`; the unused file modification-date request was removed in `cc2cd9c` (no `contentModificationDateKey` in source) | Inspect the final archive's privacy report |
 | Permissions | Microphone, speech and When In Use location | Confirm denial behavior and purpose strings |
 | Accounts | No app account creation/login found | Account deletion appears inapplicable to this version; confirm no new account flow |
@@ -97,8 +109,8 @@ placement/coverage is a separate check from ASC privacy answers.
 
 | Asset | Existing state | Next capture |
 | --- | --- | --- |
-| iPhone | Published with 1.0: Inbox, Note detail, Macros, New Macro | Recapture only for changed 1.1 UI |
-| iPad | Published with 1.0: Inbox, Note detail, Macros, New Macro | Recapture only for changed 1.1 UI |
+| iPhone | Published with 1.0: Inbox, Note detail, Macros, New Macro | Recapture all three Snapfile device models for 1.1; see V1_1_SUBMISSION.md |
+| iPad | Published with 1.0: Inbox, Note detail, Macros, New Macro | Recapture all three Snapfile device models for 1.1; see V1_1_SUBMISSION.md |
 | Watch | Published with 1.0: one capture screenshot; no Watch Fastlane lane | Optional for 1.1: complication, daily-log review, saved/queued confirmation, Direct Send deliveries |
 | IAP review | Free launch | No new purchase review image is required for this launch |
 | Icons | iOS/Watch: 1024 × 1024 RGB PNGs, no alpha | Validate promoted archive; no new artwork required |

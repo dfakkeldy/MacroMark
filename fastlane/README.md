@@ -3,6 +3,12 @@
 This directory contains the `fastlane` configuration for automating screenshots,
 metadata, and App Store Connect deployments for MacroMark.
 
+## v1.1 preparation
+
+Current copy is in `metadata/en-US/`; changes and local verification are in
+[the v1.1 record](../docs/V1_1_SUBMISSION.md). Screenshot capture is local only.
+Do not use upload, release, deliver or pilot commands for a preparation task.
+
 ## Setup
 
 Use Bundler from the repository root so CI and local lanes run the same Fastlane version:
@@ -19,10 +25,9 @@ Local App Store Connect access uses a git-ignored `fastlane/api_key.json`. CI ca
 ### 1. App Store Optimization Metadata
 
 You can manage App Store metadata locally in `fastlane/metadata/en-US/`.
-Kickstart/App Store Connect refresh on 2026-07-01 reports an ASO score of
-89/100, with one `en-US` localization and these current keywords:
-`notes, dictation, watch, obsidian, logseq, daily, journal, memo, transcribe,
-vault, shortcut, inbox, quick`.
+The v1.1 draft uses one `en-US` localization. Keywords include Markdown,
+GitHub and webhook alongside capture and daily-note terms. The checked-in
+files are preparation, not a readback of saved App Store Connect metadata.
 
 Upload metadata without a binary or screenshots with:
 
