@@ -2,6 +2,14 @@
 
 Prepared 2026-11-15. This is a preparation record, not an Apple submission or release receipt.
 
+**Current M4 status:** fixture and framing corrections compile; iPhone 17e and
+iPhone 17 Pro Max and iPad Pro 13-inch M5 screenshot tests passed. All 15
+images were inspected. Interactive smoke ran on the 17e: normal unsigned
+Direct Send fails its Keychain read; fixture-mode navigation and validation
+pass. Website iPhone images now use the inspected Pro Max set. See
+[current evidence](verification/v1.1-m4/README.md). Earlier blocked attempts
+below are retained as history. Keep the PR draft: **Needs landing from the Mac**.
+
 ## Changes since 1.0
 
 Written before changing listing copy or assets. GitHub returned no tags and no
@@ -276,3 +284,19 @@ Interactive results distinguish the normal unsigned Keychain failure from
 successful fixture-mode navigation and validation. See the per-step observations,
 original images and hashes in [M4 evidence](verification/v1.1-m4/README.md).
 No physical-device, real Keychain persistence or Watch transfer success is claimed.
+
+### Final M4 capture and review
+
+All three exact Snapfile models passed the screenshot test on the corrected
+source. All 15 retained PNGs were inspected; Direct Send has no secure-settings
+warning and the complete macro list fits. The website now uses resized Pro Max
+captures. Final source/evidence review round 3 found no blockers; three review
+rounds total. The 14 documentation tests, metadata limits and diff check pass.
+Current origin/nightly remains fully included; no merge was needed.
+
+The interactive smoke result is partial: normal unsigned Direct Send fails at
+Keychain loading. Fixture-mode navigation, controls and invalid-input feedback
+pass. Real persistence, Watch transfer and delivery remain signed-device checks.
+The Mac must land the draft through land_pr.py after its required checks pass.
+Dan-only work remains release binary choice, signed-device checks, and submission
+with final privacy answers. No release, signing or workflow settings changed.
