@@ -46,6 +46,7 @@ final class MacroMarkScreenshotUITests: XCTestCase {
         app.navigationBars.buttons.element(boundBy: 0).tap()
 
         XCTAssertTrue(scrollToTextContaining("Capture Idea"))
+        frameMacroList()
         captureScreenshot(named: "03-macros")
 
         app.buttons["Add"].tap()
@@ -97,6 +98,25 @@ final class MacroMarkScreenshotUITests: XCTestCase {
         }
 
         return false
+    }
+
+    private func frameMacroList() {
+        let lastDescription = app.staticTexts["Inserts the capture location when location access is available."]
+        XCTAssertTrue(lastDescription.waitForExistence(timeout: 5))
+        let tabBar = app.tabBars.firstMatch
+        // iPad tabs can be at the top; only bottom tabs obscure the list's end.
+        let bottom = tabBar.exists && tabBar.frame.minY > app.frame.midY
+            ? tabBar.frame.minY - 16 : app.frame.maxY - 32
+        for _ in 0..<4 {
+            let overflow = lastDescription.frame.maxY - bottom
+            if overflow <= 0 { break }
+            // A short drag avoids flinging the first custom macro offscreen.
+            let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.7))
+            let end = start.withOffset(CGVector(dx: 0, dy: -min(overflow + 20, 100)))
+            start.press(forDuration: 0.1, thenDragTo: end)
+        }
+        XCTAssertLessThanOrEqual(lastDescription.frame.maxY, bottom)
+        XCTAssertGreaterThan(app.staticTexts["Standup"].frame.minY, app.navigationBars.firstMatch.frame.maxY)
     }
 
     private func scrollToTextContaining(_ text: String, attempts: Int = 4) -> Bool {

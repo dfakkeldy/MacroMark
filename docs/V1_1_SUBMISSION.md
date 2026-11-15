@@ -255,3 +255,24 @@ complete interactive smoke and hand back to the Mac landing owner. The host's
 one-boot rule and two-job cap also need coordination before multiple screenshot
 models run. Dan-only release steps remain binary choice, signed-device checks,
 and submission with final privacy answers.
+
+### Authorized runner boot and interactive follow-up
+
+The dispatcher subsequently authorized the project's test runner to boot the
+owned iPhone 17e once. After that first boot, T3 discovered it and interactive
+work could proceed through device_open and its returned agent-device command.
+Dan explicitly approved completing and shutting down screenshot models one at
+a time, with no repeated boot or erase. The initial discovery block above is
+therefore historical, not the current smoke result.
+
+The iPhone 17e screenshot test passed, and visual inspection led to one further
+short-drag framing correction so the final macro description clears the tab
+bar. Its rerun passed. Fresh-context review round 2 accepted the 17e images
+and found an iPad top-tab boundary assumption; that test-only correction is
+implemented and the final unsigned build-for-testing passed. Pro Max and iPad
+execution remain pending at this checkpoint.
+
+Interactive results distinguish the normal unsigned Keychain failure from
+successful fixture-mode navigation and validation. See the per-step observations,
+original images and hashes in [M4 evidence](verification/v1.1-m4/README.md).
+No physical-device, real Keychain persistence or Watch transfer success is claimed.
