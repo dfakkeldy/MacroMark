@@ -1,5 +1,11 @@
 # App Store Connect submission checklist
 
+> v1.1 preparation, 2026-11-15: use [the current change and verification record](V1_1_SUBMISSION.md),
+> [Direct Send privacy worksheet](DIRECT_SEND_PRIVACY.md) and the updated
+> `fastlane/metadata/en-US/` copy. No upload or submission is authorized in this
+> preparation task. The 1.0 records and historical grants below do not change that scope.
+
+
 > Status as of 2026-10-24: 1.0 was submitted, approved and released on
 > 2026-10-23 (public App Store lookup). The unchecked boxes below were not
 > updated item by item; they are the October 14 record. Reuse this list for 1.1.

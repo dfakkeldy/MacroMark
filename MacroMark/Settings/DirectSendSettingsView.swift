@@ -101,6 +101,11 @@ struct DirectSendSettingsView: View {
     private func load() {
         guard !loaded else { return }
         defer { loaded = true }
+#if DEBUG
+        // Screenshots show a fresh setup, independent of simulator Keychain
+        // entitlements or credentials left by another test launch.
+        if CommandLine.arguments.contains(ScreenshotMode.launchArgument) { return }
+#endif
         do {
             guard let configuration = try DirectSendSettingsStore().current() else { return }
             savedID = configuration.id
@@ -145,6 +150,14 @@ struct DirectSendSettingsView: View {
                 }
                 webhook = WebhookDestination(url: url, headers: values)
             }
+#if DEBUG
+            if CommandLine.arguments.contains(ScreenshotMode.launchArgument) {
+                // Exercise real validation, but never persist or transfer fixture setup.
+                try DirectSendConfiguration(mode: mode, github: github, webhook: webhook).validate()
+                status = "Screenshot mode does not save or send setup."
+                return
+            }
+#endif
             let configuration = try settings.makeConfiguration(mode: mode, github: github, webhook: webhook)
             try settings.save(configuration)
             savedID = configuration.id
