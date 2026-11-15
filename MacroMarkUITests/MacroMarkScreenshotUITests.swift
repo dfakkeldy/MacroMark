@@ -38,10 +38,14 @@ final class MacroMarkScreenshotUITests: XCTestCase {
         XCTAssertTrue(directSend.waitForExistence(timeout: 5))
         directSend.tap()
         XCTAssertTrue(app.navigationBars["Direct Send"].waitForExistence(timeout: 5))
+        let saveSetup = app.buttons["Save and send setup to watch"]
+        XCTAssertTrue(saveSetup.waitForExistence(timeout: 5))
+        XCTAssertTrue(saveSetup.isEnabled, "Screenshot fixture must load without a secure-settings error")
+        XCTAssertFalse(app.staticTexts["Secure settings could not be read. Unlock your iPhone and reopen this screen."].exists)
         captureScreenshot(named: "05-direct-send")
         app.navigationBars.buttons.element(boundBy: 0).tap()
 
-        XCTAssertTrue(scrollToTextContaining("Standup"))
+        XCTAssertTrue(scrollToTextContaining("Capture Idea"))
         captureScreenshot(named: "03-macros")
 
         app.buttons["Add"].tap()
@@ -100,7 +104,8 @@ final class MacroMarkScreenshotUITests: XCTestCase {
         let matchingText = app.staticTexts.matching(predicate).firstMatch
 
         for _ in 0...attempts {
-            if matchingText.waitForExistence(timeout: 1) {
+            if matchingText.waitForExistence(timeout: 1), matchingText.isHittable,
+               matchingText.frame.maxY < app.frame.maxY - 120 {
                 return true
             }
             app.swipeUp()

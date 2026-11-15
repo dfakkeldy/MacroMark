@@ -114,17 +114,20 @@ checks before submission. This record does not claim submission readiness.
 
 ## Resume on a healthy Mac
 
-Keep this PR draft until the checks below pass. Then mark it ready and land
-into nightly with the reviewed landing procedure. Recheck current nightly and
-do not overwrite other work.
+Keep this PR draft. Needs landing from the Mac after the checks below pass;
+the rented host only updates the draft. Recheck current nightly and do not
+overwrite other work.
 Use the three models from Snapfile: iPhone 17 Pro Max, iPhone 17e and
 iPad Pro 13-inch M5, in en-US. On a shared machine, create dedicated devices,
 select them explicitly and do not erase someone else's simulator.
 
-Run every Apple build and test below through
+On Dan's Mac, run every Apple build and test below through
 `/Users/dfakkeldy/.claude/bin/xcode-build-slot.sh -- <command>`, including
 Swift package tests and Fastlane snapshot. The wrapper owns scheduling and
-resource admission.
+resource admission. That wrapper does not exist on mmm-m4. On that host,
+run the dispatcher's capacity check before each build, wait while unhealthy,
+and run only one Apple build at a time. Preserve the host's simulator ownership,
+two-job limit and one-boot rule. Do not use Snapfile's default erase behavior.
 
 1. Check the dispatcher's capacity script and the number of xcodebuild
    processes before each Apple run. Use one Apple run at a time for this task.
@@ -155,7 +158,7 @@ resource admission.
    verify normal note and macro navigation. Save any broken behavior with a
    screenshot. Capture/setup on a physical Watch remains a separate check.
 8. Update this record and the PR with actual results, complete independent
-   review, and land into nightly with `land_pr.py`. Record the result on the
+   review, and hand back for landing on the Mac with `land_pr.py`. Record the result on the
    preparation issue. Release binary choice, signed-device checks and Apple
    submission remain Dan's steps.
 
@@ -203,3 +206,52 @@ review a clean image set, replace website images, complete interactive smoke
 on a discoverable dedicated device, then finish the review and landing gate.
 Dan-only release steps remain binary selection, signed-device checks, and
 App Store submission including final privacy answers.
+
+## M4 follow-up — November 15
+
+Needs landing from the Mac. PR #153 remains a draft; no merge is authorized
+on this rented host. The branch already includes current nightly `ef67296`.
+
+The previous captures expose two fixture/test problems: Direct Send reads the
+real Keychain in an unsigned screenshot launch, and the macro scroll helper
+accepts accessibility-tree existence even when the row is below the viewport.
+The Debug-only explicit `--screenshot-mode` launch now shows empty Direct Send
+setup without reading credentials. It still uses real configuration validation,
+but cannot save or transfer setup. Normal launches and Release retain the
+original Keychain behavior. The screenshot test rejects a disabled Save button
+or secure-settings error and scrolls to visible custom macro text.
+
+Fresh-context GPT-6-Astra reviewer `review_screenshot_fix` found no blocking
+source or store-copy issue in one round. The reviewer emphasized that visible
+text alone does not prove acceptable framing; all new images still need review.
+The 14 documentation tests and whitespace check pass. No new screenshot is
+approved, and existing website images remain unchanged.
+
+Final unsigned simulator `build-for-testing` passed on Xcode 27.2 with
+`-scheme MacroMark -configuration Debug -destination 'generic/platform=iOS Simulator'
+CODE_SIGNING_ALLOWED=NO`. Both builds started after a healthy dispatcher check
+with no other xcodebuild process. Temporary output peaked at the measured
+882 MB checkpoint and was removed after verification. This is compilation
+evidence, not UI test execution; the new assertions have not run on a simulator.
+
+Interactive smoke could not start. T3 listed only the devices owned by #1125
+and #1015. The unused iPhone 17e existed in CoreSimulator, but `device_open`
+returned `No device A63B1B5C-6EA5-458E-B378-BDF264BBB1C6 on 'This machine'
+(hostId local). Call device_list for current ids.` After waiting 60 seconds,
+refreshing discovery and retrying once, the same error occurred. No alternate
+device control was used, and this task booted, erased or shut down no device.
+
+| Smoke step | Observation |
+| --- | --- |
+| Open app on own iPhone | Not observable here: device_open failed twice as above |
+| Open Direct Send and inspect destination controls | Not observable here: app could not be launched through device tools |
+| Empty and invalid configuration feedback without credentials | Not observable here: same device-tool error |
+| Note list and detail navigation | Not observable here: same device-tool error |
+| Macro list and editor navigation | Not observable here: same device-tool error |
+
+Agent work remains: restore dedicated-device discovery, execute the screenshot
+test on all three Snapfile models, inspect every image, replace website assets,
+complete interactive smoke and hand back to the Mac landing owner. The host's
+one-boot rule and two-job cap also need coordination before multiple screenshot
+models run. Dan-only release steps remain binary choice, signed-device checks,
+and submission with final privacy answers.
