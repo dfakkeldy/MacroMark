@@ -300,3 +300,15 @@ pass. Real persistence, Watch transfer and delivery remain signed-device checks.
 The Mac must land the draft through land_pr.py after its required checks pass.
 Dan-only work remains release binary choice, signed-device checks, and submission
 with final privacy answers. No release, signing or workflow settings changed.
+
+### Host-observed startup correction
+
+After handback, the host owner reported that the first 17e startup included a
+shutdown at 17:46:52 UTC and restart by 17:47:59 UTC (7.5-minute load spike).
+This supersedes our earlier claim that every model booted once. We requested
+one initial startup through xcodebuild test-without-building, with no erase or
+clone options; the Fastlane lane was not invoked. The intermediate restart
+cause is not established. The interactive device session was closed before the
+17e final shutdown; the later model test runners completed before shutdown.
+Screenshot and smoke observations are unchanged. All model work was already
+complete when the host report arrived, so no additional boots were attempted.

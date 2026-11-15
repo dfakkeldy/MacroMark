@@ -12,7 +12,7 @@ The project screenshot test runs through xcodebuild test-without-building, with 
 
 ## Interactive smoke on iPhone 17e
 
-All actions used T3 device_open and its returned agent-device command. The device became discoverable after the authorized project runner booted it. It was booted once; after its checks, the session was closed and device_close shut it down under Dan's explicit sequential-model approval. No automatic erase/shutdown script ran.
+All actions used T3 device_open and its returned agent-device command. The device became discoverable after the authorized project runner booted it. After its checks, the session was closed and device_close shut it down under Dan's explicit sequential-model approval. The host owner subsequently reported that its initial startup included a shutdown at 17:46:52 UTC and restart by 17:47:59 UTC, extending the load spike to 7.5 minutes. This corrects the earlier claim that it booted only once. The initiating command was the project's xcodebuild test runner, not the Fastlane lane; the cause of the intermediate restart is not established.
 
 | Step | Observation |
 | --- | --- |
@@ -55,9 +55,12 @@ locale is en-US / en_US; preserve originals before cleanup.
 
 ## Host cleanup
 
-Each model booted once and stayed booted through its checks. The 17e session
-was closed before shutdown; all three final shutdowns used device_close under
-the explicit sequential-model approval. No runner erased or shut down a device.
+One initial boot was requested per model, but the host observed an intermediate
+17e shutdown/restart as recorded above. No explicit erase or restart command was
+issued; no Fastlane lane was invoked. The 17e session was closed before its final
+shutdown; all three final shutdowns used device_close under the explicit
+sequential-model approval. The Pro Max and iPad project test runners finished
+before their final shutdowns. No further boots are planned.
 The temporary Pro Max instance was deleted after shutdown; pre-existing devices
 were retained. Retained build/results measured about 895 MB before cleanup.
 Temporary DerivedData, full result bundles, logs and our Fastlane cache files
