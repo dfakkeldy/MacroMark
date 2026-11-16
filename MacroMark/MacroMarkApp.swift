@@ -214,6 +214,13 @@ struct MacroMarkApp: App {
             if let task = handleIncomingNote(id: id, text: item.text, timestamp: item.timestamp, container: container) { tasks.append(task) }
         }
         for (id, item) in audioItems {
+            // Launch replay bypasses handleIncomingAudio. A failed cleanup can
+            // leave a WAL row after confirmed export; never transcribe it again.
+            if processedNoteIDs.contains(id) {
+                removePendingAudio(id: id)
+                acknowledgeFileIfDurable(id: id)
+                continue
+            }
             let url = captureRuntime.pendingAudioDirectory.appendingPathComponent(item.filename)
             // If the audio file is gone we can't recover it; drop the dangling entry.
             guard FileManager.default.fileExists(atPath: url.path) else {
