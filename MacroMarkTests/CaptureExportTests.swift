@@ -7,6 +7,47 @@ import MacroMarkKit
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct CaptureExportTests {
+    @Test(arguments: [true, false])
+    func processedAudioLaunchReplayOnlyCleansUp(fileExists: Bool) async throws {
+        let sink = HeldCaptureAppend(holdingCall: nil)
+        let fixture = try CaptureExportFixture(sink: sink)
+        defer { fixture.cleanup() }
+        let id = UUID()
+        let timestamp = Date(timeIntervalSince1970: 1_780_000_000)
+        let incoming = fixture.directory.appendingPathComponent("input.m4a")
+        try Data("original recording".utf8).write(to: incoming)
+        let initial = try #require(fixture.app.handleIncomingAudio(
+            id: id, url: incoming, timestamp: timestamp, container: fixture.container))
+        await initial.value
+        try fixture.verifyCompleted(id: id)
+        let appendCount = sink.calls.count
+        let transcriptionCount = fixture.transcriptionCount
+        let acknowledgementCount = fixture.acknowledgedFiles.count
+
+        // Recreate the stale input WAL left by a failed cleanup after export.
+        let filename = "\(id.uuidString).m4a"
+        let durableURL = fixture.runtime.pendingAudioDirectory.appendingPathComponent(filename)
+        if fileExists { try Data("original recording".utf8).write(to: durableURL) }
+        struct StaleAudio: Encodable {
+            let filename: String
+            let timestamp: Date
+        }
+        fixture.defaults.set(try JSONEncoder().encode([
+            id.uuidString: StaleAudio(filename: filename, timestamp: timestamp)
+        ]), forKey: UserDefaultsKey.pendingAudioIn.rawValue)
+        // Reload the deduplication record as a new app process would.
+        fixture.runtime.cachedProcessedIDs = nil
+        fixture.runtime.cachedProcessedIDOrder = nil
+
+        for task in fixture.app.reprocessPendingItems(container: fixture.container) { await task.value }
+
+        #expect(fixture.transcriptionCount == transcriptionCount)
+        #expect(sink.calls.count == appendCount)
+        #expect(fixture.acknowledgedFiles.count == acknowledgementCount + 1)
+        #expect(!FileManager.default.fileExists(atPath: durableURL.path))
+        try fixture.verifyCompleted(id: id)
+    }
+
     @Test
     func initialAppendExcludesRetryForTheSameCapture() async throws {
         let sink = HeldCaptureAppend(holdingCall: 1)
